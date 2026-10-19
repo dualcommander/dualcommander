@@ -1,0 +1,118 @@
+name: Build and release
+
+on:
+  push:
+    branches: ['**']
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - run: make check
+
+  build:
+    needs: check
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-22.04
+            os: linux
+            arch: amd64
+          - runner: macos-14
+            os: darwin
+            arch: arm64
+          - runner: macos-15-intel
+            os: darwin
+            arch: amd64
+          - runner: windows-latest
+            os: windows
+            arch: amd64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Install Linux development libraries
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y gcc libgl1-mesa-dev xorg-dev libxkbcommon-dev
+      - name: Install Windows C compiler
+        if: runner.os == 'Windows'
+        uses: msys2/setup-msys2@v2
+        with:
+          install: mingw-w64-x86_64-gcc
+          update: true
+      - name: Configure Windows C compiler
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: '"C:\msys64\mingw64\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append'
+      - name: Install packager
+        run: go install fyne.io/tools/cmd/fyne@v1.7.3
+      - name: Check native OS workflows
+        shell: bash
+        run: |
+          go vet -tags ci ./...
+          go test -tags ci -race -count=1 ./...
+      - name: Package native app
+        working-directory: cmd/dualcommander
+        shell: bash
+        run: |
+          version=$(sh ../../scripts/version.sh)
+          native_version=${version%%[-+]*}
+          export GOFLAGS="-ldflags=-X=github.com/dualcommander/dualcommander/internal/commander.buildVersion=$version"
+          fyne package -os ${{ matrix.os }} -release -app-version "$native_version"
+      - name: Archive macOS app
+        if: runner.os == 'macOS'
+        run: |
+          mkdir -p dist
+          ditto -c -k --sequesterRsrc --keepParent cmd/dualcommander/DualCommander.app dist/dualcommander-darwin-${{ matrix.arch }}.zip
+      - name: Archive Linux package
+        if: runner.os == 'Linux'
+        run: |
+          mkdir -p dist
+          cp cmd/dualcommander/DualCommander.tar.xz dist/dualcommander-linux-${{ matrix.arch }}.tar.xz
+      - name: Archive Windows app
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force dist
+          Compress-Archive -Path cmd/dualcommander/DualCommander.exe -DestinationPath dist/dualcommander-windows-${{ matrix.arch }}.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dualcommander-${{ matrix.os }}-${{ matrix.arch }}
+          path: dist/*
+          if-no-files-found: error
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: dualcommander-*
+          path: dist
+          merge-multiple: true
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          gh release view "$RELEASE_TAG" >/dev/null 2>&1 || gh release create "$RELEASE_TAG" --verify-tag --generate-notes
+          gh release upload "$RELEASE_TAG" dist/* --clobber

@@ -1,0 +1,6 @@
+[Details]
+Icon = "../../assets/dualcommander.png"
+Name = "DualCommander"
+ID = "io.github.typekpb.gommander"
+Version = "0.1.0"
+Build = 1
