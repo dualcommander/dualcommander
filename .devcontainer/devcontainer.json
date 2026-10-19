@@ -13,9 +13,13 @@
   "privileged": false,
   "capAdd": [],
   "runArgs": ["--cap-drop=ALL", "--security-opt=no-new-privileges:true"],
-  "mounts": [],
+  "initializeCommand": ["python3", "${localWorkspaceFolder}/.devcontainer/cline-profile.py"],
+  "mounts": [
+    "source=${localEnv:HOME}/.cline/devcontainer-profiles/dualcommander,target=/opt/cline-profile,type=bind,readonly"
+  ],
   "forwardPorts": [],
   "containerEnv": {
+    "CLINE_DATA_DIR": "/home/developer/.cline/data",
     "SSH_AUTH_SOCK": "",
     "GIT_CONFIG_NOSYSTEM": "1",
     "GIT_CONFIG_GLOBAL": "/dev/null",
@@ -44,5 +48,5 @@
       }
     }
   },
-  "postCreateCommand": "sh .devcontainer/verify.sh"
+  "postCreateCommand": "sh .devcontainer/verify.sh && python3 .devcontainer/cline-profile.py --seed"
 }
