@@ -333,18 +333,32 @@ func TestSearchCmd(t *testing.T) {
 // Runs the real native tool(s) present on this machine.
 func TestRunSearchNative(t *testing.T) {
 	root := fixture(t)
+	checkResult := func(got []string, want string) {
+		t.Helper()
+		if len(got) != 1 {
+			t.Fatalf("got %q, want one result for %q", got, want)
+		}
+		actual, err := os.Stat(got[0])
+		if err != nil {
+			t.Fatal(err)
+		}
+		expected, err := os.Stat(want)
+		if err != nil {
+			t.Fatal(err)
+		}
+		// Native Windows tools may expand short paths or change their casing.
+		if !os.SameFile(actual, expected) {
+			t.Errorf("got %q, want same file as %q", got[0], want)
+		}
+	}
 	_, rgErr := exec.LookPath("rg")
 	for _, rg := range []bool{false, rgErr == nil} {
 		var got []string
 		runSearch(context.Background(), searchCmd(runtime.GOOS, rg, root, "HELLO", ""), func(b []string) { got = append(got, b...) })
-		if !slices.Equal(got, []string{filepath.Join(root, "src", "readme.md")}) {
-			t.Errorf("rg=%v text: %v", rg, got)
-		}
+		checkResult(got, filepath.Join(root, "src", "readme.md"))
 		got = nil
 		runSearch(context.Background(), searchCmd(runtime.GOOS, rg, root, "", "*.PNG"), func(b []string) { got = append(got, b...) })
-		if !slices.Equal(got, []string{filepath.Join(root, "src", "photos", "a.png")}) {
-			t.Errorf("rg=%v name: %v", rg, got)
-		}
+		checkResult(got, filepath.Join(root, "src", "photos", "a.png"))
 	}
 }
 
