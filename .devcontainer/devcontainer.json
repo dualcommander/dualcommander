@@ -1,0 +1,48 @@
+{
+  "name": "DualCommander sandbox",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": "."
+  },
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspaces/dualcommander,type=bind",
+  "workspaceFolder": "/workspaces/dualcommander",
+  "containerUser": "developer",
+  "remoteUser": "developer",
+  "updateRemoteUserUID": true,
+  "userEnvProbe": "none",
+  "privileged": false,
+  "capAdd": [],
+  "runArgs": ["--cap-drop=ALL", "--security-opt=no-new-privileges:true"],
+  "mounts": [],
+  "forwardPorts": [],
+  "containerEnv": {
+    "SSH_AUTH_SOCK": "",
+    "GIT_CONFIG_NOSYSTEM": "1",
+    "GIT_CONFIG_GLOBAL": "/dev/null",
+    "GIT_CONFIG_COUNT": "2",
+    "GIT_CONFIG_KEY_0": "credential.helper",
+    "GIT_CONFIG_VALUE_0": "",
+    "GIT_CONFIG_KEY_1": "safe.directory",
+    "GIT_CONFIG_VALUE_1": "/workspaces/dualcommander",
+    "GIT_TERMINAL_PROMPT": "0"
+  },
+  "remoteEnv": {
+    "SSH_AUTH_SOCK": "",
+    "DISPLAY": "",
+    "WAYLAND_DISPLAY": ""
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": ["saoudrizwan.claude-dev"],
+      "settings": {
+        "remote.extensionKind": {
+          "saoudrizwan.claude-dev": ["workspace"]
+        },
+        "remote.autoForwardPorts": false,
+        "git.terminalAuthentication": false,
+        "git.useIntegratedAskPass": false
+      }
+    }
+  },
+  "postCreateCommand": "sh .devcontainer/verify.sh"
+}

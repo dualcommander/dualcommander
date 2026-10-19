@@ -1,0 +1,14 @@
+#!/bin/sh
+# Cline hook: after any file-editing tool touches Go/testdata, run scripts/check.sh
+# and push result into agent context; failure = agent sees errors immediately.
+input=$(cat)
+echo "$input" | grep -qE '"(write_to_file|replace_in_file|editor|apply_patch|create_new_file|new_rule)"' || { echo '{"cancel":false}'; exit 0; }
+echo "$input" | grep -qE '"(path|pathInProject)" *: *"[^"]*(\.go|go\.mod|go\.sum|testdata[^"]*)"' || { echo '{"cancel":false}'; exit 0; }
+root=$(git -C "$(dirname "$0")" rev-parse --show-toplevel)
+if out=$(sh "$root/scripts/check.sh" 2>&1); then
+  msg="check.sh PASSED"
+else
+  msg="check.sh FAILED - fix before continuing (skill test-every-change):
+$(printf '%s' "$out" | tail -40)"
+fi
+printf '%s' "$msg" | python3 -c 'import json,sys; print(json.dumps({"cancel": False, "contextModification": sys.stdin.read()}))'
