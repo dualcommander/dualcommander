@@ -113,7 +113,7 @@ func TestArchiveFailureAndStaleNavigation(t *testing.T) {
 	}
 }
 
-func TestArchiveRenderGolden(t *testing.T) {
+func TestArchiveUIContent(t *testing.T) {
 	root := fixture(t)
 	name := archiveFixture(t, root)
 	u := newTestUI(t, test.NewTempApp(t), filepath.Join(root, "src"), root)
@@ -127,10 +127,9 @@ func TestArchiveRenderGolden(t *testing.T) {
 	w := test.NewWindow(u.left.body)
 	defer w.Close()
 	w.Resize(fyne.NewSize(480, 180))
-	golden := iconGolden("archive_folder.png")
-	if !assertNativeRender(t, golden, w.Canvas()) && os.Getenv("UPDATE_GOLDEN") != "" {
-		if err := os.Rename(filepath.Join("testdata", "failed", golden), filepath.Join("testdata", golden)); err != nil {
-			t.Fatal(err)
-		}
+	assertUIText(t, w.Content(), "..", "readme.txt", "16 B", "-rw-r--r--")
+	assertPaneRows(t, u.left)
+	if u.left.current().name != "readme.txt" || !u.left.favourite.Disabled() {
+		t.Fatal("archive cursor or read-only favourite state incorrect")
 	}
 }

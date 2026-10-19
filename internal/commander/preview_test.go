@@ -14,6 +14,7 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/test"
+	"fyne.io/fyne/v2/widget"
 )
 
 func previewFixture(t *testing.T) []byte {
@@ -155,12 +156,13 @@ func TestFilePreviewRows(t *testing.T) {
 	w := test.NewWindow(u.left.body)
 	defer w.Close()
 	w.Resize(fyne.NewSize(480, 280))
-	golden := iconGolden("file_preview.png")
-	if !assertNativeRender(t, golden, w.Canvas()) && os.Getenv("UPDATE_GOLDEN") != "" {
-		if err := os.Rename(filepath.Join("testdata", "failed", golden), filepath.Join("testdata", golden)); err != nil {
-			t.Fatal(err)
+	assertPaneRows(t, u.left)
+	for _, o := range test.LaidOutObjects(w.Content()) {
+		if icon, ok := o.(*widget.Icon); ok && icon.Resource != nil && bytes.Equal(icon.Resource.Content(), data) {
+			return
 		}
 	}
+	t.Fatal("loaded preview missing from laid-out row")
 }
 
 func TestFilePreviewStaleAndFallback(t *testing.T) {

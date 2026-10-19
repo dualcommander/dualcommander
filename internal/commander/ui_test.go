@@ -57,9 +57,8 @@ func TestExternalCommandsSettings(t *testing.T) {
 	terminal := `["custom-terminal","--directory","{dir}"]`
 	entries[0].SetText(reveal)
 	entries[1].SetText(terminal)
-	golden := iconGolden("settings_commands.png")
-	if !assertNativeRender(t, golden, w.Canvas()) && os.Getenv("UPDATE_GOLDEN") != "" {
-		os.Rename(filepath.Join("testdata", "failed", golden), filepath.Join("testdata", golden))
+	if entries[0].Text != reveal || entries[1].Text != terminal || a.Preferences().String(prefRevealCmd) != reveal || a.Preferences().String(prefTerminalCmd) != terminal {
+		t.Fatal("command fields or saved values differ from input")
 	}
 	entries[0].SetText("invalid")
 	if entries[0].Validate() == nil || a.Preferences().String(prefRevealCmd) != reveal {
@@ -200,10 +199,6 @@ func TestAppBranding(t *testing.T) {
 	}
 	if !strings.Contains(text, "Copy, move, and organize") || strings.Contains(text, "Fyne") || strings.Contains(text, "Built with") {
 		t.Fatalf("About should describe user benefits, not implementation: %s", text)
-	}
-	golden := iconGolden("about.png")
-	if !assertNativeRender(t, golden, w.Canvas()) && os.Getenv("UPDATE_GOLDEN") != "" {
-		os.Rename(filepath.Join("testdata", "failed", golden), filepath.Join("testdata", golden))
 	}
 	buildVersion = "2.4.0"
 	u.about()
@@ -371,9 +366,12 @@ func TestFunctionKeyBar(t *testing.T) {
 	w := test.NewWindow(bar)
 	defer w.Close()
 	w.Resize(fyne.NewSize(900, 50))
-	golden := "function_key_bar.png"
-	if !assertNativeRender(t, golden, w.Canvas()) && os.Getenv("UPDATE_GOLDEN") != "" {
-		os.Rename(filepath.Join("testdata", "failed", golden), filepath.Join("testdata", golden))
+	assertUIText(t, w.Content(), labels...)
+	for _, object := range bar.Objects {
+		button := object.(*widget.Button)
+		if button.Disabled() || button.OnTapped == nil || button.Size().Width <= 0 {
+			t.Errorf("function button %q unavailable", button.Text)
+		}
 	}
 }
 
@@ -692,9 +690,7 @@ func TestMissingSavedPathFallsBackHome(t *testing.T) {
 	}
 }
 
-// Visual regression vs golden PNGs in testdata/. On intended UI change: review
-// testdata/failed/*.png, then `UPDATE_GOLDEN=1 go test ./...` copies them over.
-func TestRenderGolden(t *testing.T) {
+func TestPaneUIContent(t *testing.T) {
 	root := fixture(t)
 	// Permissions must not depend on umask; parent metadata must not depend on tmp directory creation.
 	for _, name := range []string{"docs", "photos", "app.zip", "readme.md", "song.mp3"} {
@@ -757,12 +753,25 @@ func TestRenderGolden(t *testing.T) {
 			if tc.name == "brief_two_columns" || tc.name == "brief_partial_column" || tc.name == "brief_long_names" {
 				w.Resize(fyne.NewSize(800, tc.height))
 				if got := u.left.cols(); got != 2 {
-					t.Fatalf("visual needs two columns, got %d", got)
+					t.Fatalf("expected two columns, got %d", got)
 				}
 			}
-			golden := iconGolden("pane_" + tc.name + ".png")
-			if !assertNativeRender(t, golden, w.Canvas()) && os.Getenv("UPDATE_GOLDEN") != "" {
-				os.Rename(filepath.Join("testdata", "failed", golden), filepath.Join("testdata", golden))
+			assertPaneRows(t, u.left)
+			assertUIText(t, w.Content(), names(u.left)...)
+			switch tc.name {
+			case "details_footer":
+				assertUIText(t, w.Content(), "Selected: 9 B of 9 B · Files: 3 of 3 · Folders: 2 of 2", "F5 Copy", "F8 Delete")
+			case "cursor_footer":
+				info, err := os.Stat(filepath.Join(root, "src", "readme.md"))
+				if err != nil {
+					t.Fatal(err)
+				}
+				assertUIText(t, w.Content(), "readme.md · "+info.Mode().String()+" · 5 B · 2024-01-02 03:04", "F5 Copy")
+			case "search_footer":
+				assertUIText(t, w.Content(), "Search: read", "F5 Copy")
+				if u.left.current().name != "readme.md" {
+					t.Fatal("search did not select matching row")
+				}
 			}
 		})
 	}

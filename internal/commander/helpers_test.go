@@ -4,9 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
-	"runtime"
 	"slices"
-	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -17,14 +15,72 @@ import (
 	"github.com/dualcommander/dualcommander/pkg/fsops"
 )
 
-// ponytail: golden baselines use macOS fonts/icons; add native baselines before comparing other OSes.
-func assertNativeRender(t *testing.T, golden string, canvas fyne.Canvas) bool {
+// assertUIText checks widget content without depending on native fonts or pixels.
+func assertUIText(t *testing.T, content fyne.CanvasObject, want ...string) {
 	t.Helper()
-	if runtime.GOOS != "darwin" {
-		t.Log("native golden comparison requires macOS; workflow assertions still run")
-		return true
+	var got []string
+	for _, o := range test.LaidOutObjects(content) {
+		if !o.Visible() {
+			continue
+		}
+		switch w := o.(type) {
+		case *widget.Label:
+			got = append(got, w.Text)
+		case *widget.Button:
+			got = append(got, w.Text)
+		case *widget.Entry:
+			got = append(got, w.Text)
+		}
 	}
-	return test.AssertRendersToImage(t, golden, canvas)
+	for _, text := range want {
+		if !slices.Contains(got, text) {
+			t.Errorf("missing UI text %q; got %q", text, got)
+		}
+	}
+}
+
+func assertPaneRows(t *testing.T, p *pane) {
+	t.Helper()
+	count := 0
+	for _, o := range test.LaidOutObjects(p.body) {
+		r, ok := o.(*row)
+		if !ok || !r.Visible() || r.id < 0 {
+			continue
+		}
+		count++
+		e := p.entries[r.id]
+		assertUIText(t, r, e.name)
+		if !p.brief {
+			size := humanSize(e.size)
+			if e.dir {
+				size = "<DIR>"
+			}
+			modified := ""
+			if !e.mod.IsZero() {
+				modified = e.mod.Format("2006-01-02 15:04")
+			}
+			assertUIText(t, r, size, e.attrs, modified)
+		}
+		var name *widget.Label
+		var icon *widget.Icon
+		for _, child := range test.LaidOutObjects(r) {
+			if l, ok := child.(*widget.Label); ok && l.Text == e.name {
+				name = l
+			}
+			if i, ok := child.(*widget.Icon); ok {
+				icon = i
+			}
+		}
+		if icon == nil || icon.Resource == nil {
+			t.Errorf("row %q missing icon", e.name)
+		}
+		if name != nil && (name.Importance == widget.DangerImportance) != p.marked[e.name] {
+			t.Errorf("row %q mark styling differs from selection", e.name)
+		}
+	}
+	if count == 0 {
+		t.Fatal("pane has no laid-out rows")
+	}
 }
 
 // fixture: tmp tree with fixed mtimes so renders are deterministic.
@@ -112,13 +168,6 @@ func names(p *pane) (out []string) {
 		out = append(out, e.name)
 	}
 	return
-}
-
-func iconGolden(name string) string {
-	if icDir.Name() == "system-folder.png" {
-		return strings.TrimSuffix(name, ".png") + "_darwin.png"
-	}
-	return name
 }
 
 func press(u *ui, k fyne.KeyName) { u.key(u.active, &fyne.KeyEvent{Name: k}, 20) }

@@ -1,7 +1,6 @@
 package commander
 
 import (
-	"os"
 	"path/filepath"
 	"testing"
 
@@ -71,7 +70,7 @@ func TestFontSizeMenuAndPersistence(t *testing.T) {
 	}
 }
 
-func TestFontSizeRenderGolden(t *testing.T) {
+func TestFontSizeUIContent(t *testing.T) {
 	root := fixture(t)
 	for _, size := range fontSizes {
 		t.Run(size, func(t *testing.T) {
@@ -86,17 +85,12 @@ func TestFontSizeRenderGolden(t *testing.T) {
 			w := u.win
 			w.SetContent(u.left.body)
 			w.Resize(fyne.NewSize(950, 300))
-			w.Canvas().Capture()
 			u.left.setDensity()
 			w.Resize(fyne.NewSize(950, 300))
 			w.Content().Refresh()
 			u.left.list.Refresh()
-			golden := iconGolden("font_" + size + ".png")
-			if !assertNativeRender(t, golden, w.Canvas()) && os.Getenv("UPDATE_GOLDEN") != "" {
-				if err := os.Rename(filepath.Join("testdata", "failed", golden), filepath.Join("testdata", golden)); err != nil {
-					t.Fatal(err)
-				}
-			}
+			assertUIText(t, w.Content(), names(u.left)...)
+			assertPaneRows(t, u.left)
 		})
 	}
 }

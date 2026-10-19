@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/test"
 	"fyne.io/fyne/v2/widget"
@@ -167,22 +166,18 @@ func TestStartupSelectsFirstEntryInBothPanes(t *testing.T) {
 			t.Errorf("cursor %q want %q", got, c.want)
 		}
 	}
-	// visual: only active (left) pane shows selection; Tab moves it to right
-	for _, p := range []*pane{u.left, u.right} {
-		p.entries[0].attrs = "drwxr-xr-x"
-		p.entries[0].mod = time.Date(2024, 1, 2, 3, 4, 0, 0, time.Local)
-		p.list.Refresh()
-	}
-	applyTheme(fyne.CurrentApp(), "light", u.density)
-	w := test.NewWindow(container.NewGridWithColumns(2, u.left.body, u.right.body))
-	defer w.Close()
-	w.Resize(fyne.NewSize(900, 220))
-	for _, golden := range []string{"startup_selection.png", "after_tab_selection.png"} {
-		golden = iconGolden(golden)
-		if !assertNativeRender(t, golden, w.Canvas()) && os.Getenv("UPDATE_GOLDEN") != "" {
-			os.Rename(filepath.Join("testdata", "failed", golden), filepath.Join("testdata", golden))
+	for _, active := range []*pane{u.left, u.right} {
+		if u.active != active || u.win.Canvas().Focused() != active.focusable() {
+			t.Fatal("active pane does not have keyboard focus")
 		}
-		u.key(u.active, &fyne.KeyEvent{Name: fyne.KeyTab}, 20)
+		for _, p := range []*pane{u.left, u.right} {
+			if p.pathBar.TextStyle.Bold != (p == active) {
+				t.Fatal("active pane indicator incorrect")
+			}
+			assertPaneRows(t, p)
+			assertUIText(t, p.body, p.current().name)
+		}
+		press(u, fyne.KeyTab)
 	}
 	if u.active != u.left || u.left.current().name != "docs" {
 		t.Errorf("tab back: active left=%v cursor %q", u.active == u.left, u.left.current().name)

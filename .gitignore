@@ -17,5 +17,5 @@
 /dist/
 /cmd/dualcommander/DualCommander.app/
 /cmd/dualcommander/DualCommander.tar.xz
-testdata/failed/
-internal/commander/testdata/failed/
+
+.idea/

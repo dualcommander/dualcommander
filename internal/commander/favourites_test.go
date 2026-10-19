@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/test"
@@ -103,7 +102,7 @@ func TestCurrentMount(t *testing.T) {
 	}
 }
 
-func TestFavouritesRenderGolden(t *testing.T) {
+func TestFavouritesUIContent(t *testing.T) {
 	root := fixture(t)
 	u := newTestUI(t, test.NewTempApp(t), filepath.Join(root, "src"), root)
 	u.setTheme("light")
@@ -111,30 +110,35 @@ func TestFavouritesRenderGolden(t *testing.T) {
 	u.left.spaceGeneration++
 	u.left.mountButton.SetText("/")
 	u.left.setSpace(256*1024*1024*1024, 1024*1024*1024*1024, nil)
-	u.left.pathBar.SetText("/Users/example/Documents")
-	u.left.entries[0].attrs, u.left.entries[0].mod = "drwxr-xr-x", u.left.entries[1].mod
-	u.left.entries[0].mod = time.Date(2024, 1, 2, 3, 4, 0, 0, time.Local)
-	u.left.list.Refresh()
-	u.app.Preferences().SetStringList(prefFavourites, []string{"/Users/example/Documents", "/Users/example/Downloads"})
-	u.left.favourite.SetText("★")
+	src, dst := filepath.Join(root, "src"), filepath.Join(root, "dst")
+	u.toggleFavourite(src)
+	u.toggleFavourite(dst)
 	u.win.SetContent(u.left.box)
 	u.win.Resize(fyne.NewSize(700, 320))
-	for _, state := range []string{"false", "true", "mounts"} {
-		if state == "true" {
-			u.left.setBrief(true)
-			test.Tap(u.left.favourites)
-		}
-		if state == "mounts" {
-			u.win.Canvas().Overlays().Top().Hide()
-			u.left.mounts = func() ([]string, error) { return []string{"/", "/Volumes/External"}, nil }
-			test.Tap(u.left.mountButton)
-			waitUntil(t, func() bool { return !u.left.mountButton.Disabled() })
-		}
-		golden := iconGolden(fmt.Sprintf("favourites_%s.png", state))
-		if !assertNativeRender(t, golden, u.win.Canvas()) && os.Getenv("UPDATE_GOLDEN") != "" {
-			if err := os.Rename(filepath.Join("testdata", "failed", golden), filepath.Join("testdata", golden)); err != nil {
-				t.Fatal(err)
-			}
-		}
+	for _, brief := range []bool{false, true} {
+		u.left.setBrief(brief)
+		assertUIText(t, u.win.Content(), src, "★", "256.0 GB used / 1.0 TB total")
+		assertPaneRows(t, u.left)
+		test.Tap(u.left.favourites)
+		assertUIText(t, u.win.Canvas().Overlays().Top(), "src", src, "dst", dst, "★")
+		u.win.Canvas().Overlays().Top().Hide()
 	}
+	u.left.mounts = func() ([]string, error) { return []string{root, dst}, nil }
+	test.Tap(u.left.mountButton)
+	waitUntil(t, func() bool { return !u.left.mountButton.Disabled() })
+	assertUIText(t, u.win.Canvas().Overlays().Top(), root, dst)
+	tapDialogButton(t, u, dst)
+	assertUIText(t, u.win.Content(), dst, "★")
+	if u.left.path != dst || u.right.path != root {
+		t.Fatal("mount selection navigated wrong pane")
+	}
+	u.left.mounts = func() ([]string, error) { return nil, nil }
+	test.Tap(u.left.mountButton)
+	waitUntil(t, func() bool { return !u.left.mountButton.Disabled() })
+	assertUIText(t, u.win.Canvas().Overlays().Top(), "No mounted volumes")
+	u.win.Canvas().Overlays().Top().Hide()
+	u.toggleFavourite(src)
+	u.toggleFavourite(dst)
+	test.Tap(u.left.favourites)
+	assertUIText(t, u.win.Canvas().Overlays().Top(), "No favourites. Star a folder to add it.")
 }

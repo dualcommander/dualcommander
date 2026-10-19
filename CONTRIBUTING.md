@@ -23,8 +23,9 @@ and `go test -race -count=1 ./...`.
 ## Cline sandbox (VS Code Dev Containers)
 
 The repository includes a non-root Linux Dev Container with Go and Fyne build
-dependencies. Its only configured host bind is this repository, at
-`/workspaces/dualcommander`. Build context is `.devcontainer/`, not the repository or
+dependencies. Configured host binds are this repository, at
+`/workspaces/dualcommander`, and a read-only private Cline settings snapshot, at
+`/opt/cline-profile`. Build context is `.devcontainer/`, not the repository or
 your home directory. No Docker socket, host home, display socket, or extra project
 is configured. Linux capabilities are dropped and privilege escalation is blocked;
 there is no sudo. Go caches and extension state stay inside container storage.
@@ -32,7 +33,7 @@ there is no sudo. Go caches and extension state stay inside container storage.
 **A repository configuration cannot force host Cline sessions into a sandbox.**
 Use a dedicated VS Code profile and follow these steps before starting Cline:
 
-1. Install Docker and VS Code's **Dev Containers** extension on the host.
+1. Install Docker, Python 3, and VS Code's **Dev Containers** extension on the host.
    Open this repository root as a single-folder workspace, not its parent.
    Use a standalone clone, not a worktree whose `.git` points outside this folder.
 2. In that profile's **host User Settings JSON**, disable credential forwarding:
@@ -54,12 +55,21 @@ Use a dedicated VS Code profile and follow these steps before starting Cline:
    agents, credentials, extra mounts, or host environment secrets. Do not enable
    host-side Cline/MCP tools, external browser integrations, or remote MCP servers
    with host access. Container settings alone cannot restrict those services.
-3. Run **Dev Containers: Reopen in Container**. Start Cline only after VS Code
+3. Run **Dev Containers: Rebuild and Reopen in Container**. Before startup,
+   `initializeCommand` snapshots host `~/.cline/data` (or `CLINE_DATA_DIR`, with
+   `CLINE_DIR` also supported) into
+   `~/.cline/devcontainer-profiles/dualcommander`, outside Git. Only
+   `globalState.json`, `secrets.json`, `settings/providers.json`, and
+   `settings/global-settings.json` are exported. The container can read model
+   credentials in this snapshot; task history, checkpoints, and host MCP are excluded.
+   On creation, settings replace container-local copies in
+   `/home/developer/.cline/data`; MCP starts empty. Container changes never update
+   host settings. Rebuild to refresh host model choices. Start Cline only after VS Code
    shows **Dev Container: DualCommander sandbox**. Verify Cline appears under
    **Dev Container** in the Extensions view, not as a locally running extension.
-   Configure only the model API credential needed inside this environment.
+   Host Keychain-backed credentials may still require container-local login.
 4. Run `sh .devcontainer/verify.sh`, then `sh scripts/check.sh` in the container.
-   Native macOS icon/golden checks still require macOS CI. No host display is
+   UI tests inspect widget content without platform-specific screenshots. No host display is
    shared, so interactive `make run` is not supported by this headless sandbox.
 
 Before trusting the first session, inspect the container from the host:
@@ -71,7 +81,8 @@ docker inspect CONTAINER_ID --format '{{json .Mounts}}'
 docker inspect CONTAINER_ID --format '{{json .HostConfig.CapDrop}} {{json .HostConfig.SecurityOpt}}'
 ```
 
-There must be no host bind beyond this repository. Dev Containers may add an
+There must be no host bind beyond this repository and the read-only Cline snapshot.
+Dev Containers may add an
 editor-managed `/vscode` volume; reject unexpected credential/socket mounts or
 other host paths before starting Cline. Recheck after rebuilding or changing
 Dev Containers settings. The startup check verifies process restrictions, not the
@@ -92,23 +103,23 @@ sh scripts/check.sh
 ```
 
 This compatibility wrapper runs `make check`: formatting checks, vet, and race
-tests covering file operations, headless UI workflows, and golden PNG renders in
-`internal/commander/testdata/`. Check targets never rewrite files or suppress
+tests covering file operations and headless UI workflows. UI tests use Fyne's
+test driver to check laid-out text, row icons, selection, focus, and interactions
+without pixel comparisons or platform-specific baselines. Check targets never rewrite files or suppress
 compiler warnings. Individual targets: `make fmt` (format files), `make fmt-check`,
 `make vet`, and `make test`.
 
-After an intended visual change, review `internal/commander/testdata/failed/*.png`,
-then update the goldens and rerun checks:
+After a UI change, update the relevant content or interaction assertions and run:
 
 ```sh
-UPDATE_GOLDEN=1 go test -run TestRenderGolden ./internal/commander
+go test -run 'Test.*UIContent' ./internal/commander
 sh scripts/check.sh
 ```
 
 ## Project layout
 
 - `cmd/dualcommander/`: executable entry point and native packaging metadata.
-- `internal/commander/`: desktop UI, workflows, tests, and visual fixtures.
+- `internal/commander/`: desktop UI, workflows, and tests.
 - `pkg/`: reusable file operations and platform integration.
 - `assets/`: shared app icon and native icon formats.
 - `Makefile`: common development commands; `scripts/` keeps compatibility entry points.
@@ -154,13 +165,13 @@ requires platform credentials.
 
 ## CI and releases
 
-[GitHub Actions](.github/workflows/build.yml) runs the full check gate on macOS
-(matching native icon goldens), then runs headless workflow tests with race
+[GitHub Actions](.github/workflows/build.yml) runs the full check gate on macOS,
+then runs headless workflow tests with race
 detection on every native build runner and builds Linux amd64, Windows amd64,
 and macOS arm64/amd64 packages.
 
-Native font/icon golden comparisons run only on macOS; Windows/Linux still run
-workflow assertions, command tests, and file-operation tests.
+UI content and interaction assertions run on all platforms alongside command
+tests and file-operation tests; no screenshot baselines are required.
 
 Every successful build uploads downloadable workflow artifacts. Maintainers can
 push a `v*` tag to publish the same archives as GitHub Release assets.
