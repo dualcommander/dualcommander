@@ -224,7 +224,7 @@ func (u *ui) about() {
 		{"Tab", "Switch active pane"},
 		{"Enter", "Open folder or file"},
 		{"Backspace", "Parent folder / trim search"},
-		{"Space", "Mark folder and calculate size"},
+		{"Space", "Mark item and show size"},
 		{"Insert", "Mark or unmark item"},
 		{"F4", "Edit file"},
 		{"Shift+F4", "Create new file"},
@@ -468,10 +468,14 @@ func (u *ui) key(p *pane, e *fyne.KeyEvent, page int) {
 		p.updateStatus()
 	case fyne.KeySpace:
 		p.searchPrefix = ""
-		if e := p.current(); e.dir && e.name != ".." && !p.inArchive() {
+		if e := p.current(); e.name != "" && e.name != ".." && (!e.dir || !p.inArchive()) {
 			p.flip(p.cursor)
 			if p.marked[e.name] {
-				p.requestDirectorySize()
+				if e.dir {
+					p.requestDirectorySize()
+				} else {
+					p.entries[p.cursor].sizeRequested = true
+				}
 			}
 		}
 		p.updateStatus()

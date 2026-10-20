@@ -632,6 +632,7 @@ func (p *pane) updateStatus() {
 				if p.marked[e.name] {
 					selectedFiles++
 					selectedSize += e.size
+					measured = measured || e.sizeRequested
 				}
 			}
 		}

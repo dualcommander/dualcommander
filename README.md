@@ -51,7 +51,7 @@ For building from source, testing, or packaging, see [CONTRIBUTING.md](CONTRIBUT
 | `F4` | Edit in the OS text editor |
 | `Shift+F4` | Create and select a new file |
 | `Backspace` / `Mod+Up` | Go to parent folder |
-| `Space` | Mark/unmark folder and sum recursive size/file count without moving cursor |
+| `Space` | Mark/unmark file or folder and sum size/file count (recursive for folders) without moving cursor |
 | `Insert` | Mark item |
 | `Mod+A` | Mark all |
 | `Mod+Shift+A` | Unmark all |

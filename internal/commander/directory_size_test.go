@@ -253,8 +253,58 @@ func TestDirectorySizeProgressStatus(t *testing.T) {
 		cursorTo(t, p, "readme.md")
 		cursor := p.cursor
 		press(u, fyne.KeySpace)
-		if p.cursor != cursor || len(p.marked) != 2 || !p.marked["photos"] || !p.marked["docs"] {
-			t.Fatal("Space on file changed cursor or marks")
+		if p.cursor != cursor || len(p.marked) != 3 || !p.marked["readme.md"] || !p.marked["photos"] || !p.marked["docs"] || p.status.Text != "135 B · 7 files · Calculating…" {
+			t.Fatalf("Space on file must join running totals without moving: %q", p.status.Text)
+		}
+	}
+}
+
+func TestSpaceFileMarksAndTotals(t *testing.T) {
+	for _, brief := range []bool{false, true} {
+		root := fixture(t)
+		u := newTestUI(t, test.NewTempApp(t), filepath.Join(root, "src"), root)
+		p := u.left
+		p.setBrief(brief)
+		cursorTo(t, p, "readme.md")
+		test.Type(p.focusable(), "read")
+		cursor := p.cursor
+		press(u, fyne.KeySpace)
+		if p.cursor != cursor || !p.marked["readme.md"] || p.searchPrefix != "" || p.sizeBusy || p.statusRow.Visible() || p.status.Text != "5 B · 1 files" {
+			t.Fatalf("file mark/status: cursor=%d status=%q", p.cursor, p.status.Text)
+		}
+		r := newRowWidget(p, !brief)
+		p.fillRow(p.cursor, r)
+		var red bool
+		for _, o := range laidOutObjects(r) {
+			if label, ok := o.(*widget.Label); ok && label.Text == "readme.md" && label.Importance == widget.DangerImportance {
+				red = true
+			}
+		}
+		if !red {
+			t.Fatal("Space-marked file must use danger color")
+		}
+		cursorTo(t, p, "song.mp3")
+		press(u, fyne.KeySpace)
+		if p.status.Text != "7 B · 2 files" {
+			t.Fatalf("file totals: %q", p.status.Text)
+		}
+		cursorTo(t, p, "photos")
+		press(u, fyne.KeySpace)
+		waitUntil(t, func() bool { return !p.sizeBusy })
+		if p.status.Text != "10 B · 3 files" {
+			t.Fatalf("mixed totals: %q", p.status.Text)
+		}
+		for _, name := range []string{"photos", "song.mp3", "readme.md"} {
+			cursorTo(t, p, name)
+			press(u, fyne.KeySpace)
+		}
+		if len(p.marked) != 0 || !p.statusRow.Visible() {
+			t.Fatal("unmarking must restore normal details")
+		}
+		cursorTo(t, p, "..")
+		press(u, fyne.KeySpace)
+		if len(p.marked) != 0 {
+			t.Fatal("parent directory must never be marked")
 		}
 	}
 }

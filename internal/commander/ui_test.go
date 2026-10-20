@@ -194,7 +194,7 @@ func TestAppBranding(t *testing.T) {
 	if runtime.GOOS == "darwin" {
 		findKey = "Cmd+F / Alt+F7"
 	}
-	for _, label := range []string{"Keyboard shortcuts", "Tab", "Switch active pane", "Space", "Mark folder and calculate size", "Insert", "Mark or unmark item", "F4", "F5", "F6", "F2 / Shift+F6", "Rename selected item", "F7", "F8 / Delete", findKey, "Find files", "F10"} {
+	for _, label := range []string{"Keyboard shortcuts", "Tab", "Switch active pane", "Space", "Mark item and show size", "Insert", "Mark or unmark item", "F4", "F5", "F6", "F2 / Shift+F6", "Rename selected item", "F7", "F8 / Delete", findKey, "Find files", "F10"} {
 		if !slices.Contains(labels, label) {
 			t.Fatalf("About shortcut missing: %q", label)
 		}
