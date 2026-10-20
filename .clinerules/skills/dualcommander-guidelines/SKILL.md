@@ -6,6 +6,7 @@ description: Overall product and implementation guidance for dualcommander (Go/F
 # dualcommander guidelines
 
 Always also follow skill `test-every-change`.
+For any modal dialog or dialog-driven workflow, also follow skill `native-modal-dialogs`.
 
 ## 1. Libraries over custom code
 - Order: Go stdlib, then a dependency already in `go.mod`, then a small, well-known library, and custom code only last.

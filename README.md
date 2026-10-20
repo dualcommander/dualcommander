@@ -26,7 +26,7 @@ For building from source, testing, or packaging, see [CONTRIBUTING.md](CONTRIBUT
 ## Keyboard and mouse
 
 Keys (`Mod` = Cmd on macOS, Ctrl on Windows/Linux; all also in native menu bar):
-`Tab` switch pane · `Enter` open · `F4` edit in OS text editor · `Backspace` up · `Space`/`Insert` mark ·
+`Tab` switch pane · `Enter` open · `F4` edit in OS text editor · `Shift+F4` create and select new file · `Backspace` up · `Space`/`Insert` mark ·
 `Mod+A` / `Mod+Shift+A` mark/unmark all · `F5` copy · `F6` move · `Shift+F6` rename cursor item · `F7`/`Mod+Shift+N` mkdir ·
 `F8`/`Del`/`Mod+Backspace` delete (to Trash/Recycle Bin; permanent if turned off in Settings `Mod+,`) · `Mod+1`/`Mod+2` brief/detailed (both views show Name/Size/Date sorting headers; click to sort ascending, again to reverse) · `Mod+Shift+.` hidden files ·
 `Mod+Shift+R` reveal in Finder/Explorer · `Mod+U` swap panes · `Mod+E` same folder in other pane ·
@@ -99,8 +99,12 @@ not creating or updating archives.
 - Open a regular member with `Enter` or double-click to view a temporary copy in
   the OS-associated app. Copies are limited to 256 MiB per file and removed when
   DualCommander quits. Changes to these copies never update the archive.
-- Browsing runs in the background with Cancel. Corrupt or encrypted archives
-  that cannot be read show an error instead of entering the folder.
+- Password-protected ZIP (ZipCrypto/AES), 7z, and RAR archives prompt when a password
+  is needed, either when browsing encrypted headers or opening an encrypted member.
+  The masked password prompt uses an OS-decorated modal window. Wrong passwords
+  prompt again; Cancel, Escape, or closing the window stops the operation.
+  Passwords are kept in memory for the current archive only, never saved in preferences.
+- Browsing runs in the background with Cancel. Unreadable archives show an error.
 
 Archive browsing is read-only: editing, copying, moving, deleting, creating
 folders, Find Files, terminal, and reveal actions are unavailable inside archives.

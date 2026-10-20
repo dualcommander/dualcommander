@@ -2,6 +2,7 @@ package commander
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -49,7 +50,7 @@ func (j *jobs) run(title string, refresh []*pane, fn func(ctx context.Context, p
 			for _, p := range refresh {
 				p.refresh()
 			}
-			if err != nil && !cancelled {
+			if err != nil && !cancelled && !errors.Is(err, context.Canceled) {
 				j.ui.showErr(fmt.Errorf("%s: %w", title, err))
 			}
 		})
@@ -245,6 +246,40 @@ func (u *ui) settings() {
 	w.SetContent(content)
 	w.Resize(fyne.NewSize(700, 340))
 	w.Show()
+}
+
+func (u *ui) newFile() {
+	if u.passwordWindow != nil {
+		return
+	}
+	p := u.active
+	if p.inArchive() {
+		u.showErr(fmt.Errorf("archive browsing is read-only"))
+		return
+	}
+	dir := p.path
+	name := newEscEntry()
+	name.Validator = func(value string) error {
+		if strings.TrimSpace(value) == "" || value == "." || value == ".." || strings.ContainsAny(value, "/\\:\x00") {
+			return fmt.Errorf("Enter a file name without path separators")
+		}
+		if _, err := os.Lstat(filepath.Join(dir, value)); !os.IsNotExist(err) {
+			return fmt.Errorf("Destination exists or cannot be checked")
+		}
+		return nil
+	}
+	inputDialog(u, "New file", "Create", "File name", name, func() {
+		file, err := os.OpenFile(filepath.Join(dir, name.Text), os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
+		if err == nil {
+			err = file.Close()
+		}
+		if err != nil {
+			u.showErr(err)
+			return
+		}
+		u.showErr(p.cd(dir, name.Text))
+		u.activate(p)
+	})
 }
 
 func (u *ui) mkdir() {

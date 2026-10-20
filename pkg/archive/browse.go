@@ -37,7 +37,7 @@ func Supported(name string) bool {
 }
 
 // Open returns a virtual filesystem. Ordinary files are not virtual folders.
-func Open(ctx context.Context, name string) (fs.FS, error) {
+func Open(ctx context.Context, name string, password ...string) (fs.FS, error) {
 	f, err := archives.FileSystem(ctx, name, nil)
 	if err != nil {
 		return nil, err
@@ -45,8 +45,11 @@ func Open(ctx context.Context, name string) (fs.FS, error) {
 	if file, ok := f.(archives.FileFS); ok && file.Compression == nil {
 		return nil, fmt.Errorf("unsupported archive: %s", name)
 	}
+	if archive, ok := f.(*archives.ArchiveFS); ok {
+		setPassword(archive, password)
+	}
 	if _, err := ReadDir(f, "."); err != nil {
-		return nil, err
+		return nil, passwordError(err)
 	}
 	// Detach only before publishing the filesystem to callers: the indexing
 	// job's context ends, but later member reads must remain usable.
@@ -87,7 +90,7 @@ func Materialize(ctx context.Context, f fs.FS, name string) (string, error) {
 	}
 	in, err := f.Open(name)
 	if err != nil {
-		return "", err
+		return "", passwordError(err)
 	}
 	defer in.Close()
 	dir, err := os.MkdirTemp("", "dualcommander-archive-")
@@ -116,7 +119,7 @@ func Materialize(ctx context.Context, f fs.FS, name string) (string, error) {
 	}()
 	if err != nil {
 		os.RemoveAll(dir)
-		return "", err
+		return "", passwordError(err)
 	}
 	return dst, nil
 }

@@ -2,6 +2,7 @@ package commander
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io/fs"
 	"net/url"
@@ -402,10 +403,26 @@ func (p *pane) open() {
 		if p.inArchive() {
 			_, inner := archive.Root(name)
 			f := p.archiveFS
+			root := p.archiveRoot
 			p.ui.jobs.run("Open archive member", nil, func(ctx context.Context, _ fsops.Progress) error {
-				tmp, err := archive.Materialize(ctx, f, inner)
+				var tmp string
+				err := p.ui.archiveRetry(ctx, root, func(password string) error {
+					if password != "" {
+						var err error
+						f, err = archive.Open(ctx, root, password)
+						if err != nil {
+							return err
+						}
+					}
+					var err error
+					tmp, err = archive.Materialize(ctx, f, inner)
+					return err
+				})
 				if err == nil {
 					post(func() {
+						if p.archiveRoot == root {
+							p.archiveFS = f
+						}
 						p.ui.archiveTemps = append(p.ui.archiveTemps, filepath.Dir(tmp))
 						p.openFile(tmp)
 					})
@@ -424,7 +441,7 @@ func (p *pane) open() {
 
 func (p *pane) openFile(name string) {
 	if u, err := url.Parse(storage.NewFileURI(name).String()); err == nil {
-		p.ui.showErr(fyne.CurrentApp().OpenURL(u))
+		p.ui.showErr(p.ui.app.OpenURL(u))
 	}
 }
 
@@ -443,8 +460,17 @@ func (p *pane) navigate(dir, selected string) {
 		p.cd(dir, selected)
 		return
 	}
+	if root == p.archiveRoot && p.archiveFS != nil {
+		p.cd(dir, selected)
+		return
+	}
 	p.ui.jobs.run("Browse archive", nil, func(ctx context.Context, _ fsops.Progress) error {
-		f, err := archive.Open(ctx, root)
+		var f fs.FS
+		err := p.ui.archiveRetry(ctx, root, func(password string) error {
+			var err error
+			f, err = archive.Open(ctx, root, password)
+			return err
+		})
 		if err == nil {
 			_, err = archive.ReadDir(f, inner)
 		}
@@ -458,6 +484,24 @@ func (p *pane) navigate(dir, selected string) {
 		}
 		return err
 	})
+}
+
+func (u *ui) archiveRetry(ctx context.Context, name string, run func(string) error) error {
+	password := ""
+	for {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		err := run(password)
+		if !errors.Is(err, archive.ErrPassword) {
+			return err
+		}
+		var promptErr error
+		password, promptErr = u.archivePassword(ctx, name, password != "")
+		if promptErr != nil {
+			return promptErr
+		}
+	}
 }
 
 // flip toggles mark of entry i ("..": never marked).

@@ -33,21 +33,23 @@ const (
 )
 
 type ui struct {
-	app          fyne.App
-	win          fyne.Window
-	left, right  *pane
-	active       *pane
-	jobs         *jobs
-	themeMode    string
-	themeItems   []*fyne.MenuItem
-	density      string
-	densItems    []*fyne.MenuItem
-	fontSize     string
-	fontItems    []*fyne.MenuItem
-	showHidden   bool
-	ready        bool
-	archiveTemps []string
-	filePreview  func(string) []byte
+	app            fyne.App
+	win            fyne.Window
+	left, right    *pane
+	active         *pane
+	jobs           *jobs
+	themeMode      string
+	themeItems     []*fyne.MenuItem
+	density        string
+	densItems      []*fyne.MenuItem
+	fontSize       string
+	fontItems      []*fyne.MenuItem
+	showHidden     bool
+	ready          bool
+	archiveTemps   []string
+	filePreview    func(string) []byte
+	passwordGate   chan struct{}
+	passwordWindow fyne.Window
 }
 
 func newUI(a fyne.App) *ui {
@@ -56,6 +58,7 @@ func newUI(a fyne.App) *ui {
 	home, _ := os.UserHomeDir()
 	u := &ui{app: a, win: a.NewWindow(appName), density: pr.StringWithFallback(prefDensity, "standard"),
 		themeMode: pr.StringWithFallback(prefTheme, "system"), showHidden: pr.Bool(prefHidden)}
+	u.passwordGate = make(chan struct{}, 1)
 	if u.density != "compact" {
 		u.density = "standard" // migrate removed density modes to standard
 	}
@@ -95,6 +98,8 @@ func newUI(a fyne.App) *ui {
 		func(fyne.Shortcut) { u.search() })
 	u.win.Canvas().AddShortcut(&desktop.CustomShortcut{KeyName: fyne.KeyF6, Modifier: fyne.KeyModifierShift},
 		func(fyne.Shortcut) { u.rename() })
+	u.win.Canvas().AddShortcut(&desktop.CustomShortcut{KeyName: fyne.KeyF4, Modifier: fyne.KeyModifierShift},
+		func(fyne.Shortcut) { u.newFile() })
 	u.ready = true
 	u.activate(u.active)
 	return u
@@ -104,6 +109,12 @@ func newUI(a fyne.App) *ui {
 func (u *ui) mainMenu() *fyne.MainMenu {
 	mod := fyne.KeyModifierShortcutDefault
 	item := func(label string, k fyne.KeyName, m fyne.KeyModifier, f func()) *fyne.MenuItem {
+		action := f
+		f = func() {
+			if u.passwordWindow == nil {
+				action()
+			}
+		}
 		it := fyne.NewMenuItem(label, f)
 		if k != "" {
 			it.Shortcut = &desktop.CustomShortcut{KeyName: k, Modifier: m}
@@ -212,6 +223,7 @@ func (u *ui) about() {
 		{"Backspace", "Parent folder / trim search"},
 		{"Space / Insert", "Mark or unmark item"},
 		{"F4", "Edit file"},
+		{"Shift+F4", "Create new file"},
 		{"F5", "Copy"},
 		{"F6", "Move"},
 		{"Shift+F6", "Rename selected item"},
@@ -366,6 +378,10 @@ func (u *ui) fkeyBar() fyne.CanvasObject {
 
 // key handles commander keys for pane p; page = rows per PgUp/PgDn.
 func (u *ui) key(p *pane, e *fyne.KeyEvent, page int) {
+	if u.passwordWindow != nil {
+		u.passwordWindow.RequestFocus()
+		return
+	}
 	switch e.Name {
 	case fyne.KeyUp:
 		if !p.brief || p.cursor%p.grid.rows > 0 {
@@ -388,6 +404,10 @@ func (u *ui) key(p *pane, e *fyne.KeyEvent, page int) {
 	case fyne.KeyReturn, fyne.KeyEnter:
 		p.open()
 	case fyne.KeyF4:
+		if driver, ok := u.app.Driver().(interface{ CurrentKeyModifiers() fyne.KeyModifier }); ok && driver.CurrentKeyModifiers()&fyne.KeyModifierShift != 0 {
+			u.newFile()
+			return
+		}
 		u.edit()
 	case fyne.KeyBackspace:
 		if p.searchPrefix != "" {
