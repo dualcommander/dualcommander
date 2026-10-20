@@ -255,7 +255,9 @@ func (c *copier) copyTree(src, dst string) error {
 			return err
 		}
 		tmp, err := os.CreateTemp(filepath.Dir(dst), ".dualcommander-*")
-		if err != nil { return err }
+		if err != nil {
+			return err
+		}
 		name := tmp.Name()
 		tmp.Close()
 		os.Remove(name)
@@ -263,8 +265,14 @@ func (c *copier) copyTree(src, dst string) error {
 		if err := os.Symlink(target, name); err != nil {
 			return err
 		}
-		if err := os.Rename(name, dst); err != nil { return err }
-		if c.move { if err := os.Remove(src); err != nil { return err } }
+		if err := os.Rename(name, dst); err != nil {
+			return err
+		}
+		if c.move {
+			if err := os.Remove(src); err != nil {
+				return err
+			}
+		}
 		c.filesDone++
 		c.notify(src)
 		return nil
@@ -281,7 +289,9 @@ func (c *copier) copyTree(src, dst string) error {
 				return err
 			}
 		}
-		if c.move && c.skipped == skipped { return os.Remove(src) }
+		if c.move && c.skipped == skipped {
+			return os.Remove(src)
+		}
 		return nil
 	default:
 		return c.copyFile(src, dst, fi.Mode().Perm())
@@ -300,7 +310,9 @@ func (c *copier) copyFile(src, dst string, perm os.FileMode) error {
 	}
 	defer os.Remove(out.Name())
 	defer out.Close()
-	if err := out.Chmod(perm); err != nil { return err }
+	if err := out.Chmod(perm); err != nil {
+		return err
+	}
 	buf := make([]byte, 1<<20)
 	for {
 		if c.ctx.Err() != nil {
@@ -327,9 +339,17 @@ func (c *copier) copyFile(src, dst string, perm os.FileMode) error {
 	if err := out.Close(); err != nil {
 		return err
 	}
-	if err := c.ctx.Err(); err != nil { return err }
-	if err := os.Rename(out.Name(), dst); err != nil { return err }
-	if c.move { if err := os.Remove(src); err != nil { return err } }
+	if err := c.ctx.Err(); err != nil {
+		return err
+	}
+	if err := os.Rename(out.Name(), dst); err != nil {
+		return err
+	}
+	if c.move {
+		if err := os.Remove(src); err != nil {
+			return err
+		}
+	}
 	c.filesDone++
 	c.notify(src)
 	return nil

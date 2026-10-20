@@ -49,6 +49,8 @@ func assertUIText(t *testing.T, content fyne.CanvasObject, want ...string) {
 			got = append(got, w.Text)
 		case *widget.Button:
 			got = append(got, w.Text)
+		case *dialogButton:
+			got = append(got, w.Text)
 		case *widget.Entry:
 			got = append(got, w.Text)
 		}

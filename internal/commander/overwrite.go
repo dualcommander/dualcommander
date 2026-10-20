@@ -15,14 +15,20 @@ import (
 func (u *ui) overwriteConflict(ctx context.Context, conflict fsops.Conflict) (fsops.ConflictAction, error) {
 	select {
 	case u.passwordGate <- struct{}{}:
-	case <-ctx.Done(): return fsops.Skip, ctx.Err()
+	case <-ctx.Done():
+		return fsops.Skip, ctx.Err()
 	}
 	defer func() { <-u.passwordGate }()
-	type answer struct { action fsops.ConflictAction; err error }
+	type answer struct {
+		action fsops.ConflictAction
+		err    error
+	}
 	result := make(chan answer, 1)
 	var closeWindow func()
 	post(func() {
-		if ctx.Err() != nil { return }
+		if ctx.Err() != nil {
+			return
+		}
 		u.jobs.closeMonitor()
 		w := u.dialogWindow("Target already exists")
 		unblock := u.blockParent(w)
@@ -31,8 +37,12 @@ func (u *ui) overwriteConflict(ctx context.Context, conflict fsops.Conflict) (fs
 		closeWindow = w.Close
 		details := func(title, path string, info os.FileInfo) fyne.CanvasObject {
 			kind := "File"
-			if info.IsDir() { kind = "Folder" }
-			if info.Mode()&os.ModeSymlink != 0 { kind = "Symbolic link" }
+			if info.IsDir() {
+				kind = "Folder"
+			}
+			if info.Mode()&os.ModeSymlink != 0 {
+				kind = "Symbolic link"
+			}
 			text := fmt.Sprintf("%s\nName: %s\nPath: %s\nType: %s\nSize: %s (%d bytes)\nModified: %s\nAttributes: %s", title, info.Name(), path, kind, humanSize(info.Size()), info.Size(), info.ModTime().Format("2006-01-02 15:04:05 MST"), info.Mode())
 			label := widget.NewLabel(text)
 			label.Wrapping = fyne.TextWrapBreak
@@ -46,7 +56,10 @@ func (u *ui) overwriteConflict(ctx context.Context, conflict fsops.Conflict) (fs
 		label.Wrapping = fyne.TextWrapWord
 		var buttons []*dialogButton
 		buttons = append(buttons, windowButton(w, "Cancel", w.Close))
-		for _, option := range []struct { label string; action fsops.ConflictAction }{
+		for _, option := range []struct {
+			label  string
+			action fsops.ConflictAction
+		}{
 			{"Skip", fsops.Skip}, {"Skip All", fsops.SkipAll}, {"Overwrite", fsops.Overwrite}, {"Overwrite All", fsops.OverwriteAll},
 		} {
 			buttons = append(buttons, windowButton(w, option.label, func() {
@@ -63,9 +76,14 @@ func (u *ui) overwriteConflict(ctx context.Context, conflict fsops.Conflict) (fs
 		w.Show()
 	})
 	select {
-	case value := <-result: return value.action, value.err
+	case value := <-result:
+		return value.action, value.err
 	case <-ctx.Done():
-		post(func() { if closeWindow != nil { closeWindow() } })
+		post(func() {
+			if closeWindow != nil {
+				closeWindow()
+			}
+		})
 		return fsops.Skip, ctx.Err()
 	}
 }
