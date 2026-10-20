@@ -48,7 +48,7 @@ jobs:
           cache: true
       - name: Install Linux development libraries
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y gcc libgl1-mesa-dev xorg-dev libxkbcommon-dev libwayland-dev wayland-protocols
+        run: sudo apt-get update && sudo apt-get install -y gcc libgl1-mesa-dev xorg-dev libxkbcommon-dev libwayland-dev wayland-protocols rpm cpio desktop-file-utils xz-utils
       - name: Install Windows C compiler
         if: runner.os == 'Windows'
         uses: msys2/setup-msys2@v2
@@ -80,11 +80,21 @@ jobs:
         run: |
           mkdir -p dist
           ditto -c -k --sequesterRsrc --keepParent cmd/dualcommander/DualCommander.app dist/dualcommander-darwin-${{ matrix.arch }}.zip
+      - name: Build and check macOS DMG
+        if: runner.os == 'macOS'
+        run: |
+          sh scripts/package-macos.sh
+          sh scripts/package-macos_test.sh
       - name: Archive Linux package
         if: runner.os == 'Linux'
         run: |
           mkdir -p dist
           cp cmd/dualcommander/DualCommander.tar.xz dist/dualcommander-linux-${{ matrix.arch }}.tar.xz
+      - name: Build and check DEB and RPM packages
+        if: runner.os == 'Linux'
+        run: |
+          sh scripts/package-linux.sh
+          sh scripts/package-linux_test.sh
       - name: Archive Windows app
         if: runner.os == 'Windows'
         shell: pwsh

@@ -93,7 +93,7 @@ func newUI(a fyne.App) *ui {
 	u.win.Resize(fyne.NewSize(float32(pr.FloatWithFallback(prefW, 1100)), float32(pr.FloatWithFallback(prefH, 700))))
 	u.win.SetCloseIntercept(u.quit)
 	u.win.Canvas().SetOnTypedKey(func(e *fyne.KeyEvent) { u.key(u.active, e, u.active.cols()*10) }) // no widget focused (after header/dialog click): keys still drive active pane
-	// Total Commander's Alt+F7 = find
+	// Alt+F7 opens Find Files.
 	u.win.Canvas().AddShortcut(&desktop.CustomShortcut{KeyName: fyne.KeyF7, Modifier: fyne.KeyModifierAlt},
 		func(fyne.Shortcut) { u.search() })
 	u.win.Canvas().AddShortcut(&desktop.CustomShortcut{KeyName: fyne.KeyF6, Modifier: fyne.KeyModifierShift},

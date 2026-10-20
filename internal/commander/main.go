@@ -1,5 +1,4 @@
-// Command dualcommander is a cross-platform two-pane file manager in the spirit of
-// Total Commander / Double Commander.
+// Package commander implements a cross-platform two-pane file manager.
 package commander
 
 import (

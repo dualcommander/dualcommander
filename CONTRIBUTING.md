@@ -147,6 +147,10 @@ platform's native resources. Ready-to-use icons also live in `assets/`:
 `dualcommander.icns` (macOS), `dualcommander.ico` (Windows, 16–256px), and
 `dualcommander.png` (Linux/runtime, 1024px).
 
+Edit `assets/dualcommander.svg` for icon changes. Its two fixed file panes match
+the current UI, without folder tabs. On macOS with ImageMagick installed, run
+`sh scripts/generate-icons.sh` to regenerate all three native/runtime icons.
+
 Plain `go build` sets the window icon but does not create native app packaging.
 Versions start at `0.1.0`. `make build`, `make run`, and CI use the exact semantic
 version from a release tag (for example, `v0.1.0` becomes `0.1.0`). Non-tag builds
@@ -162,6 +166,53 @@ AppKit and the embedded icon; no `.app` bundle is needed for that runtime icon.
 The original app ID remains unchanged to preserve saved settings. The Go module
 is `github.com/dualcommander/dualcommander`. Packages are unsigned; release signing
 requires platform credentials.
+
+### macOS DMG
+
+On macOS, after `fyne package -os darwin`, run from the repository root:
+
+```sh
+sh scripts/package-macos.sh
+sh scripts/package-macos_test.sh
+```
+
+The native `hdiutil` tool creates `dist/dualcommander-darwin-<arch>.dmg` with
+`DualCommander.app` and an Applications shortcut for drag-and-drop installation.
+CI builds DMGs for arm64 and amd64 alongside ZIP archives, uploads both as workflow
+artifacts, and publishes both on release tags. Checks verify the image, mount it
+read-only, and assert the shortcut, bundle metadata, and executable match the source.
+Packages remain unsigned and not notarized; Finder installation and first launch
+should also be checked manually.
+
+### Linux DEB and RPM
+
+On an amd64 Linux host, install `rpm`, `cpio`, `desktop-file-utils`, and `xz-utils` alongside
+the Fyne build prerequisites (`sudo apt install rpm cpio desktop-file-utils xz-utils`
+on Debian/Ubuntu). From the repository root, after `fyne package -os linux`:
+
+```sh
+sh scripts/package-linux.sh
+sh scripts/package-linux_test.sh
+```
+
+Packages land in `dist/dualcommander-linux-amd64.deb` and
+`dist/dualcommander-linux-amd64.rpm`; the Fyne tarball remains available.
+Native tools reuse the packaged binary, desktop entry, and icon, installing under
+`/usr` rather than `/usr/local`. Package metadata lives in `packaging/linux/control.in`
+and `packaging/linux/dualcommander.spec`; the script supplies build-specific values.
+RPM automatically discovers ELF dependencies;
+DEB declares runtime libraries explicitly, including desktop helpers for opening
+files and moving them to Trash. Package versions use the native version plus a
+revision derived from prerelease/build metadata; About retains the full version.
+CI validates metadata and extracted payloads, not graphical launch on each distro.
+Package on the same host used for the Fyne build: both formats conservatively
+require that host's glibc version. Newer local build hosts raise the minimum.
+
+The Ubuntu 22.04 CI build requires glibc 2.35+. Package formats do not bundle
+glibc, OpenGL, X11, or Wayland. Debian 12+, Ubuntu 22.04+, Mint 21+, and compatible
+Fedora/RHEL-family releases are targets, not guarantees for every release.
+RHEL 9 (glibc 2.34) and older need an older build baseline and separate validation.
+No signing keys or package repository are configured.
 
 ## CI and releases
 

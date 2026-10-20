@@ -218,7 +218,7 @@ func (p *pane) refresh() { p.cd(p.path, p.current().name) }
 // Sort keys shared by both views.
 var sortKeys = []string{"name", "size", "date"}
 
-// sortEntries: ".." first, dirs before files (like Total Commander), then by key.
+// sortEntries: ".." first, dirs before files, then by key.
 // Dirs have no size, so "size" orders them by name.
 func sortEntries(es []entry, by string, desc bool) {
 	sort.SliceStable(es, func(i, j int) bool {
