@@ -24,6 +24,7 @@ func (u *ui) archivePassword(ctx context.Context, name string, retry bool) (stri
 	result := make(chan answer, 1)
 	var closeWindow func()
 	post(func() {
+		u.jobs.closeMonitor()
 		if ctx.Err() != nil {
 			return
 		}

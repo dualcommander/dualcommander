@@ -56,9 +56,21 @@ func TrashCmd(goos, path string) (args, env []string) {
 // Progress receives bytes done / total bytes and current file.
 type Progress func(done, total int64, current string)
 
+// CopyProgress reports bytes and successfully copied non-directory entries.
+// Symlinks count as files; empty directories do not.
+type CopyProgress struct {
+	Done, Total           int64
+	FilesDone, FilesTotal int64
+	Current               string
+}
+
 // Size returns total byte size of the given paths (recursive).
 func Size(ctx context.Context, paths []string) (int64, error) {
-	var total int64
+	total, _, err := copySize(ctx, paths)
+	return total, err
+}
+
+func copySize(ctx context.Context, paths []string) (total, files int64, err error) {
 	for _, p := range paths {
 		err := filepath.WalkDir(p, func(_ string, d fs.DirEntry, err error) error {
 			if err != nil {
@@ -68,23 +80,43 @@ func Size(ctx context.Context, paths []string) (int64, error) {
 				return ctx.Err()
 			}
 			if d.Type().IsRegular() {
-				if fi, err := d.Info(); err == nil {
-					total += fi.Size()
+				fi, err := d.Info()
+				if err != nil {
+					return err
 				}
+				total += fi.Size()
+			}
+			if !d.IsDir() {
+				files++
 			}
 			return nil
 		})
 		if err != nil {
-			return total, err
+			return total, files, err
 		}
 	}
-	return total, nil
+	return total, files, nil
 }
 
 type copier struct {
-	ctx         context.Context
-	done, total int64
-	progress    Progress
+	ctx                   context.Context
+	done, total           int64
+	progress              Progress
+	filesDone, filesTotal int64
+	report                func(CopyProgress)
+	conflict              ConflictHandler
+	all                   ConflictAction
+	move                  bool
+	skipped               int
+}
+
+func (c *copier) notify(src string) {
+	if c.report != nil {
+		c.report(CopyProgress{c.done, c.total, c.filesDone, c.filesTotal, src})
+	}
+	if c.progress != nil {
+		c.progress(c.done, c.total, src)
+	}
 }
 
 // Target resolves where src lands for dst: inside dst when dst is an existing
@@ -98,11 +130,26 @@ func Target(src, dst string, n int) string {
 
 // Copy copies srcs to dst (see Target) recursively. Existing files are overwritten.
 func Copy(ctx context.Context, srcs []string, dst string, progress Progress) error {
-	total, err := Size(ctx, srcs)
+	return CopyWithProgress(ctx, srcs, dst, func(p CopyProgress) {
+		if progress != nil {
+			progress(p.Done, p.Total, p.Current)
+		}
+	})
+}
+
+// CopyWithProgress includes recursive file counts without a second discovery scan.
+func CopyWithProgress(ctx context.Context, srcs []string, dst string, progress func(CopyProgress)) error {
+	return CopyWithConflicts(ctx, srcs, dst, progress, nil)
+}
+
+// CopyWithConflicts asks before replacing existing entries, including nested entries.
+func CopyWithConflicts(ctx context.Context, srcs []string, dst string, progress func(CopyProgress), conflict ConflictHandler) error {
+	total, files, err := copySize(ctx, srcs)
 	if err != nil {
 		return err
 	}
-	c := &copier{ctx: ctx, total: total, progress: progress}
+	c := &copier{ctx: ctx, total: total, filesTotal: files, report: progress, conflict: conflict}
+	c.notify("")
 	for _, s := range srcs {
 		t := Target(s, dst, len(srcs))
 		if err := checkNotInside(s, t); err != nil {
@@ -120,6 +167,12 @@ func Copy(ctx context.Context, srcs []string, dst string, progress Progress) err
 
 // Move moves srcs to dst (see Target); uses rename, falls back to copy+delete across devices.
 func Move(ctx context.Context, srcs []string, dst string, progress Progress) error {
+	return MoveWithConflicts(ctx, srcs, dst, progress, nil)
+}
+
+// MoveWithConflicts retains skipped source entries, including during directory merges.
+func MoveWithConflicts(ctx context.Context, srcs []string, dst string, progress Progress, conflict ConflictHandler) error {
+	c := &copier{ctx: ctx, progress: progress, conflict: conflict, move: true}
 	for _, s := range srcs {
 		t := Target(s, dst, len(srcs))
 		if err := checkNotInside(s, t); err != nil {
@@ -128,13 +181,7 @@ func Move(ctx context.Context, srcs []string, dst string, progress Progress) err
 		if err := os.MkdirAll(filepath.Dir(t), 0o755); err != nil {
 			return err
 		}
-		if os.Rename(s, t) == nil {
-			continue
-		}
-		if err := Copy(ctx, []string{s}, t, progress); err != nil {
-			return err
-		}
-		if err := os.RemoveAll(s); err != nil {
+		if err := c.copyTree(s, t); err != nil {
 			return err
 		}
 	}
@@ -170,18 +217,57 @@ func checkNotInside(src, dst string) error {
 }
 
 func (c *copier) copyTree(src, dst string) error {
+	if err := c.ctx.Err(); err != nil {
+		return err
+	}
 	fi, err := os.Lstat(src)
 	if err != nil {
 		return err
 	}
+	ti, err := os.Lstat(dst)
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	if ti != nil {
+		if os.SameFile(fi, ti) {
+			return fmt.Errorf("source and target are the same: %s", src)
+		}
+		action, err := c.resolve(src, dst, fi, ti)
+		if err != nil {
+			return err
+		}
+		if action == Skip {
+			c.skipped++
+			return nil
+		}
+		if fi.IsDir() != ti.IsDir() {
+			return c.replaceTree(src, dst)
+		}
+	}
+	if c.move && ti == nil && os.Rename(src, dst) == nil {
+		return nil
+	}
+	skipped := c.skipped
 	switch {
 	case fi.Mode()&os.ModeSymlink != 0:
 		target, err := os.Readlink(src)
 		if err != nil {
 			return err
 		}
-		_ = os.Remove(dst)
-		return os.Symlink(target, dst)
+		tmp, err := os.CreateTemp(filepath.Dir(dst), ".dualcommander-*")
+		if err != nil { return err }
+		name := tmp.Name()
+		tmp.Close()
+		os.Remove(name)
+		defer os.Remove(name)
+		if err := os.Symlink(target, name); err != nil {
+			return err
+		}
+		if err := os.Rename(name, dst); err != nil { return err }
+		if c.move { if err := os.Remove(src); err != nil { return err } }
+		c.filesDone++
+		c.notify(src)
+		return nil
 	case fi.IsDir():
 		if err := os.MkdirAll(dst, fi.Mode().Perm()|0o700); err != nil {
 			return err
@@ -195,6 +281,7 @@ func (c *copier) copyTree(src, dst string) error {
 				return err
 			}
 		}
+		if c.move && c.skipped == skipped { return os.Remove(src) }
 		return nil
 	default:
 		return c.copyFile(src, dst, fi.Mode().Perm())
@@ -207,15 +294,17 @@ func (c *copier) copyFile(src, dst string, perm os.FileMode) error {
 		return err
 	}
 	defer in.Close()
-	out, err := os.OpenFile(dst, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, perm)
+	out, err := os.CreateTemp(filepath.Dir(dst), ".dualcommander-*")
 	if err != nil {
 		return err
 	}
+	defer os.Remove(out.Name())
+	defer out.Close()
+	if err := out.Chmod(perm); err != nil { return err }
 	buf := make([]byte, 1<<20)
 	for {
 		if c.ctx.Err() != nil {
 			out.Close()
-			os.Remove(dst) // don't leave partial file
 			return c.ctx.Err()
 		}
 		n, rerr := in.Read(buf)
@@ -225,9 +314,7 @@ func (c *copier) copyFile(src, dst string, perm os.FileMode) error {
 				return err
 			}
 			c.done += int64(n)
-			if c.progress != nil {
-				c.progress(c.done, c.total, src)
-			}
+			c.notify(src)
 		}
 		if errors.Is(rerr, io.EOF) {
 			break
@@ -237,5 +324,13 @@ func (c *copier) copyFile(src, dst string, perm os.FileMode) error {
 			return rerr
 		}
 	}
-	return out.Close()
+	if err := out.Close(); err != nil {
+		return err
+	}
+	if err := c.ctx.Err(); err != nil { return err }
+	if err := os.Rename(out.Name(), dst); err != nil { return err }
+	if c.move { if err := os.Remove(src); err != nil { return err } }
+	c.filesDone++
+	c.notify(src)
+	return nil
 }

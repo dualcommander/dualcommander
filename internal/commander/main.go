@@ -38,11 +38,19 @@ func (t appTheme) Color(n fyne.ThemeColorName, v fyne.ThemeVariant) color.Color 
 	if t.force {
 		v = t.v
 	}
+	if n == theme.ColorNameButton {
+		if v == theme.VariantDark {
+			return color.NRGBA{R: 62, G: 62, B: 66, A: 255}
+		}
+		return color.NRGBA{R: 238, G: 238, B: 240, A: 255}
+	}
 	return t.Theme.Color(n, v)
 }
 
 func (t appTheme) Size(n fyne.ThemeSizeName) float32 {
 	switch n {
+	case theme.SizeNameInputRadius:
+		return 6
 	case theme.SizeNamePadding:
 		return t.pad
 	case theme.SizeNameInnerPadding:

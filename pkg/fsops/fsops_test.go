@@ -8,6 +8,37 @@ import (
 	"testing"
 )
 
+func TestCopyFileCounts(t *testing.T) {
+	root := t.TempDir()
+	src := filepath.Join(root, "source")
+	if err := os.MkdirAll(filepath.Join(src, "empty-directory"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for name, body := range map[string]string{"empty": "", "data": "hello"} {
+		if err := os.WriteFile(filepath.Join(src, name), []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var last CopyProgress
+	err := CopyWithProgress(context.Background(), []string{src}, filepath.Join(root, "target"), func(p CopyProgress) {
+		if p.FilesDone < last.FilesDone || p.FilesDone > p.FilesTotal {
+			t.Fatalf("invalid count: %+v", p)
+		}
+		last = p
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if last.FilesDone != 2 || last.FilesTotal != 2 || last.Done != 5 || last.Total != 5 {
+		t.Fatalf("wrong final progress: %+v", last)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if err := CopyWithProgress(ctx, []string{src}, filepath.Join(root, "cancelled"), nil); err != context.Canceled {
+		t.Fatalf("cancel: %v", err)
+	}
+}
+
 func TestTrashCmd(t *testing.T) {
 	p := `/d/it's "x"; rm -rf ~`
 	for _, goos := range []string{"darwin", "windows", "linux"} {

@@ -16,6 +16,72 @@ import (
 	"fyne.io/fyne/v2/widget"
 )
 
+type inputReadyApp struct {
+	fyne.App
+	t *testing.T
+}
+
+func (a *inputReadyApp) NewWindow(title string) fyne.Window {
+	if title != "New directory" {
+		return a.App.NewWindow(title)
+	}
+	return &inputReadyWindow{Window: a.App.NewWindow(title), t: a.t}
+}
+
+type inputReadyWindow struct {
+	fyne.Window
+	t *testing.T
+}
+
+func (w *inputReadyWindow) SetIcon(fyne.Resource) {
+	w.t.Error("dialog must inherit app icon without setting it again")
+}
+
+func (w *inputReadyWindow) Show() {
+	if _, ok := w.Canvas().Focused().(*escEntry); !ok {
+		w.t.Fatal("input must have focus before native window is shown")
+	}
+	w.Window.Show()
+}
+
+func TestNewDirectoryReadyForTyping(t *testing.T) {
+	for _, cancel := range []string{"submit", "escape", "close", "cancel"} {
+		t.Run(cancel, func(t *testing.T) {
+			root := fixture(t)
+			u := newTestUI(t, test.NewTempApp(t), root, root)
+			t.Cleanup(func() {
+				for _, p := range []*pane{u.left, u.right} {
+					if p.watcher != nil {
+						p.watcher.Close()
+						p.watcher = nil
+					}
+				}
+			})
+			u.app = &inputReadyApp{App: u.app, t: t}
+			press(u, fyne.KeyF7)
+			w := windowByTitle(t, u.app, "New directory")
+			e := w.Canvas().Focused().(*escEntry)
+			test.Type(e, "new-folder")
+			switch cancel {
+			case "submit":
+				e.TypedKey(&fyne.KeyEvent{Name: fyne.KeyReturn})
+			case "escape":
+				e.TypedKey(&fyne.KeyEvent{Name: fyne.KeyEscape})
+			case "close":
+				w.Close()
+			case "cancel":
+				tapDialogButton(t, u, "Cancel")
+			}
+			if exists(filepath.Join(root, "new-folder")) != (cancel == "submit") || hasWindow(u.app, "New directory") {
+				t.Fatal("early typing or dialog completion lost")
+			}
+			if u.win.Canvas().Focused() != u.active.focusable() {
+				t.Fatal("pane focus not restored")
+			}
+		})
+	}
+}
+
 func TestDialogCenteredDefaultButtons(t *testing.T) {
 	for _, key := range []fyne.KeyName{fyne.KeyReturn, fyne.KeyEnter} {
 		for _, focus := range []string{"field", "default", "cancel", "canvas"} {

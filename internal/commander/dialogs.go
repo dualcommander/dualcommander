@@ -103,7 +103,6 @@ func (u *ui) blockParent(w fyne.Window) func() {
 // dialogWindow keeps native decorations; closing never confirms an operation.
 func (u *ui) dialogWindow(title string) fyne.Window {
 	w := u.app.NewWindow(title)
-	w.SetIcon(appIcon)
 	w.CenterOnScreen()
 	w.Canvas().SetOnTypedKey(func(e *fyne.KeyEvent) {
 		if e.Name == fyne.KeyEscape {

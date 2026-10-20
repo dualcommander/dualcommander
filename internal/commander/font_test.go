@@ -1,6 +1,7 @@
 package commander
 
 import (
+	"image/color"
 	"path/filepath"
 	"testing"
 
@@ -8,6 +9,25 @@ import (
 	"fyne.io/fyne/v2/test"
 	"fyne.io/fyne/v2/theme"
 )
+
+func TestButtonTheme(t *testing.T) {
+	base := theme.DefaultTheme()
+	for _, variant := range []fyne.ThemeVariant{theme.VariantLight, theme.VariantDark} {
+		theme := appTheme{Theme: base, v: variant, force: true, fontScale: 1}
+		if theme.Size("inputRadius") != 6 {
+			t.Fatal("buttons must share rounded input corners")
+		}
+		button := color.NRGBAModel.Convert(theme.Color("button", variant)).(color.NRGBA)
+		if button.R != button.G || button.A != 255 {
+			t.Fatal("button surface must be neutral and opaque")
+		}
+		for _, name := range []fyne.ThemeColorName{"primary", "focus", "hover", "disabled"} {
+			if theme.Color(name, variant) != base.Color(name, variant) {
+				t.Fatalf("lost native toolkit feedback: %s", name)
+			}
+		}
+	}
+}
 
 func TestFontSizeMenuAndPersistence(t *testing.T) {
 	root := fixture(t)

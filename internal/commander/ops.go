@@ -2,7 +2,6 @@ package commander
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -20,21 +19,21 @@ import (
 // post runs f on the UI thread; tests swap it for a queue drained on the test goroutine.
 var post = fyne.Do
 
-// jobs runs file operations in background goroutines and lists them with progress + cancel.
-type jobs struct {
-	ui  *ui
-	box *fyne.Container
-}
-
 // latestProgress bounds pending UI work without dropping completion or errors.
 func latestProgress(dispatch func(func()), update fsops.Progress) fsops.Progress {
+	report := latestUpdate(dispatch, func(p fsops.CopyProgress) { update(p.Done, p.Total, p.Current) })
+	return func(done, total int64, file string) {
+		report(fsops.CopyProgress{Done: done, Total: total, Current: file})
+	}
+}
+
+func latestUpdate[T any](dispatch func(func()), update func(T)) func(T) {
 	var mu sync.Mutex
 	var pending bool
-	var done, total int64
-	var file string
-	return func(d, t int64, f string) {
+	var latest T
+	return func(value T) {
 		mu.Lock()
-		done, total, file = d, t, f
+		latest = value
 		if pending {
 			mu.Unlock()
 			return
@@ -43,42 +42,12 @@ func latestProgress(dispatch func(func()), update fsops.Progress) fsops.Progress
 		mu.Unlock()
 		dispatch(func() {
 			mu.Lock()
-			d, t, f := done, total, file
+			value := latest
 			pending = false
 			mu.Unlock()
-			update(d, t, f)
+			update(value)
 		})
 	}
-}
-
-func (j *jobs) run(title string, refresh []*pane, fn func(ctx context.Context, prog fsops.Progress) error) {
-	ctx, cancel := context.WithCancel(context.Background())
-	bar := widget.NewProgressBar()
-	label := widget.NewLabel(title)
-	label.Truncation = fyne.TextTruncateEllipsis
-	var item *fyne.Container
-	stop := widget.NewButton("Cancel", cancel)
-	item = container.NewBorder(nil, nil, nil, stop, container.NewVBox(label, bar))
-	j.box.Add(item)
-	go func() {
-		err := fn(ctx, latestProgress(post, func(done, total int64, cur string) {
-			if total > 0 {
-				bar.SetValue(float64(done) / float64(total))
-			}
-			label.SetText(title + " — " + filepath.Base(cur))
-		}))
-		cancelled := ctx.Err() != nil
-		cancel()
-		post(func() {
-			j.box.Remove(item)
-			for _, p := range refresh {
-				p.refresh()
-			}
-			if err != nil && !cancelled && !errors.Is(err, context.Canceled) {
-				j.ui.showErr(fmt.Errorf("%s: %w", title, err))
-			}
-		})
-	}()
 }
 
 func (u *ui) copyOrMove(move bool) {
@@ -108,12 +77,17 @@ func (u *ui) copyOrMove(move bool) {
 		if !filepath.IsAbs(to) {
 			to = filepath.Join(src.path, to)
 		}
-		u.jobs.run(fmt.Sprintf("%s %d item(s) → %s", verb, len(sel), to), []*pane{src, dst},
+		title := fmt.Sprintf("%s %d item(s) → %s", verb, len(sel), to)
+		if !move {
+			u.jobs.runCounted(title, []*pane{src, dst}, func(ctx context.Context, report func(fsops.CopyProgress)) error {
+				return fsops.CopyWithConflicts(ctx, sel, to, report, u.overwriteConflict)
+			})
+			src.markAll(false)
+			return
+		}
+		u.jobs.run(title, []*pane{src, dst},
 			func(ctx context.Context, prog fsops.Progress) error {
-				if move {
-					return fsops.Move(ctx, sel, to, prog)
-				}
-				return fsops.Copy(ctx, sel, to, prog)
+				return fsops.MoveWithConflicts(ctx, sel, to, prog, u.overwriteConflict)
 			})
 		src.markAll(false)
 	})
@@ -135,8 +109,8 @@ func inputDialog(u *ui, title, confirm, label string, e *escEntry, ok func()) {
 		dialogButtons(w, 1, windowButton(w, "Cancel", w.Close), windowButton(w, confirm, submit)),
 	)))
 	w.Resize(fyne.NewSize(500, w.Content().MinSize().Height))
-	w.Show()
 	w.Canvas().Focus(e)
+	w.Show()
 }
 
 func (u *ui) rename() {

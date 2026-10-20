@@ -694,6 +694,56 @@ func TestBriefPageKeysPartialColumn(t *testing.T) {
 	}
 }
 
+func TestTabSelectsParentInEmptyPane(t *testing.T) {
+	for _, brief := range []bool{false, true} {
+		for _, side := range []string{"left", "right"} {
+			t.Run(fmt.Sprintf("brief=%v/active=%s", brief, side), func(t *testing.T) {
+				root := fixture(t)
+				a := test.NewTempApp(t)
+				a.Preferences().SetBool(prefLeftBrief, brief)
+				a.Preferences().SetBool(prefRightBrief, brief)
+				a.Preferences().SetString(prefActive, side)
+				u := newTestUI(t, a, filepath.Join(root, "src", "docs"), filepath.Join(root, "dst"))
+				for range 4 {
+					press(u, fyne.KeyTab)
+					p := u.active
+					if len(p.entries) != 1 || p.current().name != ".." || p.cursor != 0 || u.win.Canvas().Focused() != p.focusable() {
+						t.Fatal("Tab did not focus empty pane's parent entry")
+					}
+					visible := false
+					view := fyne.CanvasObject(p.list)
+					if brief {
+						view = p.grid
+					}
+					var visit func(fyne.CanvasObject)
+					visit = func(o fyne.CanvasObject) {
+						if !o.Visible() {
+							return
+						}
+						if r, ok := o.(*canvas.Rectangle); ok && r.FillColor == theme.Color(theme.ColorNameSelection) && r.Size().Width > 0 && r.Size().Height > 0 {
+							visible = true
+						}
+						switch obj := o.(type) {
+						case *fyne.Container:
+							for _, child := range obj.Objects {
+								visit(child)
+							}
+						case fyne.Widget:
+							for _, child := range test.WidgetRenderer(obj).Objects() {
+								visit(child)
+							}
+						}
+					}
+					visit(view)
+					if !visible || len(p.marked) != 0 {
+						t.Fatal("parent selection indicator missing or marks changed")
+					}
+				}
+			})
+		}
+	}
+}
+
 func TestBriefCursorIndicatorVisible(t *testing.T) {
 	root := fixture(t)
 	u := newTestUI(t, test.NewTempApp(t), filepath.Join(root, "src"), root)

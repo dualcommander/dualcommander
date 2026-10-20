@@ -88,10 +88,11 @@ func (l *keyList) Tapped(*fyne.PointEvent) {
 // keyGrid fills columns top-to-bottom and scrolls horizontally.
 type keyGrid struct {
 	widget.Table
-	p          *pane
-	cell       fyne.Size
-	rows, cols int
-	scroll     *container.Scroll
+	p            *pane
+	cell         fyne.Size
+	rows, cols   int
+	scroll       *container.Scroll
+	markersReady bool
 }
 
 func newKeyGrid(p *pane) *keyGrid {
@@ -206,6 +207,15 @@ func (g *keyGrid) Refresh() {
 	changed := rows != g.rows || cols != g.cols || cell != g.cell
 	g.rows, g.cols = rows, cols
 	g.cell = cell
+	// ponytail: Fyne 2.8 attaches markers only after creating a divider.
+	// Seed once after layout, then restore real data; remove after upstream fix.
+	if !g.markersReady && size.Height >= 2*cell.Height+pad {
+		length := g.Length
+		g.Length = func() (int, int) { return 2, 1 }
+		g.Table.Refresh()
+		g.Length = length
+		g.markersReady = true
+	}
 	g.Table.Refresh()
 	if changed && g.p.ui.active == g.p && len(g.p.entries) > 0 {
 		g.Select(g.p.cursor)
