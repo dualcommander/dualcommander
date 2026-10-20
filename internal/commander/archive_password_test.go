@@ -7,8 +7,8 @@ import (
 	"testing"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/storage"
 	"fyne.io/fyne/v2/test"
-	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 	"github.com/dualcommander/dualcommander/pkg/fsops"
 )
@@ -84,7 +84,12 @@ func TestArchivePasswordRetry(t *testing.T) {
 			if hasWindow(a, "Error") || u.passwordWindow != nil || u.win.Canvas().Overlays().Top() != nil || a.openedURL == nil {
 				t.Fatal("unlock did not finish cleanly")
 			}
-			body, err := os.ReadFile(filepath.FromSlash(a.openedURL.Path))
+			// Fyne file URIs preserve Windows drive letters in the serialized URL, not URL.Path.
+			uri, err := storage.ParseURI(a.openedURL.String())
+			if err != nil {
+				t.Fatal(err)
+			}
+			body, err := os.ReadFile(filepath.FromSlash(uri.Path()))
 			if err != nil || string(body) != "secret contents" {
 				t.Fatalf("extracted content: %q %v", body, err)
 			}
@@ -130,27 +135,44 @@ func TestArchivePasswordCancel(t *testing.T) {
 	}
 }
 
-func TestRenderGoldenArchivePassword(t *testing.T) {
+func TestArchivePasswordControls(t *testing.T) {
 	for _, retry := range []bool{false, true} {
-		name := "archive-password.png"
+		name := "initial"
+		message := "Enter password for protected.zip"
 		if retry {
-			name = "archive-password-retry.png"
+			name = "retry"
+			message = "Password incorrect, or encrypted data damaged. Try again."
 		}
 		t.Run(name, func(t *testing.T) {
 			root := fixture(t)
 			a := test.NewTempApp(t)
-			a.Settings().SetTheme(theme.LightTheme())
 			u := newTestUI(t, a, filepath.Join(root, "src"), root)
-			u.jobs.run("Password render", nil, func(ctx context.Context, _ fsops.Progress) error {
+			u.jobs.run("Password controls", nil, func(ctx context.Context, _ fsops.Progress) error {
 				_, err := u.archivePassword(ctx, "protected.zip", retry)
 				return err
 			})
 			waitUntil(t, func() bool { return hasWindow(a, "Archive password") })
 			w := windowByTitle(t, a, "Archive password")
-			w.Canvas().Unfocus() // no blinking caret in golden
-			test.AssertRendersToImage(t, name, w.Canvas())
+			assertUIText(t, w.Content(), message)
+			entry, ok := w.Canvas().Focused().(*escEntry)
+			if !ok || !entry.Password || entry.Text != "" {
+				t.Fatal("password field must start empty, masked, and focused")
+			}
+			var labels []string
+			for _, object := range test.LaidOutObjects(w.Content()) {
+				if button, ok := object.(*dialogButton); ok {
+					labels = append(labels, button.Text)
+				}
+			}
+			if len(labels) != 2 || labels[0] != "Cancel" || labels[1] != "Unlock" {
+				t.Fatalf("password dialog buttons: %v", labels)
+			}
+			entry.SetText("secret")
 			w.Close()
 			waitJobs(t, u)
+			if entry.Text != "" || hasWindow(a, "Error") || u.passwordWindow != nil || u.win.Canvas().Overlays().Top() != nil || u.win.Canvas().Focused() != u.left.focusable() {
+				t.Fatal("closing password dialog must clear input and restore parent without error")
+			}
 		})
 	}
 }

@@ -39,7 +39,7 @@ For any modal dialog or dialog-driven workflow, also follow skill `native-modal-
 - Also reduce padding and inline icon size so rows are compact, about 22–24px tall in the detailed view.
 - Do it in the existing theme wrapper (`variantTheme` in `main.go`) by overriding `Size()`. Don't set sizes on individual widgets.
 - No font-size setting. The OS default is the only size.
-- Tests: a golden PNG for each density/size change. Inspect the rows visually before accepting.
+- Tests: assert theme sizes and layout invariants for each density/size change, without image comparisons. Inspect appearance manually when needed.
 
 ## 5. Tabs per pane, persistent
 - Each pane side holds tabs (`container.DocTabs`), each tab being one folder view.
@@ -53,7 +53,7 @@ For any modal dialog or dialog-driven workflow, also follow skill `native-modal-
   - Save on every tab change and in `quit()`.
   - On load, tabs whose path no longer exists fall back to home. Never save an empty tab list.
 - Move the old `prefLeft`/`prefRight` values into the new format once.
-- Tests: open/close/switch tabs by key, restore after restart (save, then `newUI` on the same app), missing-path fallback, and a golden PNG of the tab bar.
+- Tests: open/close/switch tabs by key, restore after restart (save, then `newUI` on the same app), missing-path fallback, and tab labels/active state. No image comparisons.
 
 ## General
 - Feel native: native menus, OS shortcut modifier (`KeyModifierShortcutDefault`), the OS's own app to reveal/open files.

@@ -28,11 +28,11 @@ waitJobs(t, u)                                       // drain background jobs
 - Background work must post UI updates via `u.jobs.do`, never touch widgets from goroutines (`-race` catches it).
 - Restart/persistence: call `u.save()`, then `newUI(a)` on the same app.
 
-## Visual tests (golden PNG)
-- `TestRenderGolden` renders a pane via `test.AssertRendersToImage` into `testdata/*.png`.
-- Add a case for each new view, theme variant, or visual state.
-- Keep renders deterministic: fixed mtimes (from `fixture`), no tmp paths, fixed window size.
-- Intended visual change: run check, then **open `testdata/failed/*.png` with read_files and inspect them** (check for truncation, overlap, wrong colors). Accept only if correct: `UPDATE_GOLDEN=1 go test -run TestRenderGolden .`, then re-run check.
+## UI assertions without images
+- Tests must not depend on images: no golden images, screenshot/pixel comparisons, or `test.AssertRendersToImage`. Rendering varies across operating systems, fonts, and drivers.
+- Assert widget structure, labels, accessible controls, theme values, layout invariants, focus, and behavior through headless tests instead.
+- Replace existing image comparisons with meaningful structural and workflow assertions; preserve coverage rather than skipping failing cases.
+- Check visual appearance manually when needed. Never generate or update image baselines.
 
 ## Manual-only items
 Native menu bar, OS reveal, real-display theme switching are not reachable by the test driver. List them in the final summary for the user to check by hand.
