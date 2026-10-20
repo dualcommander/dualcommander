@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"fyne.io/fyne/v2"
@@ -117,7 +118,11 @@ func TestFavouritesUIContent(t *testing.T) {
 	u.win.Resize(fyne.NewSize(700, 320))
 	for _, brief := range []bool{false, true} {
 		u.left.setBrief(brief)
-		assertUIText(t, u.win.Content(), src, "★", "256.0 GB used / 1.0 TB total")
+		pathLabel := test.WidgetRenderer(u.left.pathBar).(*pathRenderer).label.Text
+		if u.left.pathBar.Text != src || !strings.HasSuffix(pathLabel, string(filepath.Separator)+"src") {
+			t.Fatal("favourite path lost full value or current folder label")
+		}
+		assertUIText(t, u.win.Content(), pathLabel, "★", "256.0 GB used / 1.0 TB total")
 		assertPaneRows(t, u.left)
 		test.Tap(u.left.favourites)
 		assertUIText(t, u.win.Canvas().Overlays().Top(), "src", src, "dst", dst, "★")
@@ -128,7 +133,11 @@ func TestFavouritesUIContent(t *testing.T) {
 	waitUntil(t, func() bool { return !u.left.mountButton.Disabled() })
 	assertUIText(t, u.win.Canvas().Overlays().Top(), root, dst)
 	tapDialogButton(t, u, dst)
-	assertUIText(t, u.win.Content(), dst, "★")
+	pathLabel := test.WidgetRenderer(u.left.pathBar).(*pathRenderer).label.Text
+	if u.left.pathBar.Text != dst || !strings.HasSuffix(pathLabel, string(filepath.Separator)+"dst") {
+		t.Fatal("mount navigation lost full path or current folder label")
+	}
+	assertUIText(t, u.win.Content(), pathLabel, "★")
 	if u.left.path != dst || u.right.path != root {
 		t.Fatal("mount selection navigated wrong pane")
 	}

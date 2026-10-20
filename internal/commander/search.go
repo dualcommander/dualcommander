@@ -124,14 +124,13 @@ func (u *ui) search() *finder {
 		u.activate(p)
 	}
 	form := container.NewVBox(widget.NewLabel("In: "+p.path), f.text, f.glob,
-		windowButton(w, "Search", func() { start("") }), f.status)
+		dialogButtons(w, 0, windowButton(w, "Search", func() { start("") })), f.status)
 	// Own OS window: native title bar with close button, movable, doesn't block panes.
 	f.win = w
 	w.SetContent(container.NewBorder(form, nil, nil, nil, f.list))
 	w.SetOnClosed(func() { f.cancel(); u.win.RequestFocus(); u.activate(u.active) })
 	esc := escapeWindow(w)
-	w.Canvas().SetOnTypedKey(func(e *fyne.KeyEvent) { esc(e) }) // nothing focused
-	f.text.esc, f.glob.esc = esc, esc                           // focused entry swallows keys otherwise
+	f.text.esc, f.glob.esc = esc, esc // focused entry swallows keys otherwise
 	w.Resize(fyne.NewSize(700, 500))
 	w.CenterOnScreen()
 	w.Show()

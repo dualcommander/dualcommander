@@ -15,11 +15,32 @@ import (
 	"github.com/dualcommander/dualcommander/pkg/fsops"
 )
 
+// laidOutObjects inspects live renderers; recreating Table renderers drops cached cells.
+func laidOutObjects(o fyne.CanvasObject) []fyne.CanvasObject {
+	objects := []fyne.CanvasObject{o}
+	var children []fyne.CanvasObject
+	switch c := o.(type) {
+	case fyne.Widget:
+		r := test.WidgetRenderer(c)
+		r.Layout(c.Size())
+		children = r.Objects()
+	case *fyne.Container:
+		if c.Layout != nil {
+			c.Layout.Layout(c.Objects, c.Size())
+		}
+		children = c.Objects
+	}
+	for _, child := range children {
+		objects = append(objects, laidOutObjects(child)...)
+	}
+	return objects
+}
+
 // assertUIText checks widget content without depending on native fonts or pixels.
 func assertUIText(t *testing.T, content fyne.CanvasObject, want ...string) {
 	t.Helper()
 	var got []string
-	for _, o := range test.LaidOutObjects(content) {
+	for _, o := range laidOutObjects(content) {
 		if !o.Visible() {
 			continue
 		}
@@ -42,7 +63,7 @@ func assertUIText(t *testing.T, content fyne.CanvasObject, want ...string) {
 func assertPaneRows(t *testing.T, p *pane) {
 	t.Helper()
 	count := 0
-	for _, o := range test.LaidOutObjects(p.body) {
+	for _, o := range laidOutObjects(p.body) {
 		r, ok := o.(*row)
 		if !ok || !r.Visible() || r.id < 0 {
 			continue
@@ -63,7 +84,7 @@ func assertPaneRows(t *testing.T, p *pane) {
 		}
 		var name *widget.Label
 		var icon *widget.Icon
-		for _, child := range test.LaidOutObjects(r) {
+		for _, child := range laidOutObjects(r) {
 			if l, ok := child.(*widget.Label); ok && l.Text == e.name {
 				name = l
 			}

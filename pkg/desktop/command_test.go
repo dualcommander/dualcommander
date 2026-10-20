@@ -40,6 +40,18 @@ func TestDefaults(t *testing.T) {
 	}
 }
 
+func TestFolderCommand(t *testing.T) {
+	dir := `/folder with spaces/";$(touch nope) 世界`
+	for _, tc := range []struct{ os, executable string }{
+		{"darwin", "open"}, {"windows", "explorer.exe"}, {"linux", "xdg-open"},
+	} {
+		cmd, err := FolderCommand(tc.os, dir)
+		if err != nil || !slices.Equal(cmd.Args, []string{tc.executable, dir}) || cmd.Dir != dir {
+			t.Fatalf("%s: folder command=%v error=%v", tc.os, cmd, err)
+		}
+	}
+}
+
 func TestLinuxTerminalFallback(t *testing.T) {
 	for _, available := range []string{"x-terminal-emulator", "gnome-terminal", "konsole", "xterm", ""} {
 		got := linuxTerminal(func(name string) (string, error) {

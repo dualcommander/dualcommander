@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"image/png"
 	"net/url"
 	"os"
@@ -16,6 +17,7 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/test"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
@@ -192,7 +194,7 @@ func TestAppBranding(t *testing.T) {
 	if runtime.GOOS == "darwin" {
 		findKey = "Cmd+F / Alt+F7"
 	}
-	for _, label := range []string{"Keyboard shortcuts", "Tab", "Switch active pane", "Space / Insert", "F4", "F5", "F6", "Shift+F6", "Rename selected item", "F7", "F8 / Delete", findKey, "Find files", "F10"} {
+	for _, label := range []string{"Keyboard shortcuts", "Tab", "Switch active pane", "Space / Insert", "F4", "F5", "F6", "F2 / Shift+F6", "Rename selected item", "F7", "F8 / Delete", findKey, "Find files", "F10"} {
 		if !slices.Contains(labels, label) {
 			t.Fatalf("About shortcut missing: %q", label)
 		}
@@ -360,7 +362,7 @@ func TestFunctionKeyBar(t *testing.T) {
 	for _, object := range bar.Objects {
 		labels = append(labels, object.(*widget.Button).Text)
 	}
-	if !slices.Equal(labels, []string{"F4 Edit", "F5 Copy", "F6 Move", "F7 MkDir", "F8 Delete", "F10 Quit"}) {
+	if !slices.Equal(labels, []string{"F4 Edit", "F5 Copy", "F6 Move", "F7 MkDir", "F8 Delete", "F9 Terminal", "F10 Quit"}) {
 		t.Fatalf("unexpected function buttons: %v", labels)
 	}
 	w := test.NewWindow(bar)
@@ -371,6 +373,37 @@ func TestFunctionKeyBar(t *testing.T) {
 		button := object.(*widget.Button)
 		if button.Disabled() || button.OnTapped == nil || button.Size().Width <= 0 {
 			t.Errorf("function button %q unavailable", button.Text)
+		}
+	}
+}
+
+func TestBackspaceWithMarkedFiles(t *testing.T) {
+	for _, brief := range []bool{false, true} {
+		for _, right := range []bool{false, true} {
+			for _, search := range []bool{false, true} {
+				root := fixture(t)
+				u := newTestUI(t, test.NewTempApp(t), filepath.Join(root, "src"), filepath.Join(root, "src"))
+				p := u.left
+				if right {
+					p = u.right
+				}
+				p.setBrief(brief)
+				u.activate(p)
+				if search {
+					test.Type(p.focusable(), "read")
+				} else {
+					cursorTo(t, p, "readme.md")
+				}
+				p.toggleMark()
+				p.marked["song.mp3"] = true
+				p.focusable().TypedKey(&fyne.KeyEvent{Name: fyne.KeyBackspace})
+				if p.path != root || p.current().name != "src" || len(p.marked) != 0 || p.searchPrefix != "" || u.win.Canvas().Focused() != p.focusable() {
+					t.Fatalf("Backspace did not navigate up: brief=%v right=%v search=%v path=%s cursor=%s", brief, right, search, p.path, p.current().name)
+				}
+				if !exists(filepath.Join(root, "src", "readme.md")) || !exists(filepath.Join(root, "src", "song.mp3")) {
+					t.Fatal("Backspace removed marked files")
+				}
+			}
 		}
 	}
 }
@@ -398,6 +431,47 @@ func TestKeyboardNavigation(t *testing.T) {
 	}
 }
 
+func TestRepeatedArrowNavigation(t *testing.T) {
+	for _, brief := range []bool{false, true} {
+		root := fixture(t)
+		u := newTestUI(t, test.NewTempApp(t), root, root)
+		p := u.left
+		p.setBrief(brief)
+		p.entries = make([]entry, 200)
+		for i := range p.entries {
+			p.entries[i].name = fmt.Sprintf("file-%03d.txt", i)
+		}
+		p.list.Refresh()
+		p.grid.Refresh()
+		p.grid.Resize(fyne.NewSize(600, 400))
+		u.activate(p)
+		p.moveTo(0)
+		if allocs := testing.AllocsPerRun(20, func() { p.previewVisible(0) }); allocs != 0 {
+			t.Fatalf("brief=%v: viewport check allocates %g objects", brief, allocs)
+		}
+		// Cross column and viewport boundaries in both directions, including a partial column.
+		steps := min(len(p.entries)-1, p.grid.rows*(p.grid.cols+1))
+		for _, key := range []fyne.KeyName{fyne.KeyDown, fyne.KeyUp} {
+			for i := 1; i <= steps; i++ {
+				p.focusable().TypedKey(&fyne.KeyEvent{Name: key})
+				want := i
+				if key == fyne.KeyUp {
+					want = steps - i
+				}
+				if p.cursor != want || !strings.HasPrefix(p.status.Text, p.entries[want].name+" · ") {
+					t.Fatalf("brief=%v key=%s: cursor=%d want=%d status=%q", brief, key, p.cursor, want, p.status.Text)
+				}
+				if brief && !p.previewVisible(want) {
+					t.Fatalf("cursor %d outside horizontal viewport", want)
+				}
+			}
+		}
+		if len(p.marked) != 0 || u.win.Canvas().Focused() != p.focusable() {
+			t.Fatal("repeated arrows changed marks or focus")
+		}
+	}
+}
+
 func TestBriefNavigationClampsAtEdges(t *testing.T) {
 	root := fixture(t)
 	if err := os.WriteFile(filepath.Join(root, "src", "extra.txt"), nil, 0o644); err != nil {
@@ -415,13 +489,9 @@ func TestBriefNavigationClampsAtEdges(t *testing.T) {
 					for _, key := range []fyne.KeyName{fyne.KeyLeft, fyne.KeyRight, fyne.KeyUp, fyne.KeyDown} {
 						want := i
 						if key == fyne.KeyUp {
-							if !brief || i%p.grid.rows > 0 {
-								want = max(0, i-1)
-							}
+							want = max(0, i-1)
 						} else if key == fyne.KeyDown {
-							if !brief || i%p.grid.rows < p.grid.rows-1 {
-								want = min(i+1, len(p.entries)-1)
-							}
+							want = min(i+1, len(p.entries)-1)
 						} else if brief {
 							if key == fyne.KeyLeft {
 								want = max(0, i-p.grid.rows)
@@ -490,6 +560,296 @@ func TestShortcutsRespectTextFocus(t *testing.T) {
 	tapDialogButton(t, u, "Cancel")
 }
 
+func TestSwapPreservesPaneState(t *testing.T) {
+	for _, brief := range []bool{false, true} {
+		for _, rightActive := range []bool{false, true} {
+			root := fixture(t)
+			if err := os.WriteFile(filepath.Join(root, "dst", "existing.txt"), nil, 0o600); err != nil {
+				t.Fatal(err)
+			}
+			u := newTestUI(t, test.NewTempApp(t), filepath.Join(root, "src"), filepath.Join(root, "dst"))
+			left, right := u.left, u.right
+			left.setBrief(brief)
+			right.setBrief(!brief)
+			cursorTo(t, left, "readme.md")
+			left.toggleMark()
+			cursorTo(t, left, "song.mp3")
+			cursorTo(t, right, "existing.txt")
+			right.toggleMark()
+			cursorTo(t, right, "existing.txt")
+			left.searchPrefix = "song"
+			active := left
+			if rightActive {
+				active = right
+			}
+			u.activate(active)
+			leftCursor, rightCursor := left.cursor, right.cursor
+			var swap *fyne.MenuItem
+			for _, menu := range u.win.MainMenu().Items {
+				for _, item := range menu.Items {
+					if item.Label == "Swap Panes" {
+						swap = item
+					}
+				}
+			}
+			if swap == nil {
+				t.Fatal("Swap Panes menu missing")
+			}
+			for i := 0; i < 2; i++ {
+				swap.Action()
+				wantLeft, wantRight := right, left
+				if i == 1 {
+					wantLeft, wantRight = left, right
+				}
+				if u.left != wantLeft || u.right != wantRight || u.split.Leading != wantLeft.box || u.split.Trailing != wantRight.box {
+					t.Fatal("swap did not exchange complete panes")
+				}
+				if left.cursor != leftCursor || right.cursor != rightCursor || !left.marked["readme.md"] || !right.marked["existing.txt"] || left.searchPrefix != "song" {
+					t.Fatal("swap lost cursor, marks, or search state")
+				}
+				if left.brief != brief || right.brief == brief || u.active != active || u.win.Canvas().Focused() != active.focusable() {
+					t.Fatal("swap lost view mode or active pane focus")
+				}
+				pr := u.app.Preferences()
+				if pr.String(prefLeft) != wantLeft.path || pr.String(prefRight) != wantRight.path {
+					t.Fatal("swapped paths not saved")
+				}
+			}
+		}
+	}
+}
+
+func TestBriefHomeEndPartialColumn(t *testing.T) {
+	root := fixture(t)
+	u := newTestUI(t, test.NewTempApp(t), root, root)
+	for _, p := range []*pane{u.left, u.right} {
+		p.setBrief(true)
+		u.activate(p)
+		p.list.OnSelected = func(int) { t.Fatal("brief navigation selected hidden detailed view") }
+		g := p.grid
+		cell, pad := g.MinSize(), theme.Padding()
+		for _, count := range []int{9, 10, 11, 12, 13, 31} {
+			p.entries = make([]entry, count)
+			g.Resize(fyne.NewSize(2*(cell.Width+pad)-pad, 4*(cell.Height+pad)-pad))
+			for start := range p.entries {
+				p.moveTo(start)
+				for _, key := range []fyne.KeyName{fyne.KeyEnd, fyne.KeyHome} {
+					u.win.Canvas().Focused().TypedKey(&fyne.KeyEvent{Name: key})
+					want := 0
+					if key == fyne.KeyEnd {
+						want = count - 1
+					}
+					if p.cursor != want || !p.previewVisible(want) {
+						t.Fatalf("count=%d start=%d key=%s: cursor=%d want=%d", count, start, key, p.cursor, want)
+					}
+					var selected widget.TableCellID
+					callback := g.OnUnselected
+					g.OnUnselected = func(id widget.TableCellID) { selected = id }
+					g.UnselectAll()
+					g.OnUnselected = callback
+					if selected != g.slot(want) {
+						t.Fatalf("count=%d start=%d key=%s: selected=%v want=%v", count, start, key, selected, g.slot(want))
+					}
+					p.showCursor()
+				}
+			}
+		}
+	}
+}
+
+func TestBriefPageKeysPartialColumn(t *testing.T) {
+	root := fixture(t)
+	u := newTestUI(t, test.NewTempApp(t), root, root)
+	for _, p := range []*pane{u.left, u.right} {
+		p.setBrief(true)
+		u.activate(p)
+		g := p.grid
+		cell, pad := g.MinSize(), theme.Padding()
+		for _, count := range []int{9, 10, 11, 12, 13, 31} {
+			p.entries = make([]entry, count)
+			g.Resize(fyne.NewSize(2*(cell.Width+pad)-pad, 4*(cell.Height+pad)-pad))
+			for _, fallback := range []bool{false, true} {
+				for start := range p.entries {
+					for _, key := range []fyne.KeyName{fyne.KeyPageDown, fyne.KeyPageUp} {
+						p.moveTo(start)
+						event := &fyne.KeyEvent{Name: key}
+						if fallback {
+							u.win.Canvas().Unfocus()
+							u.win.Canvas().OnTypedKey()(event)
+						} else {
+							u.win.Canvas().Focus(g)
+							g.TypedKey(event)
+						}
+						want := min(count-1, start+g.rows*g.cols)
+						if key == fyne.KeyPageUp {
+							want = max(0, start-g.rows*g.cols)
+						}
+						if p.cursor != want || !p.previewVisible(want) || g.scroll.Offset.Y != 0 {
+							t.Fatalf("count=%d start=%d key=%s fallback=%v: cursor=%d want=%d", count, start, key, fallback, p.cursor, want)
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+func TestBriefCursorIndicatorVisible(t *testing.T) {
+	root := fixture(t)
+	u := newTestUI(t, test.NewTempApp(t), filepath.Join(root, "src"), root)
+	p := u.left
+	p.setBrief(true)
+	u.activate(p)
+	for _, key := range []fyne.KeyName{fyne.KeyEnd, fyne.KeyHome, fyne.KeyDown} {
+		press(u, key)
+		visible := false
+		var visit func(fyne.CanvasObject)
+		visit = func(o fyne.CanvasObject) {
+			if !o.Visible() {
+				return
+			}
+			if r, ok := o.(*canvas.Rectangle); ok && r.FillColor == theme.Color(theme.ColorNameSelection) {
+				visible = r.Size().Width > 0 && r.Size().Height > 0
+			}
+			switch obj := o.(type) {
+			case *fyne.Container:
+				for _, child := range obj.Objects {
+					visit(child)
+				}
+			case fyne.Widget:
+				for _, child := range test.WidgetRenderer(obj).Objects() {
+					visit(child)
+				}
+			}
+		}
+		visit(p.grid)
+		if !visible || len(p.marked) != 0 {
+			t.Fatalf("key=%s: cursor indicator hidden or multi-selection changed", key)
+		}
+	}
+}
+
+func TestBriefEmptyCellsDoNotHover(t *testing.T) {
+	root := fixture(t)
+	u := newTestUI(t, test.NewTempApp(t), root, root)
+	for _, p := range []*pane{u.left, u.right} {
+		p.setBrief(true)
+		u.activate(p)
+		g := p.grid
+		cell, pad := g.MinSize(), theme.Padding()
+		p.entries = make([]entry, 5)
+		g.Resize(fyne.NewSize(2*(cell.Width+pad)-pad, 4*(cell.Height+pad)-pad))
+		p.moveTo(0)
+		u.win.Canvas().Unfocus() // Isolate mouse hover from the keyboard cursor marker.
+		p.marked["kept"] = true
+		hoverVisible := func() bool {
+			for _, o := range test.LaidOutObjects(g) {
+				if r, ok := o.(*canvas.Rectangle); ok && r.Visible() && r.FillColor == theme.Color(theme.ColorNameHover) {
+					return true
+				}
+			}
+			return false
+		}
+		for row := 1; row < g.rows; row++ {
+			g.MouseIn(&desktop.MouseEvent{PointEvent: fyne.PointEvent{Position: fyne.NewPos(g.cell.Width+pad+1, 1)}})
+			if !hoverVisible() {
+				t.Fatal("populated cell must retain hover highlight")
+			}
+			g.MouseMoved(&desktop.MouseEvent{PointEvent: fyne.PointEvent{Position: fyne.NewPos(g.cell.Width+pad+1, float32(row)*(g.cell.Height+pad)+1)}})
+			if hoverVisible() || p.cursor != 0 || !p.marked["kept"] {
+				t.Fatal("empty cell must clear hover without changing cursor or marks")
+			}
+		}
+	}
+}
+
+func TestBriefHoverFollowsMouseWithFocus(t *testing.T) {
+	root := fixture(t)
+	u := newTestUI(t, test.NewTempApp(t), root, root)
+	for _, p := range []*pane{u.left, u.right} {
+		p.setBrief(true)
+		g := p.grid
+		p.entries = make([]entry, 5)
+		cell, pad := g.MinSize(), theme.Padding()
+		g.Resize(fyne.NewSize(2*(cell.Width+pad)-pad, 4*(cell.Height+pad)-pad))
+		for _, active := range []bool{true, false} {
+			u.activate(p)
+			p.moveTo(0)
+			if !active {
+				u.activate(u.other())
+			}
+			p.marked["kept"] = true
+			hover := func() *canvas.Rectangle {
+				for _, o := range test.LaidOutObjects(g) {
+					if r, ok := o.(*canvas.Rectangle); ok && r.Visible() && r.FillColor == theme.Color(theme.ColorNameHover) {
+						return r
+					}
+				}
+				return nil
+			}
+			g.MouseIn(&desktop.MouseEvent{PointEvent: fyne.PointEvent{Position: fyne.NewPos(1, g.cell.Height+pad+1)}})
+			if marker := hover(); marker == nil || marker.Position().Y < g.cell.Height {
+				t.Fatalf("active=%v: hover did not follow mouse to second row", active)
+			}
+			g.MouseMoved(&desktop.MouseEvent{PointEvent: fyne.PointEvent{Position: fyne.NewPos(g.cell.Width+pad+1, 1)}})
+			if marker := hover(); marker == nil || marker.Position().X < g.cell.Width || marker.Position().Y != 0 {
+				t.Fatalf("active=%v: hover did not follow mouse to next column", active)
+			}
+			g.MouseMoved(&desktop.MouseEvent{PointEvent: fyne.PointEvent{Position: fyne.NewPos(g.cell.Width+pad+1, g.cell.Height+pad+1)}})
+			if hover() != nil {
+				t.Fatalf("active=%v: empty cell highlighted", active)
+			}
+			g.MouseOut()
+			if hover() != nil || p.cursor != 0 || !p.marked["kept"] || (u.win.Canvas().Focused() == g) != active {
+				t.Fatal("hover changed cursor, marks, or focus, or remained after exit")
+			}
+		}
+	}
+}
+
+func TestBriefScrollsHorizontally(t *testing.T) {
+	root := fixture(t)
+	u := newTestUI(t, test.NewTempApp(t), root, root)
+	for _, p := range []*pane{u.left, u.right} {
+		p.setBrief(true)
+		u.activate(p)
+		p.entries = make([]entry, 31)
+		g := p.grid
+		cell, pad := g.MinSize(), theme.Padding()
+		g.Resize(fyne.NewSize(2*(cell.Width+pad)-pad, 4*(cell.Height+pad)-pad))
+		rows, cols := g.Length()
+		if rows != 4 || cols != 8 || p.cols() != 2 {
+			t.Fatalf("wrong column flow: rows=%d total columns=%d visible columns=%d", rows, cols, p.cols())
+		}
+		if g.scroll.Direction != container.ScrollHorizontalOnly || g.scroll.Content.MinSize().Height > g.Size().Height {
+			t.Fatal("brief content must fit viewport height and scroll horizontally only")
+		}
+		p.moveTo(0)
+		press(u, fyne.KeyRight)
+		if p.cursor != rows || g.scroll.Offset.X != 0 {
+			t.Fatal("Right must move to next visible column")
+		}
+		press(u, fyne.KeyEnd)
+		if p.cursor != len(p.entries)-1 || g.scroll.Offset.X <= 0 || g.scroll.Offset.Y != 0 || !p.previewVisible(p.cursor) || p.previewVisible(0) {
+			t.Fatal("End must reveal last column horizontally, including preview visibility")
+		}
+		press(u, fyne.KeyHome)
+		if g.scroll.Offset != (fyne.Position{}) {
+			t.Fatal("Home must return to first column")
+		}
+		g.scroll.Scrolled(&fyne.ScrollEvent{Scrolled: fyne.Delta{DY: -cell.Width}})
+		if g.scroll.Offset.X <= 0 || g.scroll.Offset.Y != 0 {
+			t.Fatal("mouse wheel must scroll columns horizontally")
+		}
+		g.Resize(fyne.NewSize(g.Size().Width, 6*(cell.Height+pad)-pad))
+		rows, cols = g.Length()
+		if rows != 6 || cols != 6 || g.scroll.Offset.Y != 0 {
+			t.Fatal("resize must reflow columns without vertical scrolling")
+		}
+		g.UpdateCell(widget.TableCellID{Row: 5, Col: 5}, g.CreateCell())
+	}
+}
+
 func TestBriefColumnsFollowVisibleCapacity(t *testing.T) {
 	root := fixture(t)
 	u := newTestUI(t, test.NewTempApp(t), root, root)
@@ -513,19 +873,22 @@ func TestBriefColumnsFollowVisibleCapacity(t *testing.T) {
 			}
 			for id := range p.entries {
 				slot := p.grid.slot(id)
-				if slot >= p.grid.Length() || p.grid.entryID(slot) != id {
-					t.Fatalf("entry %d missing from grid: slot=%d length=%d", id, slot, p.grid.Length())
+				rows, cols := p.grid.Length()
+				if slot.Row >= rows || slot.Col >= cols || p.grid.entryID(slot) != id {
+					t.Fatalf("entry %d missing from grid: slot=%v size=%dx%d", id, slot, rows, cols)
 				}
-				r := p.grid.CreateItem().(*row)
-				p.grid.UpdateItem(slot, r)
+				r := p.grid.CreateCell().(*row)
+				p.grid.UpdateCell(slot, r)
 				if r.id != id || !r.Visible() {
 					t.Fatalf("entry %d not rendered", id)
 				}
 			}
-			for slot := 0; slot < p.grid.Length(); slot++ {
+			rows, cols := p.grid.Length()
+			for index := 0; index < rows*cols; index++ {
+				slot := widget.TableCellID{Row: index % rows, Col: index / rows}
 				if p.grid.entryID(slot) >= len(p.entries) {
-					r := p.grid.CreateItem().(*row)
-					p.grid.UpdateItem(slot, r)
+					r := p.grid.CreateCell().(*row)
+					p.grid.UpdateCell(slot, r)
 					if r.Visible() {
 						t.Fatal("empty slot shows stale entry")
 					}
@@ -572,13 +935,56 @@ func TestBriefColumnsFitLongestName(t *testing.T) {
 		}
 		p.entries[0].name = long
 		p.grid.Refresh()
-		if p.cols() != 1 || p.grid.cell.Width > p.grid.Size().Width || p.grid.MinSize() != base {
-			t.Fatal("long name must fit pane without increasing minimum size")
+		if p.cols() != 2 || p.grid.cell.Width > (p.grid.Size().Width-pad)/2 || p.grid.MinSize() != base {
+			t.Fatal("long name must truncate without collapsing columns or increasing minimum size")
 		}
 		p.entries[0].name = "short"
 		p.grid.Refresh()
 		if p.cols() != 2 {
 			t.Fatal("refresh did not restore narrower columns")
+		}
+	}
+}
+
+func TestBriefLongNamesAcrossFolders(t *testing.T) {
+	root := t.TempDir()
+	for _, folder := range []string{"short", "long"} {
+		dir := filepath.Join(root, folder)
+		if err := os.Mkdir(dir, 0o700); err != nil {
+			t.Fatal(err)
+		}
+		for i := 0; i < 20; i++ {
+			name := string(rune('a'+i)) + ".txt"
+			if folder == "long" && i == 0 {
+				name = strings.Repeat("long-name-", 20) + "世界.txt"
+			}
+			if err := os.WriteFile(filepath.Join(dir, name), nil, 0o600); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	u := newTestUI(t, test.NewTempApp(t), root, root)
+	p := u.left
+	p.setBrief(true)
+	u.activate(p)
+	g := p.grid
+	base, pad := g.MinSize(), theme.Padding()
+	g.Resize(fyne.NewSize(3*(base.Width+pad)-pad, 4*(base.Height+pad)-pad))
+	for _, folder := range []string{"short", "long", "short", "long"} {
+		if err := p.cd(filepath.Join(root, folder), ""); err != nil {
+			t.Fatal(err)
+		}
+		if p.cols() < 2 || g.rows != 4 || g.scroll.Content.MinSize().Height > g.Size().Height {
+			t.Fatalf("%s: long filenames collapsed columns or introduced vertical overflow", folder)
+		}
+		press(u, fyne.KeyEnd)
+		if g.scroll.Offset.X <= 0 || g.scroll.Offset.Y != 0 || !p.previewVisible(p.cursor) {
+			t.Fatalf("%s: last column not revealed horizontally", folder)
+		}
+		press(u, fyne.KeyHome)
+		press(u, fyne.KeyRight)
+		if p.cursor != g.rows {
+			t.Fatalf("%s: column navigation changed with filename length", folder)
 		}
 	}
 }
@@ -687,6 +1093,57 @@ func TestMissingSavedPathFallsBackHome(t *testing.T) {
 	u := newTestUI(t, test.NewTempApp(t), "/definitely/not/here", "/definitely/not/here")
 	if home, _ := os.UserHomeDir(); u.left.path != home {
 		t.Fatalf("got %s", u.left.path)
+	}
+}
+
+func TestCurrentFolderActions(t *testing.T) {
+	root := fixture(t)
+	u := newTestUI(t, test.NewTempApp(t), filepath.Join(root, "src"), filepath.Join(root, "src"))
+	u.app.Preferences().SetString(prefTerminalCmd, "invalid")
+	for _, p := range []*pane{u.left, u.right} {
+		u.activate(p)
+		cursorTo(t, p, "readme.md")
+		p.toggleMark()
+		cursor := p.cursor
+		// Exercise real key and button callbacks without launching native apps.
+		press(u, fyne.KeyF9)
+		if !hasWindow(u.app, "Error") {
+			t.Fatal("F9 did not invoke terminal action")
+		}
+		tapDialogButton(t, u, "OK")
+		test.Tap(u.fkeyBar().(*fyne.Container).Objects[5].(*widget.Button))
+		if !hasWindow(u.app, "Error") {
+			t.Fatal("F9 button did not invoke terminal action")
+		}
+		tapDialogButton(t, u, "OK")
+		found := false
+		for _, item := range u.win.MainMenu().Items[0].Items {
+			if item.Label != folderLabel() {
+				continue
+			}
+			found = true
+			shortcut, ok := item.Shortcut.(*desktop.CustomShortcut)
+			if !ok || shortcut.KeyName != fyne.KeyO || shortcut.Modifier != fyne.KeyModifierShortcutDefault|fyne.KeyModifierShift {
+				t.Fatal("folder action missing shortcut")
+			}
+			// Archive folders have no native directory; don't launch the OS app.
+			path := p.path
+			p.path = filepath.Join(root, "src", "app.zip", "docs")
+			press(u, fyne.KeyF9)
+			if !hasWindow(u.app, "Error") {
+				t.Fatal("terminal accepted archive directory")
+			}
+			tapDialogButton(t, u, "OK")
+			item.Action()
+			if !hasWindow(u.app, "Error") {
+				t.Fatal("folder action accepted archive directory")
+			}
+			tapDialogButton(t, u, "OK")
+			p.path = path
+		}
+		if !found || p.cursor != cursor || !p.marked["readme.md"] {
+			t.Fatal("folder action missing or pane state changed")
+		}
 	}
 }
 

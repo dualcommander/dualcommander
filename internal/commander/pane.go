@@ -44,7 +44,7 @@ type pane struct {
 	searchPrefix    string
 	brief           bool
 	viewButton      *widget.Button
-	pathBar         *widget.Entry
+	pathBar         *pathEntry
 	favourite       *widget.Button
 	favourites      *widget.Button
 	space           *widget.Label
@@ -74,7 +74,7 @@ func newPane(u *ui, path string, brief bool, sortPref string) *pane {
 	}
 	p.hdr = p.header()
 	p.setSortLabels()
-	p.pathBar = widget.NewEntry()
+	p.pathBar = newPathEntry()
 	p.pathBar.OnSubmitted = func(s string) { p.navigate(s, "") }
 	p.status = widget.NewLabel("")
 	p.status.Truncation = fyne.TextTruncateEllipsis
@@ -385,10 +385,13 @@ func (p *pane) showCursor() {
 		p.grid.UnselectAll()
 		return
 	}
-	p.list.Select(p.cursor)
-	p.grid.Select(p.cursor)
-	p.list.Highlight(p.cursor) // keep Fyne's focus bar on cursor, not stale row
-	p.grid.Highlight(p.cursor)
+	if p.brief {
+		p.grid.Select(p.cursor)
+		// Table.Select already moves its highlight and scrolls into view.
+	} else {
+		p.list.Select(p.cursor)
+		p.list.Highlight(p.cursor)
+	}
 }
 
 func (p *pane) open() {
@@ -574,21 +577,24 @@ func (p *pane) updateStatus() {
 	}
 	var files, dirs, selectedFiles, selectedDirs int
 	var totalSize, selectedSize int64
-	for _, e := range p.entries {
-		if e.name == ".." {
-			continue
-		}
-		if e.dir {
-			dirs++
-			if p.marked[e.name] {
-				selectedDirs++
+	// Cursor-only navigation must not scan the directory on every key repeat.
+	if len(p.marked) > 0 {
+		for _, e := range p.entries {
+			if e.name == ".." {
+				continue
 			}
-		} else {
-			files++
-			totalSize += e.size
-			if p.marked[e.name] {
-				selectedFiles++
-				selectedSize += e.size
+			if e.dir {
+				dirs++
+				if p.marked[e.name] {
+					selectedDirs++
+				}
+			} else {
+				files++
+				totalSize += e.size
+				if p.marked[e.name] {
+					selectedFiles++
+					selectedSize += e.size
+				}
 			}
 		}
 	}

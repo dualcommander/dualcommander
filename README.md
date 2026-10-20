@@ -56,7 +56,7 @@ For building from source, testing, or packaging, see [CONTRIBUTING.md](CONTRIBUT
 | `Mod+Shift+A` | Unmark all |
 | `F5` | Copy |
 | `F6` | Move |
-| `Shift+F6` | Rename cursor item |
+| `F2` / `Shift+F6` | Rename cursor item (`F2` on `..`: select current path) |
 | `F7` / `Mod+Shift+N` | Create folder |
 | `F8` / `Del` / `Mod+Backspace` | Delete to Trash/Recycle Bin; delete permanently if Trash is turned off in Settings |
 | `Mod+,` | Open Settings |
@@ -64,6 +64,9 @@ For building from source, testing, or packaging, see [CONTRIBUTING.md](CONTRIBUT
 | `Mod+2` | Detailed view |
 | `Mod+Shift+.` | Toggle hidden files |
 | `Mod+Shift+R` | Reveal in Finder/Explorer |
+| `Mod+Shift+O` | Open current folder in Finder/Explorer/file manager |
+| `F9` | Open terminal in current folder |
+| `Menu` (application key) | Open cursor item's right-click menu |
 | `Mod+U` | Swap panes |
 | `Mod+E` | Open the same folder in the other pane |
 | `Mod+F` / `Alt+F7` | Find files by name or content |
@@ -73,6 +76,7 @@ For building from source, testing, or packaging, see [CONTRIBUTING.md](CONTRIBUT
 | Mouse input | Action |
 | --- | --- |
 | Click | Set cursor |
+| Right-click | Open, Open With / Get Info (macOS) or Properties (Windows), reveal, copy path |
 | `Mod+click` | Toggle mark |
 | `Shift+click` | Mark range |
 | Click Name/Size/Date header | Sort ascending; click again to reverse (brief and detailed views) |

@@ -106,15 +106,18 @@ func (p *pane) entryIcon(i int) fyne.Resource {
 
 // Fyne retains buffer rows outside the viewport; those must not trigger previews.
 func (p *pane) previewVisible(i int) bool {
-	height := newRowWidget(p, true).MinSize().Height
+	height := p.list.rowHeight
 	padding := p.list.Theme().Size(theme.SizeNamePadding)
 	offset, size := p.list.GetScrollOffset(), p.list.Size()
 	row := i
 	if p.brief {
-		height = p.grid.cell.Height
-		padding = p.grid.Theme().Size(theme.SizeNamePadding)
-		offset, size = p.grid.GetScrollOffset(), p.grid.Size()
-		row = p.grid.slot(i) / p.grid.ColumnCount()
+		g := p.grid
+		if g.scroll == nil {
+			return false
+		}
+		left := float32(i/g.rows) * (g.cell.Width + g.Theme().Size(theme.SizeNamePadding))
+		return g.Size().Width > 0 && g.Size().Height > 0 &&
+			left < g.scroll.Offset.X+g.Size().Width && left+g.cell.Width > g.scroll.Offset.X
 	}
 	top := float32(row) * (height + padding)
 	return size.Width > 0 && size.Height > 0 && height > 0 && top < offset+size.Height && top+height > offset

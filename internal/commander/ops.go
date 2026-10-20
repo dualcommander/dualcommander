@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
@@ -25,6 +26,31 @@ type jobs struct {
 	box *fyne.Container
 }
 
+// latestProgress bounds pending UI work without dropping completion or errors.
+func latestProgress(dispatch func(func()), update fsops.Progress) fsops.Progress {
+	var mu sync.Mutex
+	var pending bool
+	var done, total int64
+	var file string
+	return func(d, t int64, f string) {
+		mu.Lock()
+		done, total, file = d, t, f
+		if pending {
+			mu.Unlock()
+			return
+		}
+		pending = true
+		mu.Unlock()
+		dispatch(func() {
+			mu.Lock()
+			d, t, f := done, total, file
+			pending = false
+			mu.Unlock()
+			update(d, t, f)
+		})
+	}
+}
+
 func (j *jobs) run(title string, refresh []*pane, fn func(ctx context.Context, prog fsops.Progress) error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	bar := widget.NewProgressBar()
@@ -35,14 +61,12 @@ func (j *jobs) run(title string, refresh []*pane, fn func(ctx context.Context, p
 	item = container.NewBorder(nil, nil, nil, stop, container.NewVBox(label, bar))
 	j.box.Add(item)
 	go func() {
-		err := fn(ctx, func(done, total int64, cur string) {
-			post(func() {
-				if total > 0 {
-					bar.SetValue(float64(done) / float64(total))
-				}
-				label.SetText(title + " — " + filepath.Base(cur))
-			})
-		})
+		err := fn(ctx, latestProgress(post, func(done, total int64, cur string) {
+			if total > 0 {
+				bar.SetValue(float64(done) / float64(total))
+			}
+			label.SetText(title + " — " + filepath.Base(cur))
+		}))
 		cancelled := ctx.Err() != nil
 		cancel()
 		post(func() {
@@ -106,9 +130,9 @@ func inputDialog(u *ui, title, confirm, label string, e *escEntry, ok func()) {
 	}
 	e.esc = escapeWindow(w)
 	e.OnSubmitted = func(string) { submit() }
-	w.SetContent(container.NewPadded(container.NewVBox(
+	w.SetContent(u.dialogContent(container.NewVBox(
 		widget.NewForm(widget.NewFormItem(label, e)),
-		container.NewHBox(windowButton(w, "Cancel", w.Close), windowButton(w, confirm, submit)),
+		dialogButtons(w, 1, windowButton(w, "Cancel", w.Close), windowButton(w, confirm, submit)),
 	)))
 	w.Resize(fyne.NewSize(500, w.Content().MinSize().Height))
 	w.Show()
@@ -235,7 +259,7 @@ func (u *ui) settings() {
 	terminalItem.HintText = "{dir} is the active pane folder."
 	help := widget.NewLabel("Custom commands use JSON argument lists, without a shell.\nLeave a field blank to use the OS default shown below.")
 	help.Wrapping = fyne.TextWrapWord
-	content := container.NewPadded(container.NewVBox(
+	content := u.dialogContent(container.NewVBox(
 		widget.NewLabelWithStyle("Settings", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		widget.NewLabel("Changes are saved automatically. Invalid commands are not saved."),
 		widget.NewSeparator(),

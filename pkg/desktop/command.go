@@ -22,6 +22,18 @@ func Defaults(goos string) (reveal, terminal string) {
 	}
 }
 
+// FolderCommand opens dir itself, rather than revealing a selected child.
+func FolderCommand(goos, dir string) (*exec.Cmd, error) {
+	command := `["xdg-open","{dir}"]`
+	switch goos {
+	case "darwin":
+		command = `["open","{dir}"]`
+	case "windows":
+		command = `["explorer.exe","{dir}"]`
+	}
+	return Command(command, dir, dir)
+}
+
 func linuxTerminal(lookPath func(string) (string, error)) string {
 	for _, name := range []string{"x-terminal-emulator", "kgx", "gnome-terminal", "konsole", "xfce4-terminal", "mate-terminal", "kitty", "alacritty", "xterm"} {
 		if _, err := lookPath(name); err == nil {

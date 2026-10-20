@@ -8,6 +8,13 @@ description: Overall product and implementation guidance for dualcommander (Go/F
 Always also follow skill `test-every-change`.
 For any modal dialog or dialog-driven workflow, also follow skill `native-modal-dialogs`.
 
+## Core objective: UI responsiveness
+- Treat smooth keyboard repeat, scrolling, pointer feedback, and cancellation as core product requirements, not optional polish. Preserve input order; never drop navigation events to hide slow work.
+- Keep UI callbacks bounded. No blocking filesystem/network scans, thumbnail loading, or process waits on the UI thread; use background workers and post widget changes back through the existing UI dispatcher.
+- Bound worker concurrency and queued UI updates. Coalesce replaceable progress updates to the latest value; never discard completion, errors, or cancellation. Reject stale results after navigation.
+- Reuse virtualized widgets. Avoid directory-wide scans, text measurement, widget allocations, and full-view refreshes on repeated input; stop work once layout limits are known. Refresh only affected visible items where possible.
+- Add deterministic regression checks for queue bounds, stale results, and exact navigation state. Use benchmarks/profiles for speed claims; avoid wall-clock timing assertions and image comparisons. Manually check held-arrow navigation and scrolling in large folders.
+
 ## 1. Libraries over custom code
 - Order: Go stdlib, then a dependency already in `go.mod`, then a small, well-known library, and custom code only last.
 - Before writing anything over ~30 lines, look for a library that does it. Note the choice in the summary.

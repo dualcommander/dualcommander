@@ -15,7 +15,7 @@
 # vendor/
 /dualcommander
 /dist/
-/cmd/dualcommander/DualCommander.app/
+/cmd/*/*.app/
 /cmd/dualcommander/DualCommander.tar.xz
 
 .idea/

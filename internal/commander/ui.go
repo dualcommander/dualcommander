@@ -1,6 +1,7 @@
 package commander
 
 import (
+	"bytes"
 	"fmt"
 	"net/url"
 	"os"
@@ -37,6 +38,7 @@ type ui struct {
 	win            fyne.Window
 	left, right    *pane
 	active         *pane
+	split          *container.Split
 	jobs           *jobs
 	themeMode      string
 	themeItems     []*fyne.MenuItem
@@ -88,8 +90,8 @@ func newUI(a fyne.App) *ui {
 		u.win.Canvas().AddShortcut(&desktop.CustomShortcut{KeyName: fyne.KeyR, Modifier: fyne.KeyModifierControl},
 			func(fyne.Shortcut) { u.active.refresh() })
 	}
-	u.win.SetContent(container.NewBorder(nil, container.NewVBox(u.jobs.box, u.fkeyBar()), nil, nil,
-		container.NewHSplit(u.left.box, u.right.box)))
+	u.split = container.NewHSplit(u.left.box, u.right.box)
+	u.win.SetContent(container.NewBorder(nil, container.NewVBox(u.jobs.box, u.fkeyBar()), nil, nil, u.split))
 	u.win.Resize(fyne.NewSize(float32(pr.FloatWithFallback(prefW, 1100)), float32(pr.FloatWithFallback(prefH, 700))))
 	u.win.SetCloseIntercept(u.quit)
 	u.win.Canvas().SetOnTypedKey(func(e *fyne.KeyEvent) { u.key(u.active, e, u.active.cols()*10) }) // no widget focused (after header/dialog click): keys still drive active pane
@@ -171,7 +173,8 @@ func (u *ui) mainMenu() *fyne.MainMenu {
 			item("Open", fyne.KeyO, mod, func() { u.active.open() }),
 			item("Edit (F4)", "", 0, u.edit),
 			item(revealLabel(), fyne.KeyR, mod|fyne.KeyModifierShift, func() { u.openExternal(false) }),
-			item("Open in Terminal", "", 0, func() { u.openExternal(true) }),
+			item(folderLabel(), fyne.KeyO, mod|fyne.KeyModifierShift, u.openCurrentFolder),
+			item("Open in Terminal", fyne.KeyF9, 0, func() { u.openExternal(true) }),
 			sep(),
 			item("New Folder", fyne.KeyN, mod|fyne.KeyModifierShift, u.mkdir),
 			item("Find Files…", fyne.KeyF, mod, func() { u.search() }),
@@ -226,7 +229,7 @@ func (u *ui) about() {
 		{"Shift+F4", "Create new file"},
 		{"F5", "Copy"},
 		{"F6", "Move"},
-		{"Shift+F6", "Rename selected item"},
+		{"F2 / Shift+F6", "Rename selected item"},
 		{"F7", "Create folder"},
 		{"F8 / Delete", "Delete"},
 		{findKey, "Find files"},
@@ -235,7 +238,7 @@ func (u *ui) about() {
 		shortcuts.Add(widget.NewLabelWithStyle(shortcut[0], fyne.TextAlignLeading, fyne.TextStyle{Bold: true}))
 		shortcuts.Add(widget.NewLabel(shortcut[1]))
 	}
-	w.SetContent(container.NewVScroll(container.NewPadded(container.NewVBox(
+	w.SetContent(container.NewVScroll(u.dialogContent(container.NewVBox(
 		container.NewCenter(icon),
 		widget.NewLabelWithStyle(appName, fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
 		widget.NewLabelWithStyle(version, fyne.TextAlignCenter, fyne.TextStyle{}),
@@ -308,13 +311,45 @@ func (u *ui) externalCommand(terminal bool) (*exec.Cmd, error) {
 
 func (u *ui) openExternal(terminal bool) {
 	cmd, err := u.externalCommand(terminal)
+	if err == nil && terminal {
+		native.PrepareTerminal(cmd)
+	}
+	u.startExternal(cmd, err)
+}
+
+func folderLabel() string {
+	switch runtime.GOOS {
+	case "darwin":
+		return "Open Folder in Finder"
+	case "windows":
+		return "Open Folder in Explorer"
+	}
+	return "Open Folder in File Manager"
+}
+
+func (u *ui) openCurrentFolder() {
+	if u.active.inArchive() {
+		u.showErr(fmt.Errorf("leave archive folder before opening in file manager"))
+		return
+	}
+	cmd, err := native.FolderCommand(runtime.GOOS, u.active.path)
+	u.startExternal(cmd, err)
+}
+
+func (u *ui) startExternal(cmd *exec.Cmd, err error) {
 	if err == nil {
-		if terminal {
-			native.PrepareTerminal(cmd)
-		}
+		var stderr bytes.Buffer
+		cmd.Stderr = &stderr
 		err = cmd.Start()
 		if err == nil {
-			go func() { _ = cmd.Wait() }() // reap child without blocking UI
+			go func() {
+				if err := cmd.Wait(); err != nil {
+					if detail := strings.TrimSpace(stderr.String()); detail != "" {
+						err = fmt.Errorf("%w: %s", err, detail)
+					}
+					post(func() { u.showErr(err) })
+				}
+			}() // reap child without blocking UI; surface native handler failures
 		}
 	}
 	u.showErr(err)
@@ -360,37 +395,40 @@ func (u *ui) setFontSize(size string) {
 }
 
 func (u *ui) swap() {
-	l, r := u.left.path, u.right.path
-	u.left.navigate(r, "")
-	u.right.navigate(l, "")
+	u.left, u.right = u.right, u.left
+	u.split.Leading, u.split.Trailing = u.left.box, u.right.box
+	u.split.Refresh()
+	u.activate(u.active)
 }
 
 func (u *ui) fkeyBar() fyne.CanvasObject {
 	b := func(l string, f func()) fyne.CanvasObject { return widget.NewButton(l, f) }
-	return container.NewGridWithColumns(6,
+	return container.NewGridWithColumns(7,
 		b("F4 Edit", u.edit),
 		b("F5 Copy", func() { u.copyOrMove(false) }),
 		b("F6 Move", func() { u.copyOrMove(true) }),
 		b("F7 MkDir", u.mkdir),
 		b("F8 Delete", u.delete),
+		b("F9 Terminal", func() { u.openExternal(true) }),
 		b("F10 Quit", u.quit))
 }
 
-// key handles commander keys for pane p; page = rows per PgUp/PgDn.
+// key handles commander keys for pane p; page = entries per PgUp/PgDn.
 func (u *ui) key(p *pane, e *fyne.KeyEvent, page int) {
 	if u.passwordWindow != nil {
 		u.passwordWindow.RequestFocus()
 		return
 	}
+	if p.brief {
+		page = p.grid.rows * p.grid.cols
+	}
 	switch e.Name {
+	case desktop.KeyMenu:
+		p.keyboardContextMenu()
 	case fyne.KeyUp:
-		if !p.brief || p.cursor%p.grid.rows > 0 {
-			p.moveTo(p.cursor - 1)
-		}
+		p.moveTo(p.cursor - 1)
 	case fyne.KeyDown:
-		if !p.brief || p.cursor%p.grid.rows < p.grid.rows-1 {
-			p.moveTo(p.cursor + 1)
-		}
+		p.moveTo(p.cursor + 1)
 	case fyne.KeyLeft:
 		if p.brief {
 			p.moveTo(p.cursor - p.grid.rows)
@@ -403,6 +441,13 @@ func (u *ui) key(p *pane, e *fyne.KeyEvent, page int) {
 		u.activate(u.other())
 	case fyne.KeyReturn, fyne.KeyEnter:
 		p.open()
+	case fyne.KeyF2:
+		if p.current().name == ".." {
+			u.win.Canvas().Focus(p.pathBar)
+			p.pathBar.TypedShortcut(&fyne.ShortcutSelectAll{})
+		} else {
+			u.rename()
+		}
 	case fyne.KeyF4:
 		if driver, ok := u.app.Driver().(interface{ CurrentKeyModifiers() fyne.KeyModifier }); ok && driver.CurrentKeyModifiers()&fyne.KeyModifierShift != 0 {
 			u.newFile()
@@ -410,7 +455,7 @@ func (u *ui) key(p *pane, e *fyne.KeyEvent, page int) {
 		}
 		u.edit()
 	case fyne.KeyBackspace:
-		if p.searchPrefix != "" {
+		if p.searchPrefix != "" && len(p.marked) == 0 {
 			runes := []rune(p.searchPrefix)
 			p.searchPrefix = string(runes[:len(runes)-1])
 			p.matchSearch()
@@ -442,6 +487,8 @@ func (u *ui) key(p *pane, e *fyne.KeyEvent, page int) {
 		u.mkdir()
 	case fyne.KeyF8, fyne.KeyDelete:
 		u.delete()
+	case fyne.KeyF9:
+		u.openExternal(true)
 	case fyne.KeyF10:
 		u.quit()
 	}
@@ -457,8 +504,6 @@ func (u *ui) other() *pane {
 func (u *ui) activate(p *pane) {
 	u.active = p
 	for _, q := range []*pane{u.left, u.right} {
-		q.pathBar.TextStyle.Bold = q == p
-		q.pathBar.Refresh()
 		if len(q.entries) > 0 {
 			q.showCursor()
 		}

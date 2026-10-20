@@ -83,9 +83,9 @@ func (u *ui) archivePassword(ctx context.Context, name string, retry bool) (stri
 			w.Close()
 		}
 		e.OnSubmitted = func(string) { submit() }
-		w.SetContent(container.NewPadded(container.NewVBox(label,
+		w.SetContent(u.dialogContent(container.NewVBox(label,
 			widget.NewForm(widget.NewFormItem("Password", e)),
-			container.NewHBox(windowButton(w, "Cancel", w.Close), windowButton(w, "Unlock", submit)))))
+			dialogButtons(w, 1, windowButton(w, "Cancel", w.Close), windowButton(w, "Unlock", submit)))))
 		w.Resize(fyne.NewSize(500, w.Content().MinSize().Height))
 		w.Show()
 		w.Canvas().Focus(e)

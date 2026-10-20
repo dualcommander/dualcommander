@@ -2,6 +2,7 @@ package commander
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -12,8 +13,10 @@ import (
 	"time"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/test"
+	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 )
 
@@ -171,8 +174,8 @@ func TestStartupSelectsFirstEntryInBothPanes(t *testing.T) {
 			t.Fatal("active pane does not have keyboard focus")
 		}
 		for _, p := range []*pane{u.left, u.right} {
-			if p.pathBar.TextStyle.Bold != (p == active) {
-				t.Fatal("active pane indicator incorrect")
+			if p.pathBar.TextStyle != (fyne.TextStyle{}) {
+				t.Fatal("pane activation changed path font")
 			}
 			assertPaneRows(t, p)
 			assertUIText(t, p.body, p.current().name)
@@ -194,6 +197,125 @@ func TestAutoRefreshOnExternalChange(t *testing.T) {
 }
 
 // Mixed keyboard + mouse: mouse-down must act immediately on any row, incl. the cursor row.
+func TestDoubleClickDifferentFolder(t *testing.T) {
+	for _, brief := range []bool{false, true} {
+		for _, active := range []bool{false, true} {
+			t.Run(fmt.Sprintf("brief=%v/active=%v", brief, active), func(t *testing.T) {
+				root := t.TempDir()
+				for i := 0; i < 80; i++ {
+					if err := os.Mkdir(filepath.Join(root, fmt.Sprintf("folder-%02d", i)), 0o755); err != nil {
+						t.Fatal(err)
+					}
+				}
+				u := newTestUI(t, test.NewTempApp(t), root, root)
+				p := u.left
+				p.setBrief(brief)
+				cursorTo(t, p, "folder-00")
+				if !active {
+					u.activate(u.right)
+				}
+				target := slices.Index(names(p), "folder-79")
+				if brief {
+					p.grid.ScrollTo(p.grid.slot(target))
+					p.grid.scroll.Refresh()
+				} else {
+					p.list.ScrollToBottom()
+				}
+				var clicked *row
+				var objects []fyne.CanvasObject
+				var collect func(fyne.CanvasObject)
+				collect = func(o fyne.CanvasObject) {
+					objects = append(objects, o)
+					switch o := o.(type) {
+					case *fyne.Container:
+						for _, child := range o.Objects {
+							collect(child)
+						}
+					case fyne.Widget:
+						for _, child := range test.WidgetRenderer(o).Objects() {
+							collect(child)
+						}
+					}
+				}
+				collect(p.body)
+				for _, o := range objects {
+					if r, ok := o.(*row); ok && r.Visible() && r.id == target {
+						clicked = r
+					}
+				}
+				if clicked == nil {
+					t.Fatal("target folder not rendered")
+				}
+				down := &desktop.MouseEvent{Button: desktop.MouseButtonPrimary}
+				clicked.MouseDown(down)
+				clicked.MouseUp(down)
+				if clicked.id != target || p.current().name != "folder-79" || u.active != p {
+					t.Fatal("first click recycled target row or selected wrong folder")
+				}
+				clicked.MouseDown(down)
+				clicked.MouseUp(down)
+				clicked.DoubleTapped(nil)
+				if p.path != filepath.Join(root, "folder-79") {
+					t.Fatalf("double click did not open target: %s", p.path)
+				}
+			})
+		}
+	}
+}
+
+func TestPaneBackgroundActivatesRememberedCursor(t *testing.T) {
+	root := fixture(t)
+	u := newTestUI(t, test.NewTempApp(t), filepath.Join(root, "src"), filepath.Join(root, "src"))
+	for _, brief := range []bool{false, true} {
+		for _, p := range []*pane{u.left, u.right} {
+			p.setBrief(brief)
+			u.activate(p)
+			cursorTo(t, p, "song.mp3")
+			p.marked["readme.md"] = true
+			other := u.other()
+			for _, tap := range []bool{false, true} {
+				u.activate(other)
+				var view fyne.Tappable = p.list
+				if brief {
+					view = p.grid
+				}
+				if tap {
+					test.TapAt(view, fyne.NewPos(1, p.body.Size().Height-1))
+				} else {
+					view.(desktop.Mouseable).MouseDown(&desktop.MouseEvent{Button: desktop.MouseButtonPrimary})
+				}
+				if u.active != p || u.win.Canvas().Focused() != p.focusable() || p.current().name != "song.mp3" || !p.marked["readme.md"] {
+					t.Fatalf("brief=%v tap=%v: background click lost activation, cursor, focus, or marks", brief, tap)
+				}
+				visible := false
+				var visit func(fyne.CanvasObject)
+				visit = func(o fyne.CanvasObject) {
+					if !o.Visible() {
+						return
+					}
+					if r, ok := o.(*canvas.Rectangle); ok && r.Visible() && r.FillColor == theme.Color(theme.ColorNameSelection) && r.Size().Width > 0 && r.Size().Height > 0 {
+						visible = true
+					}
+					switch o := o.(type) {
+					case *fyne.Container:
+						for _, child := range o.Objects {
+							visit(child)
+						}
+					case fyne.Widget:
+						for _, child := range test.WidgetRenderer(o).Objects() {
+							visit(child)
+						}
+					}
+				}
+				visit(p.body)
+				if !visible {
+					t.Fatal("remembered cursor indicator missing")
+				}
+			}
+		}
+	}
+}
+
 func TestMouseDownAfterKeyboard(t *testing.T) {
 	root := fixture(t)
 	u := newTestUI(t, test.NewTempApp(t), filepath.Join(root, "src"), filepath.Join(root, "dst"))

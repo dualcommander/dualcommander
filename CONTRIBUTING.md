@@ -2,6 +2,14 @@
 
 For downloads and usage, see [README.md](README.md).
 
+## UI responsiveness
+
+Smooth navigation, scrolling, and cancellation are core requirements. Keep blocking
+work off the UI thread, bound workers and pending UI updates, and coalesce progress
+without losing completion or errors. Avoid directory-wide work on repeated input.
+Follow [development guidelines](.clinerules/skills/dualcommander-guidelines/SKILL.md)
+and add deterministic regression checks; use profiling for performance claims.
+
 ## Development setup
 
 Requirements: Go 1.23 or newer (see [go.mod](go.mod)), Make, a POSIX shell,

@@ -9,9 +9,126 @@ import (
 	"testing"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/test"
+	"fyne.io/fyne/v2/theme"
+	"fyne.io/fyne/v2/widget"
 )
+
+func TestDialogCenteredDefaultButtons(t *testing.T) {
+	for _, key := range []fyne.KeyName{fyne.KeyReturn, fyne.KeyEnter} {
+		for _, focus := range []string{"field", "default", "cancel", "canvas"} {
+			root := fixture(t)
+			u := newTestUI(t, test.NewTempApp(t), filepath.Join(root, "src"), filepath.Join(root, "dst"))
+			cursorTo(t, u.left, "readme.md")
+			u.copyOrMove(false)
+			w := windowByTitle(t, u.app, "Copy 1 item(s) to")
+			var primary, cancel *dialogButton
+			for _, o := range test.LaidOutObjects(w.Content()) {
+				if b, ok := o.(*dialogButton); ok {
+					if b.Text == "Copy" {
+						primary = b
+					} else if b.Text == "Cancel" {
+						cancel = b
+					}
+				}
+			}
+			if primary == nil || cancel == nil || primary.Importance != widget.HighImportance || cancel.Importance == widget.HighImportance {
+				t.Fatal("exactly one default action required")
+			}
+			outer := w.Content().(*container.ThemeOverride).Content.(*fyne.Container)
+			body := outer.Objects[0].(*fyne.Container)
+			center := body.Objects[1].(*fyne.Container)
+			group := center.Objects[0]
+			if delta := 2*group.Position().X + group.Size().Width - center.Size().Width; delta < -0.01 || delta > 0.01 {
+				t.Fatal("button group not centered")
+			}
+			switch focus {
+			case "default":
+				w.Canvas().Focus(primary)
+			case "cancel":
+				w.Canvas().Focus(cancel)
+			case "canvas":
+				w.Canvas().Unfocus()
+			}
+			if focused := w.Canvas().Focused(); focused != nil {
+				focused.TypedKey(&fyne.KeyEvent{Name: key})
+			} else {
+				w.Canvas().OnTypedKey()(&fyne.KeyEvent{Name: key})
+			}
+			waitJobs(t, u)
+			if exists(filepath.Join(root, "dst", "readme.md")) != (focus != "cancel") || hasWindow(u.app, "Copy 1 item(s) to") {
+				t.Fatalf("Enter action wrong: focus=%s key=%s", focus, key)
+			}
+		}
+	}
+	root := fixture(t)
+	u := newTestUI(t, test.NewTempApp(t), root, root)
+	confirmed := false
+	u.confirm("Confirm", "Continue?", func() { confirmed = true })
+	w := windowByTitle(t, u.app, "Confirm")
+	if b, ok := w.Canvas().Focused().(*dialogButton); !ok || b.Text != "No" {
+		t.Fatal("confirmation must default to safe action")
+	}
+	w.Canvas().Focused().TypedKey(&fyne.KeyEvent{Name: fyne.KeyReturn})
+	if confirmed || hasWindow(u.app, "Confirm") {
+		t.Fatal("default confirmation must cancel")
+	}
+	u.showErr(errors.New("test"))
+	w = windowByTitle(t, u.app, "Error")
+	w.Canvas().Focused().TypedKey(&fyne.KeyEvent{Name: fyne.KeyReturn})
+	if hasWindow(u.app, "Error") {
+		t.Fatal("Enter must dismiss error")
+	}
+}
+
+func TestFileDialogSpacing(t *testing.T) {
+	for _, density := range densities {
+		root := fixture(t)
+		u := newTestUI(t, test.NewTempApp(t), filepath.Join(root, "src"), filepath.Join(root, "dst"))
+		u.setDensity(density)
+		cursorTo(t, u.left, "readme.md")
+		panePadding := u.left.list.Theme().Size(theme.SizeNamePadding)
+		for _, move := range []bool{false, true} {
+			for _, closeBy := range []string{"Cancel", "Escape", "close"} {
+				u.copyOrMove(move)
+				title := "Copy 1 item(s) to"
+				if move {
+					title = "Move/Rename 1 item(s) to"
+				}
+				w := windowByTitle(t, u.app, title)
+				e := w.Canvas().Focused().(*escEntry)
+				if e.Theme().Size(theme.SizeNamePadding) != 12 || e.Theme().Size(theme.SizeNameInnerPadding) != 8 {
+					t.Fatal("form inherited compact pane spacing")
+				}
+				if e.Theme().Size(theme.SizeNameText) != u.app.Settings().Theme().Size(theme.SizeNameText) || u.left.list.Theme().Size(theme.SizeNamePadding) != panePadding {
+					t.Fatal("dialog spacing changed fonts or pane density")
+				}
+				outer := w.Content().(*container.ThemeOverride).Content.(*fyne.Container)
+				body := outer.Objects[0].(*fyne.Container)
+				if body.Position() != fyne.NewPos(16, 16) || outer.Size().Width-body.Size().Width != 32 || outer.Size().Height-body.Size().Height != 32 {
+					t.Fatal("dialog needs 16px outer margins")
+				}
+				form, buttons := body.Objects[0], body.Objects[1]
+				if buttons.Position().Y-(form.Position().Y+form.Size().Height) < 12 {
+					t.Fatal("form and buttons need breathing room")
+				}
+				switch closeBy {
+				case "Cancel":
+					tapDialogButton(t, u, "Cancel")
+				case "Escape":
+					e.TypedKey(&fyne.KeyEvent{Name: fyne.KeyEscape})
+				default:
+					w.Close()
+				}
+				if hasWindow(u.app, title) || !exists(filepath.Join(root, "src", "readme.md")) || exists(filepath.Join(root, "dst", "readme.md")) || u.win.Canvas().Focused() != u.left.focusable() {
+					t.Fatal("closing spaced dialog changed files or lost pane focus")
+				}
+			}
+		}
+	}
+}
 
 func dialogFocusables(w fyne.Window) []fyne.Focusable {
 	w.Canvas().Unfocus()
@@ -75,6 +192,49 @@ func TestDialogEscape(t *testing.T) {
 				t.Fatal("Escape closed main window or confirmed operation")
 			}
 		})
+	}
+}
+
+func TestF2RenameAndParentPath(t *testing.T) {
+	for _, brief := range []bool{false, true} {
+		root := fixture(t)
+		u := newTestUI(t, test.NewTempApp(t), filepath.Join(root, "src"), root)
+		for _, p := range []*pane{u.left, u.right} {
+			u.activate(p)
+			p.setBrief(brief)
+			for _, name := range []string{"src", "song.mp3"} {
+				if name == "src" {
+					p.cd(root, name)
+				} else {
+					p.cd(filepath.Join(root, "src"), name)
+				}
+				press(u, fyne.KeyF2)
+				w := windowByTitle(t, u.app, "Rename")
+				e := w.Canvas().Focused().(*escEntry)
+				if e.Text != name {
+					t.Fatalf("F2 rename target=%q want %q", e.Text, name)
+				}
+				e.SetText("renamed-" + name)
+				e.TypedKey(&fyne.KeyEvent{Name: fyne.KeyReturn})
+				if !exists(filepath.Join(p.path, "renamed-"+name)) || exists(filepath.Join(p.path, name)) {
+					t.Fatal("F2 did not rename cursor item")
+				}
+				if err := os.Rename(filepath.Join(p.path, "renamed-"+name), filepath.Join(p.path, name)); err != nil {
+					t.Fatal(err)
+				}
+			}
+			p.cd(filepath.Join(root, "src"), "..")
+			p.marked["song.mp3"] = true
+			press(u, fyne.KeyF2)
+			if u.win.Canvas().Focused() != p.pathBar || p.pathBar.SelectedText() != p.path || !p.marked["song.mp3"] || hasWindow(u.app, "Rename") {
+				t.Fatal("F2 on parent must select full path without rename or clearing marks")
+			}
+			test.Type(p.pathBar, root)
+			p.pathBar.TypedKey(&fyne.KeyEvent{Name: fyne.KeyReturn})
+			if p.path != root {
+				t.Fatal("selected path could not be replaced and submitted")
+			}
+		}
 	}
 }
 
