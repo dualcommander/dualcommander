@@ -71,6 +71,12 @@ func Size(ctx context.Context, paths []string) (int64, error) {
 }
 
 func copySize(ctx context.Context, paths []string) (total, files int64, err error) {
+	return SizeWithProgress(ctx, paths, nil)
+}
+
+// SizeWithProgress counts bytes and non-directory entries without following symlinks.
+// report receives running totals; callers should throttle expensive updates.
+func SizeWithProgress(ctx context.Context, paths []string, report func(bytes, files int64)) (total, files int64, err error) {
 	for _, p := range paths {
 		err := filepath.WalkDir(p, func(_ string, d fs.DirEntry, err error) error {
 			if err != nil {
@@ -88,6 +94,9 @@ func copySize(ctx context.Context, paths []string) (total, files int64, err erro
 			}
 			if !d.IsDir() {
 				files++
+			}
+			if report != nil {
+				report(total, files)
 			}
 			return nil
 		})

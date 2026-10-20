@@ -134,7 +134,7 @@ func TestDialogCenteredDefaultButtons(t *testing.T) {
 	confirmed := false
 	u.confirm("Confirm", "Continue?", func() { confirmed = true })
 	w := windowByTitle(t, u.app, "Confirm")
-	if b, ok := w.Canvas().Focused().(*dialogButton); !ok || b.Text != "No" {
+	if b, ok := w.Canvas().Focused().(*dialogButton); !ok || b.Text != "Cancel" {
 		t.Fatal("confirmation must default to safe action")
 	}
 	w.Canvas().Focused().TypedKey(&fyne.KeyEvent{Name: fyne.KeyReturn})
@@ -193,6 +193,55 @@ func TestFileDialogSpacing(t *testing.T) {
 				}
 			}
 		}
+	}
+}
+
+func TestTrashConfirmationLayoutAndCancel(t *testing.T) {
+	for _, closeBy := range []string{"Cancel", "close", "canvas", "Cancel escape", "action escape"} {
+		t.Run(closeBy, func(t *testing.T) {
+			root := fixture(t)
+			u := newTestUI(t, test.NewTempApp(t), filepath.Join(root, "src"), filepath.Join(root, "dst"))
+			cursorTo(t, u.left, "readme.md")
+			press(u, fyne.KeyF8)
+			title := "Move to " + trashName()
+			w := windowByTitle(t, u.app, title)
+			assertUIText(t, w.Content(), title+` "readme.md"?`, "Cancel", title)
+			outer := w.Content().(*container.ThemeOverride).Content.(*fyne.Container)
+			body := outer.Objects[0].(*fyne.Container)
+			label, buttons := body.Objects[0], body.Objects[1]
+			gap := buttons.Position().Y - label.Position().Y - label.Size().Height
+			if body.Position() != fyne.NewPos(16, 16) || gap < 11.99 || gap > 12.01 {
+				t.Fatalf("confirmation must use shared margins and compact stacked spacing: position=%v gap=%v", body.Position(), gap)
+			}
+			controls := dialogFocusables(w)
+			if len(controls) != 2 || controls[0].(*dialogButton).Text != "Cancel" || controls[0].(*dialogButton).Importance != widget.HighImportance || controls[1].(*dialogButton).Text != title {
+				t.Fatal("confirmation needs safe default and named action")
+			}
+			cursor := u.left.cursor
+			press(u, fyne.KeyDown)
+			if u.passwordWindow != w || u.left.cursor != cursor || u.win.Canvas().Overlays().Top() == nil {
+				t.Fatal("confirmation must block parent input")
+			}
+			switch closeBy {
+			case "Cancel":
+				tapDialogButton(t, u, "Cancel")
+			case "close":
+				w.Close()
+			case "canvas":
+				w.Canvas().Unfocus()
+				w.Canvas().OnTypedKey()(&fyne.KeyEvent{Name: fyne.KeyEscape})
+			default:
+				i := 0
+				if closeBy == "action escape" {
+					i = 1
+				}
+				w.Canvas().Focus(controls[i])
+				controls[i].TypedKey(&fyne.KeyEvent{Name: fyne.KeyEscape})
+			}
+			if hasWindow(u.app, title) || !exists(filepath.Join(root, "src", "readme.md")) || u.passwordWindow != nil || u.win.Canvas().Overlays().Top() != nil || u.win.Canvas().Focused() != u.left.focusable() {
+				t.Fatal("cancel must preserve file and restore parent input")
+			}
+		})
 	}
 }
 

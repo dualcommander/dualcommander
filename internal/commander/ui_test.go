@@ -194,7 +194,7 @@ func TestAppBranding(t *testing.T) {
 	if runtime.GOOS == "darwin" {
 		findKey = "Cmd+F / Alt+F7"
 	}
-	for _, label := range []string{"Keyboard shortcuts", "Tab", "Switch active pane", "Space / Insert", "F4", "F5", "F6", "F2 / Shift+F6", "Rename selected item", "F7", "F8 / Delete", findKey, "Find files", "F10"} {
+	for _, label := range []string{"Keyboard shortcuts", "Tab", "Switch active pane", "Space", "Mark folder and calculate size", "Insert", "Mark or unmark item", "F4", "F5", "F6", "F2 / Shift+F6", "Rename selected item", "F7", "F8 / Delete", findKey, "Find files", "F10"} {
 		if !slices.Contains(labels, label) {
 			t.Fatalf("About shortcut missing: %q", label)
 		}
@@ -317,7 +317,7 @@ func TestPaneDetailsAndSelectionTotals(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if p.current().attrs != fi.Mode().String() || p.status.Text != "readme.md · "+fi.Mode().String()+" · 5 B · 2024-01-02 03:04" {
+		if p.current().attrs != fi.Mode().String() || p.status.Text != "readme.md · 5 B · 2024-01-02 03:04 · "+fi.Mode().String() {
 			t.Fatalf("file details: %q", p.status.Text)
 		}
 		r := newRowWidget(p, true)
@@ -326,9 +326,10 @@ func TestPaneDetailsAndSelectionTotals(t *testing.T) {
 		if attrs.Text != fi.Mode().String() {
 			t.Fatalf("attributes column: %q", attrs.Text)
 		}
-		press(u, fyne.KeySpace)
+		press(u, fyne.KeyInsert)
 		cursorTo(t, p, "docs")
-		press(u, fyne.KeySpace)
+		press(u, fyne.KeyInsert)
+		waitUntil(t, func() bool { return !p.sizeBusy })
 		if got, want := p.status.Text, "Selected: 5 B of 9 B · Files: 1 of 3 · Folders: 1 of 2"; got != want {
 			t.Fatalf("summary %q want %q", got, want)
 		}
@@ -342,7 +343,9 @@ func TestPaneDetailsAndSelectionTotals(t *testing.T) {
 		}
 		p.setBrief(true)
 		cursorTo(t, p, "docs")
-		if !strings.HasPrefix(p.status.Text, "docs · d") || !strings.Contains(p.status.Text, "<DIR>") || strings.Contains(p.status.Text, "\n") {
+		press(u, fyne.KeySpace)
+		waitUntil(t, func() bool { return !p.sizeBusy })
+		if p.status.Text != "0 B · 0 files" || strings.Contains(p.status.Text, "\n") {
 			t.Fatalf("folder details: %q", p.status.Text)
 		}
 		if err := p.cd(filepath.Join(root, "dst"), ""); err != nil {
@@ -615,6 +618,47 @@ func TestSwapPreservesPaneState(t *testing.T) {
 					t.Fatal("swapped paths not saved")
 				}
 			}
+		}
+	}
+}
+
+func TestBriefMouseWheelScroll(t *testing.T) {
+	root := fixture(t)
+	u := newTestUI(t, test.NewTempApp(t), root, root)
+	p := u.left
+	p.setBrief(true)
+	p.entries = make([]entry, 100)
+	for i := range p.entries {
+		p.entries[i].name = fmt.Sprintf("file%03d.txt", i)
+	}
+	u.win.SetContent(p.grid)
+	u.win.Resize(fyne.NewSize(500, 200))
+	p.grid.Refresh()
+	p.moveTo(0)
+	p.marked[p.current().name] = true
+	g := p.grid
+	u.win.Canvas().Focus(g)
+	if g.scroll.Content.MinSize().Width <= g.scroll.Size().Width {
+		t.Fatal("test requires overflowing columns")
+	}
+	pos := u.app.Driver().AbsolutePositionForObject(g).Add(fyne.NewPos(20, 20))
+	for _, delta := range []fyne.Delta{
+		{DY: -40}, {DY: 20}, {DX: -30}, {DX: 10, DY: -80},
+		{DY: -100000}, {DY: -40}, {DY: 100000}, {DY: 40},
+	} {
+		before := g.scroll.Offset.X
+		dx := delta.DX
+		if dx == 0 {
+			dx = delta.DY
+		}
+		limit := max(float32(0), g.scroll.Content.MinSize().Width-g.scroll.Size().Width)
+		want := min(limit, max(float32(0), before-dx))
+		test.Scroll(u.win.Canvas(), pos, delta.DX, delta.DY)
+		if g.scroll.Offset.X != want || g.scroll.Offset.Y != 0 {
+			t.Fatalf("wheel %v: offset=%v want=(%v, 0)", delta, g.scroll.Offset, want)
+		}
+		if p.cursor != 0 || len(p.marked) != 1 || !p.marked[p.entries[0].name] || u.win.Canvas().Focused() != g {
+			t.Fatal("scroll changed cursor, marks, or focus")
 		}
 	}
 }
@@ -1043,8 +1087,8 @@ func TestMarkAndCopyWorkflow(t *testing.T) {
 	root := fixture(t)
 	u := newTestUI(t, test.NewTempApp(t), filepath.Join(root, "src"), filepath.Join(root, "dst"))
 	cursorTo(t, u.left, "readme.md")
-	press(u, fyne.KeySpace) // marks readme, cursor to song
-	press(u, fyne.KeySpace) // marks song
+	press(u, fyne.KeyInsert) // marks readme, cursor to song
+	press(u, fyne.KeyInsert) // marks song
 	if len(u.left.selection()) != 2 {
 		t.Fatalf("marked: %v", u.left.selection())
 	}
@@ -1078,13 +1122,13 @@ func TestMoveDeleteMkdirWorkflow(t *testing.T) {
 
 	cursorTo(t, u.left, "app.zip")
 	press(u, fyne.KeyF8)
-	tapDialogButton(t, u, "No")
+	tapDialogButton(t, u, "Cancel")
 	if !exists(filepath.Join(root, "src", "app.zip")) {
-		t.Fatal("deleted despite No")
+		t.Fatal("deleted despite Cancel")
 	}
 	trashed.Store(false)
 	press(u, fyne.KeyF8)
-	tapDialogButton(t, u, "Yes")
+	tapDialogButton(t, u, "Move to "+trashName())
 	waitJobs(t, u)
 	if exists(filepath.Join(root, "src", "app.zip")) || !trashed.Load() {
 		t.Fatal("not moved to trash (default)")
@@ -1104,7 +1148,7 @@ func TestMoveDeleteMkdirWorkflow(t *testing.T) {
 	trashed.Store(false)
 	cursorTo(t, u.left, "song.mp3")
 	press(u, fyne.KeyF8)
-	tapDialogButton(t, u, "Yes")
+	tapDialogButton(t, u, "Delete")
 	waitJobs(t, u)
 	if exists(filepath.Join(root, "src", "song.mp3")) || trashed.Load() {
 		t.Fatal("permanent delete failed or used trash")
@@ -1254,7 +1298,7 @@ func TestPaneUIContent(t *testing.T) {
 				if tc.name == "search_footer" {
 					test.Type(u.left.list, "read")
 				}
-				w.SetContent(container.NewBorder(nil, container.NewVBox(u.left.status, u.fkeyBar()), nil, nil, u.left.body))
+				w.SetContent(container.NewBorder(nil, container.NewVBox(container.NewStack(u.left.status, u.left.statusRow), u.fkeyBar()), nil, nil, u.left.body))
 				w.Resize(fyne.NewSize(800, tc.height))
 			}
 			if tc.name == "brief_two_columns" || tc.name == "brief_partial_column" || tc.name == "brief_long_names" {
@@ -1273,7 +1317,8 @@ func TestPaneUIContent(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				assertUIText(t, w.Content(), "readme.md · "+info.Mode().String()+" · 5 B · 2024-01-02 03:04", "F5 Copy")
+				assertUIText(t, u.left.statusRow, "readme.md", "5 B", "2024-01-02 03:04", info.Mode().String())
+				assertUIText(t, w.Content(), "F5 Copy")
 			case "search_footer":
 				assertUIText(t, w.Content(), "Search: read", "F5 Copy")
 				if u.left.current().name != "readme.md" {

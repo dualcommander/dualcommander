@@ -32,6 +32,10 @@ type entry struct {
 	attrs         string
 	icon          fyne.Resource
 	iconRequested bool
+	sizeRequested bool
+	sizeKnown     bool
+	sizeError     string
+	sizeFiles     int64
 }
 
 // pane is one side of the commander: path bar + list (detailed) or grid (brief).
@@ -52,6 +56,7 @@ type pane struct {
 	mounts          func() ([]string, error)
 	spaceGeneration int
 	status          *widget.Label
+	statusRow       *fyne.Container
 	list            *keyList
 	grid            *keyGrid
 	body            *fyne.Container
@@ -65,10 +70,13 @@ type pane struct {
 	archiveFS       fs.FS
 	navigation      int
 	iconGeneration  int
+	sizeBusy        bool
+	sizeCancel      context.CancelFunc
+	measureSize     func(context.Context, []string, func(int64, int64)) (int64, int64, error)
 }
 
 func newPane(u *ui, path string, brief bool, sortPref string) *pane {
-	p := &pane{ui: u, marked: map[string]bool{}, sortBy: "name"}
+	p := &pane{ui: u, marked: map[string]bool{}, sortBy: "name", measureSize: fsops.SizeWithProgress}
 	if by, d, _ := strings.Cut(sortPref, " "); slices.Contains(sortKeys, by) {
 		p.sortBy, p.desc = by, d == "desc"
 	}
@@ -78,6 +86,9 @@ func newPane(u *ui, path string, brief bool, sortPref string) *pane {
 	p.pathBar.OnSubmitted = func(s string) { p.navigate(s, "") }
 	p.status = widget.NewLabel("")
 	p.status.Truncation = fyne.TextTruncateEllipsis
+	p.statusRow = newRowContent(true).(*fyne.Container)
+	p.statusRow.Objects[1].Hide()
+	p.statusRow.Hide()
 	p.list = newKeyList(p)
 	p.grid = newKeyGrid(p)
 	p.body = container.NewStack()
@@ -93,7 +104,7 @@ func newPane(u *ui, path string, brief bool, sortPref string) *pane {
 	p.mountButton = widget.NewButtonWithIcon("/", theme.MenuDropDownIcon(), p.showMounts)
 	top := container.NewVBox(container.NewBorder(nil, nil, p.mountButton, nil, p.space), container.NewBorder(nil, nil, container.NewHBox(homeBtn, upBtn),
 		container.NewHBox(p.favourite, p.favourites, p.viewButton), p.pathBar))
-	p.box = container.NewBorder(top, container.NewVBox(widget.NewSeparator(), p.status), nil, nil, p.body)
+	p.box = container.NewBorder(top, container.NewVBox(widget.NewSeparator(), container.NewStack(p.status, p.statusRow)), nil, nil, p.body)
 	p.setBrief(brief)
 	if p.cd(path, "") != nil {
 		h, _ := os.UserHomeDir()
@@ -188,6 +199,9 @@ func (p *pane) cd(dir, selectName string) error {
 		es = append(es, e)
 	}
 	sortEntries(es, p.sortBy, p.desc)
+	if p.sizeCancel != nil {
+		p.sizeCancel()
+	}
 	p.path, p.entries = dir, es
 	p.iconGeneration++
 	if !same {
@@ -571,12 +585,17 @@ func (p *pane) selection() []string {
 }
 
 func (p *pane) updateStatus() {
+	p.statusRow.Hide()
+	p.status.Show()
 	if p.searchPrefix != "" {
 		p.status.SetText("Search: " + p.searchPrefix)
 		return
 	}
 	var files, dirs, selectedFiles, selectedDirs int
 	var totalSize, selectedSize int64
+	var folderFiles int64
+	var measured, pending bool
+	sizeNotice := ""
 	// Cursor-only navigation must not scan the directory on every key repeat.
 	if len(p.marked) > 0 {
 		for _, e := range p.entries {
@@ -585,8 +604,27 @@ func (p *pane) updateStatus() {
 			}
 			if e.dir {
 				dirs++
+				if e.sizeKnown {
+					totalSize += e.size
+				}
 				if p.marked[e.name] {
 					selectedDirs++
+					if e.sizeRequested {
+						measured = true
+						if !e.sizeKnown && e.sizeError == "" {
+							selectedSize += e.size
+							folderFiles += e.sizeFiles
+							pending = true
+						}
+					}
+					if e.sizeKnown {
+						selectedSize += e.size
+						folderFiles += e.sizeFiles
+					} else if e.sizeError != "" {
+						sizeNotice = " · Folder size unavailable: " + e.sizeError
+					} else if e.sizeRequested && sizeNotice == "" {
+						sizeNotice = fmt.Sprintf(" · Calculating folder size: %s · %s · %d files…", e.name, humanSize(e.size), e.sizeFiles)
+					}
 				}
 			} else {
 				files++
@@ -598,30 +636,57 @@ func (p *pane) updateStatus() {
 			}
 		}
 	}
-	if selectedFiles+selectedDirs > 0 {
-		// ponytail: sizes cover listed files only; recursive folder sizes need cancellable background scans.
-		p.status.SetText(fmt.Sprintf("Selected: %s of %s · Files: %d of %d · Folders: %d of %d",
-			humanSize(selectedSize), humanSize(totalSize), selectedFiles, files, selectedDirs, dirs))
+	e := p.current()
+	if measured {
+		p.status.SetText(fmt.Sprintf("%s · %d files", humanSize(selectedSize), folderFiles+int64(selectedFiles)))
+		if strings.HasPrefix(sizeNotice, " · Folder size unavailable:") {
+			p.status.SetText(p.status.Text + sizeNotice)
+		}
+		if pending {
+			p.status.SetText(p.status.Text + " · Calculating…")
+		}
 		return
 	}
-	e := p.current()
+	if selectedFiles+selectedDirs > 0 {
+		if folderFiles > 0 {
+			sizeNotice += fmt.Sprintf(" · Folder contents: %d files", folderFiles)
+		}
+		// ponytail: totals include only folders measured with Space; refresh invalidates cached sizes.
+		if sizeNotice != "" {
+			sizeNotice = strings.TrimPrefix(sizeNotice, " · ") + " · "
+		}
+		p.status.SetText(fmt.Sprintf("%sSelected: %s of %s · Files: %d of %d · Folders: %d of %d",
+			sizeNotice, humanSize(selectedSize), humanSize(totalSize), selectedFiles, files, selectedDirs, dirs))
+		return
+	}
 	if e.name == "" {
 		p.status.SetText("")
 		return
 	}
 	size := humanSize(e.size)
-	if e.dir {
+	if e.dir && !e.sizeKnown {
 		size = "<DIR>"
+		if e.sizeError != "" {
+			size = "Folder size unavailable: " + e.sizeError
+		} else if e.sizeRequested {
+			size = fmt.Sprintf("%s · %d files · Calculating folder size…", humanSize(e.size), e.sizeFiles)
+		}
+	}
+	if e.dir && e.sizeKnown {
+		size += fmt.Sprintf(" · %d files", e.sizeFiles)
 	}
 	modified := ""
 	if !e.mod.IsZero() {
 		modified = " · " + e.mod.Format("2006-01-02 15:04")
 	}
-	p.status.SetText(fmt.Sprintf("%s · %s · %s%s", e.name, e.attrs, size, modified))
+	p.status.SetText(fmt.Sprintf("%s · %s%s · %s", e.name, size, modified, e.attrs))
+	p.fillRow(p.cursor, &row{content: p.statusRow})
+	p.status.Hide()
+	p.statusRow.Show()
 }
 
 func (p *pane) typeSearch(r rune) {
-	if r < ' ' || r == 127 {
+	if r <= ' ' || r == 127 {
 		return
 	}
 	p.searchPrefix += string(r)
@@ -686,7 +751,9 @@ func (p *pane) fillRow(i int, r *row) {
 		c = c.Objects[0].(*fyne.Container)
 	}
 	name := c.Objects[0].(*widget.Label)
-	c.Objects[1].(*widget.Icon).SetResource(p.entryIcon(i))
+	if c.Objects[1].Visible() {
+		c.Objects[1].(*widget.Icon).SetResource(p.entryIcon(i))
+	}
 	name.TextStyle = fyne.TextStyle{}
 	name.Importance = widget.MediumImportance
 	if p.marked[e.name] {

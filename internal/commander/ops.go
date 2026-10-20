@@ -175,9 +175,9 @@ func (u *ui) delete() {
 	if toTrash {
 		verb, warn, op = "Move to "+trashName(), "", trash
 	}
-	msg := fmt.Sprintf("%s %d item(s)?\n%s", verb, len(sel), filepath.Base(sel[0]))
+	msg := fmt.Sprintf("%s %q?", verb, filepath.Base(sel[0]))
 	if len(sel) > 1 {
-		msg += ", …"
+		msg = fmt.Sprintf("%s %d items?\n%s, …", verb, len(sel), filepath.Base(sel[0]))
 	}
 	u.confirm(verb, msg+warn, func() {
 		u.jobs.run(fmt.Sprintf("%s %d item(s)", verb, len(sel)), []*pane{p, u.other()},

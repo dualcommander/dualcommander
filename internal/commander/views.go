@@ -141,12 +141,25 @@ func newKeyGrid(p *pane) *keyGrid {
 	return g
 }
 
+type briefScroll struct{ *container.Scroll }
+
+func (s *briefScroll) Scrolled(e *fyne.ScrollEvent) {
+	event := *e
+	if event.Scrolled.DX == 0 {
+		event.Scrolled.DX = event.Scrolled.DY
+	}
+	event.Scrolled.DY = 0
+	s.Scroll.Scrolled(&event)
+}
+
 func (g *keyGrid) CreateRenderer() fyne.WidgetRenderer {
 	r := g.Table.CreateRenderer()
-	for _, o := range r.Objects() {
+	for i, o := range r.Objects() {
 		if scroll, ok := o.(*container.Scroll); ok {
 			g.scroll = scroll
 			scroll.Direction = container.ScrollHorizontalOnly
+			// ponytail: wrap Fyne's inner scroller until horizontal-only scrolling maps wheel input itself.
+			r.Objects()[i] = &briefScroll{scroll}
 		}
 	}
 	return r

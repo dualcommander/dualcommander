@@ -190,15 +190,16 @@ func (c *dialogCheck) TypedKey(e *fyne.KeyEvent) {
 
 func (u *ui) confirm(title, message string, ok func()) {
 	w := u.dialogWindow(title)
+	w.SetOnClosed(u.blockParent(w))
 	label := widget.NewLabel(message)
 	label.Wrapping = fyne.TextWrapWord
-	no := windowButton(w, "No", w.Close)
-	w.SetContent(u.dialogContent(container.NewBorder(nil,
-		dialogButtons(w, 0, no, windowButton(w, "Yes", func() { w.Close(); ok() })),
-		nil, nil, label)))
-	w.Resize(fyne.NewSize(500, 180))
+	cancel := windowButton(w, "Cancel", w.Close)
+	w.SetContent(u.dialogContent(container.New(layout.NewCustomPaddedVBoxLayout(12), label,
+		dialogButtons(w, 0, cancel, windowButton(w, title, func() { w.Close(); ok() })),
+	)))
+	w.Resize(fyne.NewSize(500, w.Content().MinSize().Height))
+	w.Canvas().Focus(cancel)
 	w.Show()
-	w.Canvas().Focus(no)
 }
 
 func (u *ui) errorWindow(err error) {

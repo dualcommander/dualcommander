@@ -61,7 +61,7 @@ func TestArchiveNavigation(t *testing.T) {
 	}
 	u.left.refresh()
 	cursorTo(t, u.left, "readme.txt")
-	press(u, fyne.KeySpace)
+	press(u, fyne.KeyInsert)
 	if !u.left.marked["readme.txt"] {
 		t.Fatal("archive selection not marked")
 	}
