@@ -1,13 +1,15 @@
 package desktop
 
 import (
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
 )
 
 func TestItemCommand(t *testing.T) {
-	path := `/tmp/space " ; $(touch nope) 世界.txt`
+	dir := t.TempDir()
+	path := filepath.Join(dir, `space " ; $(touch nope) 世界.txt`)
 	for _, goos := range []string{"darwin", "windows"} {
 		for _, action := range []string{"open-with", "properties"} {
 			cmd, err := ItemCommand(goos, action, path)
@@ -17,7 +19,7 @@ func TestItemCommand(t *testing.T) {
 				}
 				continue
 			}
-			if err != nil || cmd.Dir != "/tmp" {
+			if err != nil || cmd.Dir != dir {
 				t.Fatalf("%s %s: %v %v", goos, action, cmd, err)
 			}
 			if goos == "windows" && action == "properties" {

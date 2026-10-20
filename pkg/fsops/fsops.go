@@ -339,6 +339,10 @@ func (c *copier) copyFile(src, dst string, perm os.FileMode) error {
 	if err := out.Close(); err != nil {
 		return err
 	}
+	// Windows requires closing the source before a move can remove it.
+	if err := in.Close(); err != nil {
+		return err
+	}
 	if err := c.ctx.Err(); err != nil {
 		return err
 	}
