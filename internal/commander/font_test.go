@@ -69,7 +69,7 @@ func TestFontSizeMenuAndPersistence(t *testing.T) {
 		if size == "medium" && want != base {
 			t.Fatal("default changed existing font size")
 		}
-		u = newUI(a)
+		u = newTrackedUI(t, a)
 		if u.fontSize != size || theme.TextSize() != want || !u.fontItems[i].Checked {
 			t.Fatal("font preset not restored")
 		}
@@ -77,13 +77,13 @@ func TestFontSizeMenuAndPersistence(t *testing.T) {
 		u.left.marked["readme.md"] = true
 	}
 	a.Preferences().SetString(prefFontSize, "invalid")
-	u = newUI(a)
+	u = newTrackedUI(t, a)
 	if u.fontSize != "medium" || theme.TextSize() != base {
 		t.Fatal("invalid preference did not fall back to default")
 	}
 	for old, size := range map[string]string{"very small": "x-small", "small": "small", "default": "medium", "large": "large", "very large": "x-large"} {
 		a.Preferences().SetString(prefFontSize, old)
-		u = newUI(a)
+		u = newTrackedUI(t, a)
 		if u.fontSize != size || a.Preferences().String(prefFontSize) != size {
 			t.Fatalf("saved preset %q not migrated to %q", old, size)
 		}

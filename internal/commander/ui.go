@@ -563,6 +563,7 @@ func (u *ui) save() {
 
 // quit persists state incl. window size (only reliable at exit) and closes.
 func (u *ui) quit() {
+	u.closePanes()
 	u.save()
 	s := u.win.Canvas().Size()
 	u.app.Preferences().SetFloat(prefW, float64(s.Width))
@@ -571,6 +572,21 @@ func (u *ui) quit() {
 		os.RemoveAll(dir)
 	}
 	u.app.Quit()
+}
+
+func (u *ui) closePanes() {
+	for _, p := range []*pane{u.left, u.right} {
+		if p.watcher != nil {
+			w := p.watcher
+			p.watcher = nil // invalidate queued refreshes before closing the watcher
+			w.Close()
+		}
+		if p.sizeCancel != nil {
+			p.sizeCancel()
+		}
+		p.iconGeneration++
+		p.spaceGeneration++
+	}
 }
 
 func (p *pane) savedPath() string {

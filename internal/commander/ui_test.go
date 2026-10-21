@@ -19,6 +19,7 @@ import (
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/driver/desktop"
+	"fyne.io/fyne/v2/storage"
 	"fyne.io/fyne/v2/test"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
@@ -108,7 +109,7 @@ func TestExternalCommandsSettings(t *testing.T) {
 	if slices.Contains(a.Driver().AllWindows(), w) || windowByTitle(t, a, appName) == nil {
 		t.Fatal("closing settings must leave main window open")
 	}
-	u = newUI(a)
+	u = newTrackedUI(t, a)
 	if a.Preferences().String(prefTerminalCmd) != terminal {
 		t.Fatal("terminal setting not restored")
 	}
@@ -256,7 +257,7 @@ func TestAppearanceSettings(t *testing.T) {
 	choices[1].SetSelected("compact")
 	choices[2].SetSelected("large")
 	w.Close()
-	u = newUI(a)
+	u = newTrackedUI(t, a)
 	u.settings()
 	w = windowByTitle(t, a, "Settings")
 	var restored []string
@@ -410,7 +411,7 @@ func TestFileViewSettingsAndMenu(t *testing.T) {
 	}
 	checkMenu()
 	u.toggleHidden()
-	u = newUI(a)
+	u = newTrackedUI(t, a)
 	checkMenu()
 	w, views, hidden = controls()
 	if u.active != u.right || views[0].Selected != "Detailed" || views[1].Selected != "Brief" || !hidden.Checked {
@@ -422,6 +423,8 @@ func TestFileViewSettingsAndMenu(t *testing.T) {
 func TestArchiveOpeningSetting(t *testing.T) {
 	root := fixture(t)
 	name := archiveFixture(t, root)
+	// Compare complete URIs: Windows drive letters live in the URI host, not Path.
+	wantURL := storage.NewFileURI(name).String()
 	a := &brandingApp{App: test.NewTempApp(t)}
 	u := newTestUI(t, a, filepath.Join(root, "src"), filepath.Join(root, "dst"))
 	setBrowse := func(w fyne.Window, checked bool) {
@@ -445,7 +448,7 @@ func TestArchiveOpeningSetting(t *testing.T) {
 	setBrowse(w, false) // Existing browse behavior remains default.
 	w.Close()
 	u.save()
-	u = newUI(a)
+	u = newTrackedUI(t, a)
 	for _, p := range []*pane{u.left, u.right} {
 		u.activate(p)
 		if err := p.cd(filepath.Join(root, "src"), "browse.zip"); err != nil {
@@ -461,7 +464,7 @@ func TestArchiveOpeningSetting(t *testing.T) {
 				press(u, fyne.KeyReturn)
 			}
 			waitJobs(t, u)
-			if a.openedURL == nil || a.openedURL.Scheme != "file" || a.openedURL.Path != name || p.path != filepath.Dir(name) || p.inArchive() || p.current().name != "browse.zip" {
+			if a.openedURL == nil || a.openedURL.Scheme != "file" || a.openedURL.String() != wantURL || p.path != filepath.Dir(name) || p.inArchive() || p.current().name != "browse.zip" {
 				t.Fatalf("archive must open externally without changing pane: %v, %s", a.openedURL, p.path)
 			}
 		}
@@ -1607,7 +1610,7 @@ func TestStateRestoredAfterRestart(t *testing.T) {
 	u.setTheme("dark")
 	u.save()
 
-	u2 := newUI(a) // same prefs store = next launch
+	u2 := newTrackedUI(t, a) // same prefs store = next launch
 	if u2.left.path != filepath.Join(root, "src", "photos") || !u2.right.brief || u2.active != u2.right || u2.themeMode != "dark" {
 		t.Fatalf("not restored: %s brief=%v right-active=%v theme=%s",
 			u2.left.path, u2.right.brief, u2.active == u2.right, u2.themeMode)

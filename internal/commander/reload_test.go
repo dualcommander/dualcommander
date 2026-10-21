@@ -1,6 +1,7 @@
 package commander
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"slices"
@@ -8,6 +9,53 @@ import (
 
 	"fyne.io/fyne/v2/test"
 )
+
+func TestTestUICleanupClosesEveryInstance(t *testing.T) {
+	root := fixture(t)
+	var instances []*ui
+	var cancelled []context.Context
+	t.Run("session", func(t *testing.T) {
+		a := test.NewTempApp(t)
+		instances = append(instances, newTestUI(t, a, filepath.Join(root, "src"), filepath.Join(root, "dst")))
+		instances = append(instances, newTrackedUI(t, a)) // restart on same preferences
+		for _, u := range instances {
+			for _, p := range []*pane{u.left, u.right} {
+				if p.watcher == nil {
+					t.Fatal("watcher not started")
+				}
+				ctx, cancel := context.WithCancel(context.Background())
+				p.sizeCancel = cancel
+				cancelled = append(cancelled, ctx)
+			}
+		}
+	})
+	for _, u := range instances {
+		for _, p := range []*pane{u.left, u.right} {
+			if p.watcher != nil {
+				t.Fatal("test cleanup leaked watcher")
+			}
+		}
+	}
+	for _, ctx := range cancelled {
+		if ctx.Err() != context.Canceled {
+			t.Fatal("test cleanup left size worker running")
+		}
+	}
+	// Pending worker callbacks must not recreate closed watchers or refresh old panes.
+	for {
+		select {
+		case f := <-uiQueue:
+			f()
+		default:
+			for _, u := range instances {
+				if u.left.watcher != nil || u.right.watcher != nil {
+					t.Fatal("queued refresh revived watcher")
+				}
+			}
+			return
+		}
+	}
+}
 
 func TestReloadActionActivePane(t *testing.T) {
 	root := fixture(t)

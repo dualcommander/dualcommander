@@ -25,7 +25,7 @@ func TestFavouritesWorkflow(t *testing.T) {
 		t.Fatal("favourite not opened in requesting pane")
 	}
 	u.save()
-	u = newUI(a)
+	u = newTrackedUI(t, a)
 	if u.left.favourite.Text != "★" || u.right.favourite.Text != "★" {
 		t.Fatal("favourite lost after restart")
 	}
@@ -101,7 +101,7 @@ func TestStarredGoMenu(t *testing.T) {
 		t.Fatal("starred navigation ignored modal blocker")
 	}
 	u.save()
-	u = newUI(a)
+	u = newTrackedUI(t, a)
 	check(src, dst)
 	u.toggleFavourite(src)
 	check(dst)

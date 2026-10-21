@@ -24,7 +24,7 @@ func TestViewButtonDestination(t *testing.T) {
 	check(false)
 	test.Tap(u.left.viewButton)
 	check(true)
-	u = newUI(a)
+	u = newTrackedUI(t, a)
 	check(true)
 	test.Tap(u.left.viewButton)
 	check(false)

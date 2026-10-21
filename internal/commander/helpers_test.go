@@ -130,8 +130,21 @@ func newTestUI(t *testing.T, a fyne.App, left, right string) *ui {
 	a.Preferences().SetString(prefLeft, left)
 	a.Preferences().SetString(prefRight, right)
 	initIcons()
-	u := newUI(a)
+	u := newTrackedUI(t, a)
 	u.win.Resize(fyne.NewSize(900, 500))
+	return u
+}
+
+func newTrackedUI(t *testing.T, a fyne.App) *ui {
+	t.Helper()
+	u := newUI(a)
+	t.Cleanup(func() {
+		for _, w := range slices.Clone(a.Driver().AllWindows()) {
+			w.SetCloseIntercept(nil)
+			w.Close()
+		}
+		u.closePanes()
+	})
 	return u
 }
 

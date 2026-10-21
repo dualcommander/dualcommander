@@ -142,7 +142,7 @@ func TestSettingsFileMigrationAndUI(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer restored.close()
-	v := newUI(b)
+	v := newTrackedUI(t, b)
 	if v.themeMode != "dark" || v.density != "compact" || v.fontSize != "large" || v.left.path != u.left.path || v.right.path != u.right.path || !b.Preferences().Bool(prefTrash) || b.Preferences().Bool(prefBrowseArchives) || b.Preferences().String(prefRevealCmd) != `["custom-app","{dir}"]` || b.Preferences().String(prefTerminalCmd) != `["custom-app","{dir}"]` || !reflect.DeepEqual(b.Preferences().StringList(prefFavourites), []string{root}) {
 		t.Fatal("fresh app did not restore JSON preferences")
 	}
