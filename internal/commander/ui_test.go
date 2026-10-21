@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"slices"
 	"strings"
@@ -35,9 +36,33 @@ func TestExternalCommandsSettings(t *testing.T) {
 	}
 	entries := []*escEntry{}
 	labels := []string{}
+	var separators, infoIcons int
 	for _, o := range test.LaidOutObjects(w.Content()) {
+		if form, ok := o.(*widget.Form); ok {
+			for _, item := range form.Items {
+				labels = append(labels, item.Text)
+			}
+		}
 		if l, ok := o.(*widget.Label); ok {
 			labels = append(labels, l.Text)
+			switch l.Text {
+			case "Appearance", "File views", "File deletion", "Archives", "External applications":
+				if !l.TextStyle.Bold {
+					t.Fatalf("section heading not bold: %s", l.Text)
+				}
+			default:
+				if strings.Contains(l.Text, "Changes are saved automatically") || strings.Contains(l.Text, "deleted files cannot be restored") || strings.Contains(l.Text, "Custom commands use") || strings.Contains(l.Text, "Enter or double-click") {
+					if l.Importance != widget.MediumImportance || l.Wrapping != fyne.TextWrapWord {
+						t.Fatalf("guidance must be readable and wrap: %s", l.Text)
+					}
+				}
+			}
+		}
+		if _, ok := o.(*widget.Separator); ok {
+			separators++
+		}
+		if _, ok := o.(*dialogInfoIcon); ok {
+			infoIcons++
 		}
 		if e, ok := o.(*escEntry); ok {
 			entries = append(entries, e)
@@ -47,7 +72,15 @@ func TestExternalCommandsSettings(t *testing.T) {
 		t.Fatalf("command fields: %d", len(entries))
 	}
 	text := strings.Join(labels, "\n")
-	if !strings.Contains(text, "Changes are saved automatically") || !strings.Contains(text, "deleted files cannot be restored") || !strings.Contains(text, "Leave a field blank") {
+	for _, label := range []string{"Appearance", "Theme", "Density", "Font size", "File views", "Left pane view", "Right pane view", "File deletion", "Archives", "External applications", "Show in file manager", "Open folder in terminal"} {
+		if !slices.Contains(labels, label) {
+			t.Fatalf("missing settings label: %s", label)
+		}
+	}
+	if separators != 5 || infoIcons != 2 {
+		t.Fatalf("settings grouping/hints: %d separators, %d info icons", separators, infoIcons)
+	}
+	if !strings.Contains(text, "Changes are saved automatically") || !strings.Contains(text, "Leave a field blank") {
 		t.Fatalf("missing settings guidance: %s", text)
 	}
 	for _, e := range entries {
@@ -114,6 +147,334 @@ func TestExternalCommandsSettings(t *testing.T) {
 		if !found {
 			t.Fatalf("missing menu action %q", label)
 		}
+	}
+}
+
+func TestSettingsTogglesWithoutTooltips(t *testing.T) {
+	root := fixture(t)
+	u := newTestUI(t, test.NewTempApp(t), root, root)
+	u.settings()
+	w := windowByTitle(t, u.app, "Settings")
+	var toggles []*dialogCheck
+	for _, object := range test.LaidOutObjects(w.Content()) {
+		if b, ok := object.(*dialogButton); ok && b.Icon == theme.HelpIcon() {
+			t.Fatal("help button remains")
+		}
+		if c, ok := object.(*dialogCheck); ok && (c.Text == "Move deleted files to "+trashName() || c.Text == "Browse archives in DualCommander") {
+			toggles = append(toggles, c)
+		}
+	}
+	if len(toggles) != 2 {
+		t.Fatal("settings toggles missing")
+	}
+	for _, c := range toggles {
+		for _, keyboard := range []bool{false, true} {
+			if keyboard {
+				w.Canvas().Focus(c)
+				c.TypedKey(&fyne.KeyEvent{Name: fyne.KeyF1})
+			} else {
+				c.MouseIn(&desktop.MouseEvent{})
+			}
+			if w.Canvas().Overlays().Top() != nil {
+				t.Fatal("toggle created tooltip overlay")
+			}
+			if keyboard {
+				c.TypedKey(&fyne.KeyEvent{Name: fyne.KeyF1})
+			} else {
+				c.MouseOut()
+			}
+			if w.Canvas().Overlays().Top() != nil || !hasWindow(u.app, "Settings") {
+				t.Fatal("toggle interaction created overlay or closed Settings")
+			}
+		}
+		before := c.Checked
+		c.TypedRune(' ')
+		if c.Checked == before {
+			t.Fatal("tooltip prevents toggling")
+		}
+	}
+	w.Canvas().Focus(toggles[0])
+	toggles[0].TypedKey(&fyne.KeyEvent{Name: fyne.KeyEscape})
+	if hasWindow(u.app, "Settings") {
+		t.Fatal("Escape left Settings open")
+	}
+}
+
+func TestAppearanceSettings(t *testing.T) {
+	root := fixture(t)
+	a := test.NewTempApp(t)
+	u := newTestUI(t, a, filepath.Join(root, "src"), filepath.Join(root, "dst"))
+	u.right.setBrief(true)
+	cursorTo(t, u.left, "readme.md")
+	u.left.marked["readme.md"] = true
+	u.settings()
+	w := windowByTitle(t, a, "Settings")
+	var choices []*dialogSelect
+	for _, object := range test.LaidOutObjects(w.Content()) {
+		if s, ok := object.(*dialogSelect); ok {
+			choices = append(choices, s)
+		}
+	}
+	if len(choices) != 5 {
+		t.Fatalf("appearance controls: %d", len(choices))
+	}
+	for i, group := range []struct {
+		options []string
+		value   *string
+		key     string
+		items   []*fyne.MenuItem
+	}{
+		{themeModes, &u.themeMode, prefTheme, u.themeItems},
+		{densities, &u.density, prefDensity, u.densItems},
+		{fontSizes, &u.fontSize, prefFontSize, u.fontItems},
+	} {
+		s := choices[i]
+		if !slices.Equal(s.Options, group.options) || s.Selected != *group.value {
+			t.Fatalf("incorrect choices/default: %v, %s", s.Options, s.Selected)
+		}
+		for range group.options {
+			w.Canvas().Focus(s)
+			s.TypedKey(&fyne.KeyEvent{Name: fyne.KeyRight})
+			if *group.value != s.Selected || a.Preferences().String(group.key) != s.Selected || w.Canvas().Focused() != s {
+				t.Fatalf("choice not applied/saved or focus lost: %s", s.Selected)
+			}
+			for j, item := range group.items {
+				if item.Checked != (group.options[j] == s.Selected) {
+					t.Fatal("View menu out of sync")
+				}
+			}
+			content := w.Content().(*container.Scroll).Content.(*container.ThemeOverride)
+			if content.Theme.(dialogTheme).Theme != a.Settings().Theme() {
+				t.Fatal("settings theme not updated live")
+			}
+			if u.left.current().name != "readme.md" || !u.left.marked["readme.md"] || !u.right.brief {
+				t.Fatal("appearance change lost pane state")
+			}
+		}
+	}
+	choices[0].SetSelected("dark")
+	choices[1].SetSelected("compact")
+	choices[2].SetSelected("large")
+	w.Close()
+	u = newUI(a)
+	u.settings()
+	w = windowByTitle(t, a, "Settings")
+	var restored []string
+	for _, object := range test.LaidOutObjects(w.Content()) {
+		if s, ok := object.(*dialogSelect); ok {
+			restored = append(restored, s.Selected)
+		}
+	}
+	if !slices.Equal(restored, []string{"dark", "compact", "large", "Detailed", "Brief"}) || u.themeMode != "dark" || u.density != "compact" || u.fontSize != "large" {
+		t.Fatalf("appearance preferences not restored: %v", restored)
+	}
+	w.Close()
+}
+
+func TestSettingsDropdownAlternatives(t *testing.T) {
+	root := fixture(t)
+	u := newTestUI(t, test.NewTempApp(t), root, root)
+	u.settings()
+	w := windowByTitle(t, u.app, "Settings")
+	var choices []*dialogSelect
+	for _, object := range test.LaidOutObjects(w.Content()) {
+		if s, ok := object.(*dialogSelect); ok {
+			choices = append(choices, s)
+		}
+	}
+	if len(choices) != 5 {
+		t.Fatal("settings choices missing")
+	}
+	for _, s := range choices {
+		before := s.Selected
+		test.Tap(s)
+		popup, ok := w.Canvas().Focused().(*widget.PopUpMenu)
+		if !ok || len(popup.Items) != len(s.Options)-1 {
+			t.Fatal("popup must contain alternatives only")
+		}
+		var alternatives []string
+		for _, option := range s.Options {
+			if option != before {
+				alternatives = append(alternatives, option)
+			}
+		}
+		for i, item := range popup.Items {
+			var labels []string
+			for _, object := range laidOutObjects(item) {
+				if text, ok := object.(*canvas.Text); ok && text.Text != "" {
+					labels = append(labels, text.Text)
+				}
+			}
+			if !slices.Equal(labels, []string{alternatives[i]}) {
+				t.Fatalf("popup label: %v, want %s", labels, alternatives[i])
+			}
+		}
+		popup.TypedKey(&fyne.KeyEvent{Name: fyne.KeyEscape})
+		if s.Selected != before || w.Canvas().Overlays().Top() != nil || !hasWindow(u.app, "Settings") {
+			t.Fatal("dismissing popup changed value or closed settings")
+		}
+		w.Canvas().Focus(s)
+		s.TypedKey(&fyne.KeyEvent{Name: fyne.KeySpace})
+		popup = w.Canvas().Focused().(*widget.PopUpMenu)
+		test.Tap(popup.Items[0].(fyne.Tappable))
+		if s.Selected != alternatives[0] || w.Canvas().Overlays().Top() != nil {
+			t.Fatal("popup selection failed")
+		}
+		s.Disable()
+		test.Tap(s)
+		if w.Canvas().Overlays().Top() != nil {
+			t.Fatal("disabled select opened popup")
+		}
+		s.Enable()
+	}
+	w.Close()
+}
+
+func TestFileViewSettingsAndMenu(t *testing.T) {
+	root := fixture(t)
+	a := test.NewTempApp(t)
+	u := newTestUI(t, a, root, root)
+	if err := os.WriteFile(filepath.Join(root, ".hidden"), nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	checkMenu := func() {
+		t.Helper()
+		if u.briefItem.Checked != u.active.brief || u.detailedItem.Checked == u.active.brief || u.hiddenItem.Checked != u.showHidden {
+			t.Fatal("View menu does not reflect active pane and hidden files")
+		}
+	}
+	controls := func() (fyne.Window, []*dialogSelect, *dialogCheck) {
+		t.Helper()
+		u.settings()
+		w := windowByTitle(t, a, "Settings")
+		var views []*dialogSelect
+		var hidden *dialogCheck
+		for _, object := range test.LaidOutObjects(w.Content()) {
+			switch c := object.(type) {
+			case *dialogSelect:
+				if slices.Equal(c.Options, []string{"Brief", "Detailed"}) {
+					views = append(views, c)
+				}
+			case *dialogCheck:
+				if c.Text == "Show hidden files" {
+					hidden = c
+				}
+			}
+		}
+		if len(views) != 2 || hidden == nil {
+			t.Fatal("missing file view settings")
+		}
+		return w, views, hidden
+	}
+	checkMenu()
+	w, views, hidden := controls()
+	if views[0].Selected != "Detailed" || views[1].Selected != "Detailed" || hidden.Checked {
+		t.Fatal("incorrect default file view settings")
+	}
+	views[0].SetSelected("Brief")
+	if !u.left.brief || u.right.brief || !a.Preferences().Bool(prefLeftBrief) {
+		t.Fatal("left view setting not applied independently or saved")
+	}
+	checkMenu()
+	views[1].SetSelected("Brief")
+	views[0].SetSelected("Detailed")
+	checkMenu()
+	test.Tap(hidden)
+	if !u.showHidden || !a.Preferences().Bool(prefHidden) {
+		t.Fatal("hidden setting not applied or saved immediately")
+	}
+	for _, p := range []*pane{u.left, u.right} {
+		if !slices.ContainsFunc(p.entries, func(e entry) bool { return e.name == ".hidden" }) {
+			t.Fatal("hidden file missing from pane")
+		}
+	}
+	checkMenu()
+	w.Close()
+	u.activate(u.right)
+	checkMenu()
+	u.detailedItem.Action()
+	checkMenu()
+	u.briefItem.Action()
+	checkMenu()
+	test.Tap(u.right.viewButton)
+	checkMenu()
+	canvas := reflect.ValueOf(u.win.Canvas()).Elem().FieldByName("WindowlessCanvas").Interface().(fyne.Shortcutable)
+	canvas.TypedShortcut(&desktop.CustomShortcut{KeyName: fyne.Key1, Modifier: fyne.KeyModifierShortcutDefault})
+	if !u.right.brief {
+		t.Fatal("Brief shortcut not applied")
+	}
+	checkMenu()
+	u.hiddenItem.Action()
+	if u.showHidden || a.Preferences().Bool(prefHidden) {
+		t.Fatal("menu hidden toggle not saved")
+	}
+	checkMenu()
+	u.toggleHidden()
+	u = newUI(a)
+	checkMenu()
+	w, views, hidden = controls()
+	if u.active != u.right || views[0].Selected != "Detailed" || views[1].Selected != "Brief" || !hidden.Checked {
+		t.Fatal("file view preferences not restored")
+	}
+	w.Close()
+}
+
+func TestArchiveOpeningSetting(t *testing.T) {
+	root := fixture(t)
+	name := archiveFixture(t, root)
+	a := &brandingApp{App: test.NewTempApp(t)}
+	u := newTestUI(t, a, filepath.Join(root, "src"), filepath.Join(root, "dst"))
+	setBrowse := func(w fyne.Window, checked bool) {
+		t.Helper()
+		for _, object := range test.LaidOutObjects(w.Content()) {
+			if c, ok := object.(*dialogCheck); ok && c.Text == "Browse archives in DualCommander" {
+				if c.Checked == checked {
+					t.Fatalf("expected previous archive preference %v", !checked)
+				}
+				test.Tap(c)
+				if c.Checked != checked || a.Preferences().Bool(prefBrowseArchives) != checked {
+					t.Fatal("archive choice not saved immediately")
+				}
+				return
+			}
+		}
+		t.Fatal("archive choice missing")
+	}
+	u.settings()
+	w := windowByTitle(t, a, "Settings")
+	setBrowse(w, false) // Existing browse behavior remains default.
+	w.Close()
+	u.save()
+	u = newUI(a)
+	for _, p := range []*pane{u.left, u.right} {
+		u.activate(p)
+		if err := p.cd(filepath.Join(root, "src"), "browse.zip"); err != nil {
+			t.Fatal(err)
+		}
+		for _, doubleClick := range []bool{false, true} {
+			a.openedURL = nil
+			if doubleClick {
+				r := newRowWidget(p, false)
+				r.id = p.cursor
+				r.DoubleTapped(nil)
+			} else {
+				press(u, fyne.KeyReturn)
+			}
+			waitJobs(t, u)
+			if a.openedURL == nil || a.openedURL.Scheme != "file" || a.openedURL.Path != name || p.path != filepath.Dir(name) || p.inArchive() || p.current().name != "browse.zip" {
+				t.Fatalf("archive must open externally without changing pane: %v, %s", a.openedURL, p.path)
+			}
+		}
+	}
+	u.settings()
+	w = windowByTitle(t, a, "Settings")
+	setBrowse(w, true)
+	w.Close()
+	a.openedURL = nil
+	press(u, fyne.KeyReturn)
+	waitJobs(t, u)
+	if u.active.path != name || !u.active.inArchive() || a.openedURL != nil || !slices.Equal(names(u.active), []string{"..", "docs"}) {
+		t.Fatal("re-enabling archive browsing did not take effect")
 	}
 }
 
@@ -1083,6 +1444,71 @@ func TestBriefLongNamesAcrossFolders(t *testing.T) {
 	}
 }
 
+func TestEditMenuShortcut(t *testing.T) {
+	root := fixture(t)
+	u := newTestUI(t, test.NewTempApp(t), root, root)
+	var editItem *fyne.MenuItem
+	for _, item := range u.win.MainMenu().Items[0].Items {
+		if item.Label == "Edit (F4)" {
+			t.Fatal("shortcut remains in menu label")
+		}
+		if item.Label == "Edit" {
+			editItem = item
+		}
+	}
+	if editItem == nil || editItem.Action == nil {
+		t.Fatal("Edit menu action missing")
+	}
+	shortcut, ok := editItem.Shortcut.(*desktop.CustomShortcut)
+	if !ok || shortcut.KeyName != fyne.KeyF4 || shortcut.Modifier != 0 {
+		t.Fatalf("Edit shortcut: %#v", editItem.Shortcut)
+	}
+}
+
+func TestFileOperationMenuShortcuts(t *testing.T) {
+	root := fixture(t)
+	u := newTestUI(t, test.NewTempApp(t), filepath.Join(root, "src"), filepath.Join(root, "dst"))
+	cursorTo(t, u.left, "readme.md")
+	file := u.win.MainMenu().Items[0]
+	for _, tc := range []struct {
+		label    string
+		key      fyne.KeyName
+		modifier fyne.KeyModifier
+		title    string
+	}{
+		{"Copy…", fyne.KeyF5, 0, "Copy 1 item(s) to"},
+		{"New Folder", fyne.KeyF7, 0, "New directory"},
+		{"Move…", fyne.KeyF6, 0, "Move/Rename 1 item(s) to"},
+		{"Rename…", fyne.KeyF6, fyne.KeyModifierShift, "Rename"},
+		{"Delete…", fyne.KeyF8, 0, "Move to " + trashName()},
+	} {
+		t.Run(tc.label, func(t *testing.T) {
+			var found *fyne.MenuItem
+			for _, item := range file.Items {
+				if item.Label == "Move / Rename…" {
+					t.Fatal("combined Move / Rename item remains")
+				}
+				if item.Label == tc.label {
+					found = item
+				}
+			}
+			if found == nil {
+				t.Fatal("menu item missing")
+			}
+			shortcut, ok := found.Shortcut.(*desktop.CustomShortcut)
+			if !ok || shortcut.KeyName != tc.key || shortcut.Modifier != tc.modifier {
+				t.Fatalf("shortcut: %#v", found.Shortcut)
+			}
+			found.Action()
+			windowByTitle(t, u.app, tc.title)
+			tapDialogButton(t, u, "Cancel")
+			if !exists(filepath.Join(root, "src", "readme.md")) || exists(filepath.Join(root, "dst", "readme.md")) {
+				t.Fatal("cancel changed files")
+			}
+		})
+	}
+}
+
 func TestMarkAndCopyWorkflow(t *testing.T) {
 	root := fixture(t)
 	u := newTestUI(t, test.NewTempApp(t), filepath.Join(root, "src"), filepath.Join(root, "dst"))
@@ -1136,13 +1562,18 @@ func TestMoveDeleteMkdirWorkflow(t *testing.T) {
 	// Settings off: permanent delete, no trash.
 	u.settings()
 	w := windowByTitle(t, u.app, "Settings")
+	foundTrash := false
 	for _, o := range test.LaidOutObjects(w.Content()) {
-		if c, ok := o.(*dialogCheck); ok {
+		if c, ok := o.(*dialogCheck); ok && c.Text == "Move deleted files to "+trashName() {
+			foundTrash = true
 			if !c.Checked {
 				t.Fatal("trash not default in settings")
 			}
 			test.Tap(c)
 		}
+	}
+	if !foundTrash {
+		t.Fatal("trash setting missing")
 	}
 	w.Close()
 	trashed.Store(false)
@@ -1194,8 +1625,19 @@ func TestCurrentFolderActions(t *testing.T) {
 	root := fixture(t)
 	u := newTestUI(t, test.NewTempApp(t), filepath.Join(root, "src"), filepath.Join(root, "src"))
 	u.app.Preferences().SetString(prefTerminalCmd, "invalid")
+	u.app.Preferences().SetString(prefRevealCmd, `["file-manager","{path}"]`)
 	for _, p := range []*pane{u.left, u.right} {
 		u.activate(p)
+		cursorTo(t, p, "readme.md")
+		cmd, err := u.externalCommand(false)
+		if err != nil || !slices.Equal(cmd.Args, []string{"file-manager", filepath.Join(p.path, "readme.md")}) {
+			t.Fatalf("reveal must target selected item: %v, %v", cmd, err)
+		}
+		p.moveTo(0) // ".." is not a selected item; reveal falls back to current folder.
+		cmd, err = u.externalCommand(false)
+		if err != nil || !slices.Equal(cmd.Args, []string{"file-manager", p.path}) {
+			t.Fatalf("reveal must fall back to current folder: %v, %v", cmd, err)
+		}
 		cursorTo(t, p, "readme.md")
 		p.toggleMark()
 		cursor := p.cursor
@@ -1210,15 +1652,18 @@ func TestCurrentFolderActions(t *testing.T) {
 			t.Fatal("F9 button did not invoke terminal action")
 		}
 		tapDialogButton(t, u, "OK")
-		found := false
+		found := 0
 		for _, item := range u.win.MainMenu().Items[0].Items {
-			if item.Label != folderLabel() {
+			if strings.HasPrefix(item.Label, "Open Folder in ") {
+				t.Fatal("duplicate file-manager action")
+			}
+			if item.Label != revealLabel() {
 				continue
 			}
-			found = true
+			found++
 			shortcut, ok := item.Shortcut.(*desktop.CustomShortcut)
-			if !ok || shortcut.KeyName != fyne.KeyO || shortcut.Modifier != fyne.KeyModifierShortcutDefault|fyne.KeyModifierShift {
-				t.Fatal("folder action missing shortcut")
+			if !ok || shortcut.KeyName != fyne.KeyR || shortcut.Modifier != fyne.KeyModifierShortcutDefault|fyne.KeyModifierShift {
+				t.Fatal("reveal action missing shortcut")
 			}
 			// Archive folders have no native directory; don't launch the OS app.
 			path := p.path
@@ -1230,13 +1675,13 @@ func TestCurrentFolderActions(t *testing.T) {
 			tapDialogButton(t, u, "OK")
 			item.Action()
 			if !hasWindow(u.app, "Error") {
-				t.Fatal("folder action accepted archive directory")
+				t.Fatal("reveal action accepted archive directory")
 			}
 			tapDialogButton(t, u, "OK")
 			p.path = path
 		}
-		if !found || p.cursor != cursor || !p.marked["readme.md"] {
-			t.Fatal("folder action missing or pane state changed")
+		if found != 1 || p.cursor != cursor || !p.marked["readme.md"] {
+			t.Fatal("expected one reveal action and unchanged pane state")
 		}
 	}
 }

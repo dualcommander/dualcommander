@@ -95,7 +95,11 @@ func (u *ui) copyOrMove(move bool) {
 
 // inputDialog: form with one focused entry; Enter submits, focus returns to pane after.
 func inputDialog(u *ui, title, confirm, label string, e *escEntry, ok func()) {
-	w := u.dialogWindow(title)
+	if u.passwordWindow != nil {
+		return
+	}
+	w := u.inputDialogWindow(title)
+	w.SetOnClosed(u.blockParent(w))
 	submit := func() {
 		if e.Validate() == nil {
 			w.Close()
@@ -193,17 +197,69 @@ func trashName() string {
 	return "Trash"
 }
 
-// settings: one page (guidelines). Saved immediately, like macOS settings windows.
+// Settings are saved immediately, like macOS settings windows.
 func (u *ui) settings() {
 	w := u.infoWindow("Settings")
 	pr := u.app.Preferences()
-	notice := widget.NewLabel("When turned off, deleted files cannot be restored from " + trashName() + ".")
-	notice.Wrapping = fyne.TextWrapWord
+	hint := func(text string) fyne.CanvasObject {
+		label := widget.NewLabel(text)
+		label.Wrapping = fyne.TextWrapWord
+		return container.NewBorder(nil, nil, newDialogInfoIcon(), nil, label)
+	}
+	heading := func(text string) *widget.Label {
+		return widget.NewLabelWithStyle(text, fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
+	}
+	var content *container.ThemeOverride
+	choice := func(options []string, selected string, changed func(string)) *dialogSelect {
+		s := &dialogSelect{close: w.Close}
+		s.Options, s.Selected = options, selected
+		s.ExtendBaseWidget(s)
+		s.OnChanged = func(value string) {
+			changed(value)
+			content.Theme = dialogTheme{u.app.Settings().Theme()}
+			content.Refresh()
+			w.Canvas().Focus(s)
+		}
+		return s
+	}
+	appearance := widget.NewForm(
+		widget.NewFormItem("Theme", choice(themeModes, u.themeMode, u.setTheme)),
+		widget.NewFormItem("Density", choice(densities, u.density, u.setDensity)),
+		widget.NewFormItem("Font size", choice(fontSizes, u.fontSize, u.setFontSize)),
+	)
+	viewChoice := func(p *pane) *dialogSelect {
+		selected := "Detailed"
+		if p.brief {
+			selected = "Brief"
+		}
+		return choice([]string{"Brief", "Detailed"}, selected, func(value string) {
+			p.setBrief(value == "Brief")
+			u.save()
+		})
+	}
+	views := widget.NewForm(
+		widget.NewFormItem("Left pane view", viewChoice(u.left)),
+		widget.NewFormItem("Right pane view", viewChoice(u.right)),
+	)
+	hidden := &dialogCheck{close: w.Close}
+	hidden.Text = "Show hidden files"
+	hidden.Checked = u.showHidden
+	hidden.OnChanged = func(b bool) {
+		if b != u.showHidden {
+			u.toggleHidden()
+		}
+	}
+	hidden.ExtendBaseWidget(hidden)
 	c := &dialogCheck{close: w.Close}
 	c.Text = "Move deleted files to " + trashName()
 	c.OnChanged = func(b bool) { pr.SetBool(prefTrash, b) }
 	c.ExtendBaseWidget(c)
 	c.Checked = pr.BoolWithFallback(prefTrash, true)
+	browse := &dialogCheck{close: w.Close}
+	browse.Text = "Browse archives in DualCommander"
+	browse.OnChanged = func(b bool) { pr.SetBool(prefBrowseArchives, b) }
+	browse.ExtendBaseWidget(browse)
+	browse.Checked = pr.BoolWithFallback(prefBrowseArchives, true)
 	reveal, terminal := desktop.Defaults(runtime.GOOS)
 	commandEntry := func(key, fallback string) *escEntry {
 		e := newEscEntry()
@@ -227,22 +283,32 @@ func (u *ui) settings() {
 		}
 		return e
 	}
-	revealItem := widget.NewFormItem("Reveal command", commandEntry(prefRevealCmd, reveal))
+	revealItem := widget.NewFormItem("Show in file manager", commandEntry(prefRevealCmd, reveal))
 	revealItem.HintText = "{path} is the selected item; {dir} is the active pane folder."
-	terminalItem := widget.NewFormItem("Terminal command", commandEntry(prefTerminalCmd, terminal))
+	terminalItem := widget.NewFormItem("Open folder in terminal", commandEntry(prefTerminalCmd, terminal))
 	terminalItem.HintText = "{dir} is the active pane folder."
-	help := widget.NewLabel("Custom commands use JSON argument lists, without a shell.\nLeave a field blank to use the OS default shown below.")
-	help.Wrapping = fyne.TextWrapWord
-	content := u.dialogContent(container.NewVBox(
-		widget.NewLabelWithStyle("Settings", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		widget.NewLabel("Changes are saved automatically. Invalid commands are not saved."),
+	content = u.dialogContent(container.NewVBox(
+		hint("Changes are saved automatically. Invalid commands are not saved."),
 		widget.NewSeparator(),
-		c, notice,
-		help,
+		heading("Appearance"),
+		appearance,
+		widget.NewSeparator(),
+		heading("File views"),
+		views,
+		hidden,
+		widget.NewSeparator(),
+		heading("File deletion"),
+		c,
+		widget.NewSeparator(),
+		heading("Archives"),
+		browse,
+		widget.NewSeparator(),
+		heading("External applications"),
+		hint("Custom commands use JSON argument lists, without a shell.\nLeave a field blank to use the OS default shown below."),
 		widget.NewForm(revealItem, terminalItem),
-	))
-	w.SetContent(content)
-	w.Resize(fyne.NewSize(700, 340))
+	)).(*container.ThemeOverride)
+	w.SetContent(container.NewVScroll(content))
+	w.Resize(fyne.NewSize(700, min(700, content.MinSize().Height)))
 	w.Show()
 }
 

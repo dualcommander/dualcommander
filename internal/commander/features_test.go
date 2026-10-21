@@ -499,6 +499,7 @@ func TestSearchDialogJumpsToResult(t *testing.T) {
 		t.Fatalf("results: %v", f.results)
 	}
 	f.list.Select(0)
+	f.list.TypedKey(&fyne.KeyEvent{Name: fyne.KeyReturn})
 	if u.left.path != filepath.Join(root, "src") || u.left.current().name != "readme.md" {
 		t.Fatalf("jump: %s %q", u.left.path, u.left.current().name)
 	}

@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/storage"
 	"fyne.io/fyne/v2/theme"
@@ -119,6 +120,7 @@ func newPane(u *ui, path string, brief bool, sortPref string) *pane {
 
 func (p *pane) setBrief(b bool) {
 	p.brief = b
+	p.ui.updateViewMenu()
 	// Button describes the destination, not the current view.
 	p.viewButton.SetIcon(theme.GridIcon())
 	if b {
@@ -223,6 +225,8 @@ func (p *pane) cd(dir, selectName string) error {
 	p.list.Refresh()
 	p.grid.Refresh()
 	p.moveTo(cur)
+	// Fyne's table refresh updates cells without invalidating the canvas.
+	canvas.Refresh(p.body)
 	p.ui.save()
 	return nil
 }
@@ -448,7 +452,7 @@ func (p *pane) open() {
 			})
 			return
 		}
-		if archive.Supported(name) {
+		if archive.Supported(name) && p.ui.app.Preferences().BoolWithFallback(prefBrowseArchives, true) {
 			p.navigate(name, "")
 			return
 		}

@@ -15,6 +15,21 @@ import (
 
 type dialogTheme struct{ fyne.Theme }
 
+// Fyne Icon skips refreshing unchanged resources, leaving cached tint after theme switches.
+type dialogInfoIcon struct{ widget.Icon }
+
+func newDialogInfoIcon() *dialogInfoIcon {
+	i := &dialogInfoIcon{}
+	i.ExtendBaseWidget(i)
+	i.Refresh()
+	return i
+}
+
+func (i *dialogInfoIcon) Refresh() {
+	i.Resource = theme.NewColoredResource(theme.InfoIcon(), theme.ColorNameForeground)
+	i.Icon.Refresh()
+}
+
 func (t dialogTheme) Size(name fyne.ThemeSizeName) float32 {
 	switch name {
 	case theme.SizeNamePadding:
@@ -101,6 +116,53 @@ func (u *ui) blockParent(w fyne.Window) func() {
 }
 
 // dialogWindow keeps native decorations; closing never confirms an operation.
+
+// ponytail: cache one input window after first use; Fyne cannot prepare native windows invisibly.
+type inputWindow struct {
+	fyne.Window
+	closed func()
+	open   bool
+}
+
+func (w *inputWindow) Close() {
+	if !w.open {
+		return
+	}
+	w.open = false
+	w.Hide()
+	w.SetTitle("")
+	w.Canvas().Unfocus()
+	w.SetContent(container.NewWithoutLayout())
+	w.Canvas().SetOnTypedKey(nil)
+	closed := w.closed
+	w.closed = nil
+	if closed != nil {
+		closed()
+	}
+}
+
+func (w *inputWindow) SetOnClosed(closed func()) { w.closed = closed }
+
+func (u *ui) inputDialogWindow(title string) fyne.Window {
+	if u.inputWindow == nil {
+		native := u.dialogWindow(title)
+		w := &inputWindow{Window: native}
+		u.inputWindow = w
+		native.SetCloseIntercept(w.Close)
+		native.SetOnClosed(func() {
+			u.inputWindow = nil
+			w.Close()
+		})
+	}
+	w := u.inputWindow
+	w.open = true
+	w.SetTitle(title)
+	w.CenterOnScreen()
+	w.Canvas().SetOnTypedKey(func(e *fyne.KeyEvent) { escapeWindow(w)(e) })
+	w.SetOnClosed(func() { u.win.RequestFocus(); u.activate(u.active) })
+	return w
+}
+
 func (u *ui) dialogWindow(title string) fyne.Window {
 	w := u.app.NewWindow(title)
 	w.CenterOnScreen()
@@ -167,14 +229,58 @@ type dialogCheck struct {
 	close func()
 }
 
+type dialogSelect struct {
+	widget.Select
+	close func()
+}
+
+// ponytail: retain Fyne's select rendering; replace its animated, duplicate-value popup only.
+func (s *dialogSelect) Tapped(*fyne.PointEvent) {
+	if s.Disabled() {
+		return
+	}
+	driver := fyne.CurrentApp().Driver()
+	c := driver.CanvasForObject(s)
+	if c == nil {
+		return
+	}
+	c.Focus(s)
+	var items []*fyne.MenuItem
+	for _, option := range s.Options {
+		if option == s.Selected {
+			continue
+		}
+		items = append(items, fyne.NewMenuItem(option, func() { s.SetSelected(option) }))
+	}
+	if len(items) == 0 {
+		return
+	}
+	popup := widget.NewPopUpMenu(fyne.NewMenu("", items...), c)
+	popup.ShowAtPosition(driver.AbsolutePositionForObject(s).Add(fyne.NewPos(0, s.Size().Height)))
+	popup.Resize(fyne.NewSize(s.Size().Width, popup.MinSize().Height))
+}
+
+func (s *dialogSelect) TypedKey(e *fyne.KeyEvent) {
+	if e.Name == fyne.KeyEscape {
+		s.close()
+	} else if e.Name == fyne.KeySpace || e.Name == fyne.KeyUp || e.Name == fyne.KeyDown || e.Name == fyne.KeyReturn || e.Name == fyne.KeyEnter {
+		s.Tapped(nil)
+	} else {
+		s.Select.TypedKey(e)
+	}
+}
+
 type dialogList struct {
 	widget.List
-	close func()
+	close    func()
+	activate func()
 }
 
 func (l *dialogList) TypedKey(e *fyne.KeyEvent) {
 	if e.Name == fyne.KeyEscape {
 		l.close()
+	} else if l.activate != nil && (e.Name == fyne.KeyReturn || e.Name == fyne.KeyEnter) {
+		l.activate()
 	} else {
 		l.List.TypedKey(e)
 	}

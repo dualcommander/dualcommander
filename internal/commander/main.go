@@ -10,6 +10,7 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/theme"
+	"fyne.io/fyne/v2/widget"
 	"github.com/dualcommander/dualcommander/assets"
 	"github.com/dualcommander/dualcommander/pkg/desktop"
 	"github.com/dualcommander/dualcommander/pkg/fileicon"
@@ -64,6 +65,28 @@ func (t appTheme) Size(n fyne.ThemeSizeName) float32 {
 // Run starts DualCommander using native desktop integration.
 func Run() {
 	a := app.NewWithID(appID)
+	path, err := settingsPath()
+	if err != nil {
+		fyne.LogError("Cannot locate settings", err)
+		return
+	}
+	store, err := openSettingsFile(a.Preferences(), path, func(err error) {
+		fyne.LogError("Cannot save settings", err)
+	})
+	if err != nil {
+		w := a.NewWindow(appName)
+		label := widget.NewLabel("Cannot load settings: " + err.Error())
+		label.Wrapping = fyne.TextWrapWord
+		w.SetContent(label)
+		w.Resize(fyne.NewSize(600, 180))
+		w.ShowAndRun()
+		return // Never overwrite malformed or unreadable settings.
+	}
+	defer func() {
+		if err := store.close(); err != nil {
+			fyne.LogError("Cannot save settings on exit", err)
+		}
+	}()
 	desktop.SetAppIcon(assets.IconPNG)
 	initIcons()
 	u := newUI(a)
@@ -72,6 +95,10 @@ func Run() {
 	u.left.grid.Refresh()
 	u.right.list.Refresh()
 	u.right.grid.Refresh()
+	a.Lifecycle().SetOnStarted(func() {
+		desktop.HideServicesMenu()
+		desktop.FixMenuShortcuts(u.win.MainMenu())
+	})
 	u.win.ShowAndRun()
 }
 

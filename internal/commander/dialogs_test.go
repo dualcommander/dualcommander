@@ -82,6 +82,49 @@ func TestNewDirectoryReadyForTyping(t *testing.T) {
 	}
 }
 
+func TestInputDialogReusesNativeWindow(t *testing.T) {
+	root := fixture(t)
+	u := newTestUI(t, test.NewTempApp(t), root, root)
+	var native fyne.Window
+	for _, action := range []string{"escape", "cancel", "native close", "submit"} {
+		u.mkdir()
+		w := windowByTitle(t, u.app, "New directory")
+		if native == nil {
+			native = w
+		} else if native != w {
+			t.Fatal("input dialog recreated native window")
+		}
+		e := w.Canvas().Focused().(*escEntry)
+		if e.Text != "" || u.passwordWindow != u.inputWindow {
+			t.Fatal("stale input or parent not blocked")
+		}
+		test.Type(e, "created-"+action)
+		switch action {
+		case "escape":
+			e.TypedKey(&fyne.KeyEvent{Name: fyne.KeyEscape})
+		case "cancel":
+			tapDialogButton(t, u, "Cancel")
+		case "native close":
+			u.inputWindow.Window.Close() // headless driver delivers OnClosed directly
+		case "submit":
+			e.TypedKey(&fyne.KeyEvent{Name: fyne.KeyReturn})
+		}
+		if exists(filepath.Join(root, "created-"+action)) != (action == "submit") {
+			t.Fatal("incorrect confirmation/cancellation")
+		}
+		if u.passwordWindow != nil || u.win.Canvas().Overlays().Top() != nil || hasWindow(u.app, "New directory") {
+			t.Fatal("dialog not dismissed or parent still blocked")
+		}
+		if action == "native close" {
+			native = nil
+		}
+	}
+	u.rename()
+	if u.inputWindow != nil && u.inputWindow.open {
+		u.inputWindow.Close()
+	}
+}
+
 func TestDialogCenteredDefaultButtons(t *testing.T) {
 	for _, key := range []fyne.KeyName{fyne.KeyReturn, fyne.KeyEnter} {
 		for _, focus := range []string{"field", "default", "cancel", "canvas"} {
@@ -289,7 +332,7 @@ func TestDialogEscape(t *testing.T) {
 			focused := dialogFocusables(w)
 			w.Canvas().Unfocus()
 			w.Canvas().OnTypedKey()(&fyne.KeyEvent{Name: fyne.KeyEscape})
-			if slices.Contains(u.app.Driver().AllWindows(), w) {
+			if slices.Contains(u.app.Driver().AllWindows(), w) && w.Title() == tc.title {
 				t.Fatal("Escape without focus did not close window")
 			}
 			// Every focusable control must also handle Escape itself.
@@ -299,7 +342,7 @@ func TestDialogEscape(t *testing.T) {
 				controls := dialogFocusables(current)
 				current.Canvas().Focus(controls[i])
 				controls[i].TypedKey(&fyne.KeyEvent{Name: fyne.KeyEscape})
-				if slices.Contains(u.app.Driver().AllWindows(), current) {
+				if slices.Contains(u.app.Driver().AllWindows(), current) && current.Title() == tc.title {
 					t.Fatalf("Escape with focus on %T did not close window", controls[i])
 				}
 			}

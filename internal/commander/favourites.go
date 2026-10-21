@@ -16,17 +16,43 @@ import (
 const prefFavourites = "favourites"
 
 func (u *ui) toggleFavourite(path string) {
-	paths := u.app.Preferences().StringList(prefFavourites)
+	paths := slices.Clone(u.app.Preferences().StringList(prefFavourites))
 	if i := slices.Index(paths, path); i >= 0 {
 		paths = slices.Delete(paths, i, i+1)
 	} else {
 		paths = append(paths, path)
 	}
 	u.app.Preferences().SetStringList(prefFavourites, paths)
+	u.updateStarredMenu()
 	for _, p := range []*pane{u.left, u.right} {
 		if p != nil {
 			p.updateFavourite()
 		}
+	}
+}
+
+func (u *ui) updateStarredMenu() {
+	if u.starredItem == nil {
+		return
+	}
+	var items []*fyne.MenuItem
+	for _, path := range u.app.Preferences().StringList(prefFavourites) {
+		items = append(items, fyne.NewMenuItem(path, func() {
+			if u.passwordWindow != nil {
+				return
+			}
+			u.showErr(u.active.cd(path, ""))
+			u.activate(u.active)
+		}))
+	}
+	if len(items) == 0 {
+		empty := fyne.NewMenuItem("No starred paths", nil)
+		empty.Disabled = true
+		items = append(items, empty)
+	}
+	u.starredItem.ChildMenu = fyne.NewMenu("", items...)
+	if menu := u.win.MainMenu(); menu != nil {
+		menu.Refresh()
 	}
 }
 

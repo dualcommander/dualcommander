@@ -20,7 +20,7 @@ import (
 	native "github.com/dualcommander/dualcommander/pkg/desktop"
 )
 
-// Preference keys; Fyne stores them per-user in the OS config dir.
+// Preference keys; settingsFile splits settings, session state, and favourites into JSON files.
 const (
 	prefLeft, prefRight            = "left.path", "right.path"
 	prefLeftBrief, prefRightBrief  = "left.brief", "right.brief"
@@ -29,11 +29,13 @@ const (
 	prefHidden, prefDensity        = "hidden", "density"
 	prefFontSize                   = "fontSize"
 	prefTrash                      = "trash"
+	prefBrowseArchives             = "browseArchives"
 	prefRevealCmd, prefTerminalCmd = "revealCmd", "terminalCmd"
 	prefW, prefH                   = "win.w", "win.h"
 )
 
 type ui struct {
+	inputWindow    *inputWindow
 	app            fyne.App
 	win            fyne.Window
 	left, right    *pane
@@ -47,6 +49,10 @@ type ui struct {
 	fontSize       string
 	fontItems      []*fyne.MenuItem
 	showHidden     bool
+	briefItem      *fyne.MenuItem
+	detailedItem   *fyne.MenuItem
+	hiddenItem     *fyne.MenuItem
+	starredItem    *fyne.MenuItem
 	ready          bool
 	archiveTemps   []string
 	filePreview    func(string) []byte
@@ -98,8 +104,8 @@ func newUI(a fyne.App) *ui {
 	// Alt+F7 opens Find Files.
 	u.win.Canvas().AddShortcut(&desktop.CustomShortcut{KeyName: fyne.KeyF7, Modifier: fyne.KeyModifierAlt},
 		func(fyne.Shortcut) { u.search() })
-	u.win.Canvas().AddShortcut(&desktop.CustomShortcut{KeyName: fyne.KeyF6, Modifier: fyne.KeyModifierShift},
-		func(fyne.Shortcut) { u.rename() })
+	u.win.Canvas().AddShortcut(&desktop.CustomShortcut{KeyName: fyne.KeyBackspace, Modifier: fyne.KeyModifierShortcutDefault},
+		func(fyne.Shortcut) { u.delete() })
 	u.win.Canvas().AddShortcut(&desktop.CustomShortcut{KeyName: fyne.KeyF4, Modifier: fyne.KeyModifierShift},
 		func(fyne.Shortcut) { u.newFile() })
 	u.ready = true
@@ -158,11 +164,16 @@ func (u *ui) mainMenu() *fyne.MainMenu {
 	hidden := fyne.NewMenuItem("Show Hidden Files", nil)
 	hidden.Shortcut = &desktop.CustomShortcut{KeyName: fyne.KeyPeriod, Modifier: mod | fyne.KeyModifierShift}
 	hidden.Checked = u.showHidden
-	hidden.Action = func() { u.toggleHidden(); hidden.Checked = u.showHidden; u.win.MainMenu().Refresh() }
+	hidden.Action = u.toggleHidden
 	u.win.Canvas().AddShortcut(hidden.Shortcut, func(fyne.Shortcut) { hidden.Action() })
+	u.hiddenItem = hidden
+	u.briefItem = item("Brief", fyne.Key1, mod, func() { u.active.setBrief(true); u.save() })
+	u.detailedItem = item("Detailed", fyne.Key2, mod, func() { u.active.setBrief(false); u.save() })
 	u.themeItems = themeItems
 	u.densItems = densItems
 	u.fontItems = fontItems
+	u.starredItem = fyne.NewMenuItem("Starred", nil)
+	u.updateStarredMenu()
 	aboutLabel := "About " + appName
 	if runtime.GOOS == "darwin" {
 		aboutLabel = "About" // Fyne moves this to the app menu and replaces the default About panel.
@@ -171,16 +182,16 @@ func (u *ui) mainMenu() *fyne.MainMenu {
 	return fyne.NewMainMenu(
 		fyne.NewMenu("File",
 			item("Open", fyne.KeyO, mod, func() { u.active.open() }),
-			item("Edit (F4)", "", 0, u.edit),
+			item("Edit", fyne.KeyF4, 0, u.edit),
 			item(revealLabel(), fyne.KeyR, mod|fyne.KeyModifierShift, func() { u.openExternal(false) }),
-			item(folderLabel(), fyne.KeyO, mod|fyne.KeyModifierShift, u.openCurrentFolder),
 			item("Open in Terminal", fyne.KeyF9, 0, func() { u.openExternal(true) }),
 			sep(),
-			item("New Folder", fyne.KeyN, mod|fyne.KeyModifierShift, u.mkdir),
+			item("New Folder", fyne.KeyF7, 0, u.mkdir),
 			item("Find Files…", fyne.KeyF, mod, func() { u.search() }),
-			item("Copy…", "", 0, func() { u.copyOrMove(false) }),
-			item("Move / Rename…", "", 0, func() { u.copyOrMove(true) }),
-			item("Delete…", fyne.KeyBackspace, mod, u.delete),
+			item("Copy…", fyne.KeyF5, 0, func() { u.copyOrMove(false) }),
+			item("Move…", fyne.KeyF6, 0, func() { u.copyOrMove(true) }),
+			item("Rename…", fyne.KeyF6, fyne.KeyModifierShift, u.rename),
+			item("Delete…", fyne.KeyF8, 0, u.delete),
 			sep(),
 			item("Settings…", fyne.KeyComma, mod, u.settings), // macOS: Fyne moves it to app menu
 		), // Fyne adds Quit to File (Win/Linux) or app menu (macOS)
@@ -189,8 +200,7 @@ func (u *ui) mainMenu() *fyne.MainMenu {
 			item("Deselect All", fyne.KeyA, mod|fyne.KeyModifierShift, func() { u.active.markAll(false) }),
 		),
 		fyne.NewMenu("View",
-			item("Brief", fyne.Key1, mod, func() { u.active.setBrief(true); u.save() }),
-			item("Detailed", fyne.Key2, mod, func() { u.active.setBrief(false); u.save() }),
+			u.briefItem, u.detailedItem,
 			sep(), hidden,
 			item("Refresh", fyne.KeyR, mod, func() { u.active.refresh() }),
 			sep(), appearance, density, fontSize,
@@ -198,6 +208,7 @@ func (u *ui) mainMenu() *fyne.MainMenu {
 		fyne.NewMenu("Go",
 			item("Enclosing Folder", fyne.KeyUp, mod, func() { u.active.up() }),
 			item("Home", fyne.KeyH, mod|fyne.KeyModifierShift, func() { h, _ := os.UserHomeDir(); u.active.cd(h, "") }),
+			u.starredItem,
 			item("Swap Panes", fyne.KeyU, mod, u.swap),
 			item("Other Pane Same Folder", fyne.KeyE, mod, func() { u.other().navigate(u.active.path, "") }),
 		),
@@ -315,25 +326,6 @@ func (u *ui) openExternal(terminal bool) {
 	if err == nil && terminal {
 		native.PrepareTerminal(cmd)
 	}
-	u.startExternal(cmd, err)
-}
-
-func folderLabel() string {
-	switch runtime.GOOS {
-	case "darwin":
-		return "Open Folder in Finder"
-	case "windows":
-		return "Open Folder in Explorer"
-	}
-	return "Open Folder in File Manager"
-}
-
-func (u *ui) openCurrentFolder() {
-	if u.active.inArchive() {
-		u.showErr(fmt.Errorf("leave archive folder before opening in file manager"))
-		return
-	}
-	cmd, err := native.FolderCommand(runtime.GOOS, u.active.path)
 	u.startExternal(cmd, err)
 }
 
@@ -517,6 +509,7 @@ func (u *ui) other() *pane {
 
 func (u *ui) activate(p *pane) {
 	u.active = p
+	u.updateViewMenu()
 	for _, q := range []*pane{u.left, u.right} {
 		if len(q.entries) > 0 {
 			q.showCursor()
@@ -527,9 +520,24 @@ func (u *ui) activate(p *pane) {
 }
 
 func (u *ui) toggleHidden() {
+	if u.passwordWindow != nil {
+		return
+	}
 	u.showHidden = !u.showHidden
 	u.left.refresh()
 	u.right.refresh()
+	u.updateViewMenu()
+	u.save()
+}
+
+func (u *ui) updateViewMenu() {
+	if u.active == nil || u.briefItem == nil || u.win.MainMenu() == nil {
+		return
+	}
+	u.briefItem.Checked = u.active.brief
+	u.detailedItem.Checked = !u.active.brief
+	u.hiddenItem.Checked = u.showHidden
+	u.win.MainMenu().Refresh()
 }
 
 func (u *ui) save() {

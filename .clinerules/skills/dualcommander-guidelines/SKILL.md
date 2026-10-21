@@ -63,8 +63,17 @@ For any modal dialog or dialog-driven workflow, also follow skill `native-modal-
 - Tests: open/close/switch tabs by key, restore after restart (save, then `newUI` on the same app), missing-path fallback, and tab labels/active state. No image comparisons.
 
 ## General
+- DualCommander does one thing well: file management, not a Swiss army knife. Keep features and menus focused on browsing and managing files; delegate unrelated tasks to external apps.
+- Do not expose generic OS service catalogs such as macOS Services. Remove framework-injected Services menus through native integration, without replacing native menus or removing essential About, Settings, Hide, and Quit actions. Match native menu identity, not localized titles, and test removal plus preservation of unrelated items.
 - Feel native: native menus, OS shortcut modifier (`KeyModifierShortcutDefault`), the OS's own app to reveal/open files.
 - Keep functions short and files few. Note every simplification with a `ponytail:` comment.
+
+## Dialog spacing and progress
+- Reuse `ui.dialogContent`: 16px outer margins, dialog theme independent of file-list density. Use 12px gaps between stacked form groups; keep results lists within the same margins.
+- Unify dialog and background-operation progress: native Fyne progress widgets, theme colors, thin 3px track using `operationTrackLayout` (or `operationStripLayout` for the clickable background strip). Keep status/count/percentage text outside the track; no custom-painted bars or text inside determinate bars.
+- Use determinate progress only when total work is known reliably. Otherwise use `widget.ProgressBarInfinite`; do not pre-scan recursive searches just to manufacture a percentage.
+- Start animation only while work runs. Stop and hide on completion, error, cancellation, and window close. Keep widget updates on the UI thread and reject late results after cancellation.
+- Test margins, track geometry, and progress lifecycle through widget structure/state, never screenshots. Manually check native appearance and animation.
 
 ## Keep configuration and menus simple
 - Good defaults beat options. Add a setting only when no default can suit most users, e.g. the editor command.

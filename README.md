@@ -40,6 +40,50 @@ or `sudo dnf install ./dualcommander-linux-amd64.rpm` so dependencies are resolv
 
 For building from source, testing, or packaging, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
+## Settings
+
+Configuration lives in `~/.dualcommander/`, with no duplicated values:
+
+- `settings.json`: Settings dialog controls—appearance, density, font size,
+  pane view modes, hidden files, deletion/archive behavior, and external commands.
+- `state.json`: current pane paths, active pane, sorting, and window size.
+- `favourites.json`: starred paths as a JSON array of path strings.
+
+Settings use section groups in `settings.json`:
+
+```json
+{
+  "appearance": { "theme": "system", "density": "standard", "fontSize": "medium" },
+  "views": { "left": { "brief": false }, "right": { "brief": false }, "showHidden": false },
+  "deletion": { "moveToTrash": true },
+  "archives": { "browse": true },
+  "externalApplications": { "revealCommand": "", "terminalCommand": "" }
+}
+```
+
+Session state uses nested objects in `state.json`:
+
+```json
+{
+  "pane": {
+    "active": "left",
+    "left": { "path": "/home/user", "sort": "name" },
+    "right": { "path": "/home/user/Documents", "sort": "name" }
+  },
+  "window": { "height": 700, "width": 1100 }
+}
+```
+
+Legacy flat settings and state keys migrate automatically; nested values take precedence.
+
+UI changes save automatically. Close DualCommander before editing files by hand;
+changes load on the next start. Existing combined settings migrate automatically;
+separate state and favourites files take precedence over legacy copies.
+Existing Fyne preferences migrate when JSON files do not exist.
+Missing keys use defaults; unknown keys are preserved. Invalid JSON or wrong
+value types stop startup without overwriting the file. Writes use a temporary
+file and replacement, with owner-only permissions on newly created files.
+
 ## Keyboard and mouse
 
 `Mod` = Cmd on macOS, Ctrl on Windows/Linux. Commands are also available in the native menu bar.
@@ -64,8 +108,7 @@ For building from source, testing, or packaging, see [CONTRIBUTING.md](CONTRIBUT
 | `Mod+1` | Brief view |
 | `Mod+2` | Detailed view |
 | `Mod+Shift+.` | Toggle hidden files |
-| `Mod+Shift+R` | Reveal in Finder/Explorer |
-| `Mod+Shift+O` | Open current folder in Finder/Explorer/file manager |
+| `Mod+Shift+R` | Reveal selection in Finder/Explorer/file manager; use current folder when nothing is selected |
 | `F9` | Open terminal in current folder |
 | `Menu` (application key) | Open cursor item's right-click menu |
 | `Mod+U` | Swap panes |
@@ -88,6 +131,8 @@ For building from source, testing, or packaging, see [CONTRIBUTING.md](CONTRIBUT
 
 Select a supported archive and press `Enter`, or double-click it, to browse its
 contents in the current pane like a folder.
+In Settings > Archives, turn off **Browse archives in DualCommander** to open
+archives with the OS-associated application instead.
 
 Supports ZIP, TAR, 7z, RAR, compressed TAR, and single-file compression formats
 including gzip, bzip2, XZ, and Zstandard. Password-protected ZIP, 7z, and RAR are supported.
