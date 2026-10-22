@@ -2,6 +2,7 @@ package commander
 
 import (
 	"encoding/json"
+	"io"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -38,9 +39,14 @@ func TestSettingsFileMigrationAndUI(t *testing.T) {
 	t.Cleanup(func() { s.close() })
 	read := func() map[string]any {
 		t.Helper()
-		data, err := os.ReadFile(path)
+		file, err := openSettingsRead(path)
 		if err != nil {
 			t.Fatal(err)
+		}
+		data, err := io.ReadAll(file)
+		closeErr := file.Close()
+		if err != nil || closeErr != nil {
+			t.Fatalf("read settings: %v; close: %v", err, closeErr)
 		}
 		var values map[string]any
 		if err := json.Unmarshal(data, &values); err != nil {
@@ -288,6 +294,29 @@ func TestWriteSettingsJSON(t *testing.T) {
 	entries, err := os.ReadDir(dir)
 	if err != nil || len(entries) != 2 {
 		t.Fatalf("temporary files left after success or failure: %v, %v", entries, err)
+	}
+}
+
+func TestWriteSettingsJSONWithOpenReader(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "settings.json")
+	if err := writeSettingsJSON(path, []byte(`{"theme":"light"}`)); err != nil {
+		t.Fatal(err)
+	}
+	reader, err := openSettingsRead(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer reader.Close()
+	if err := writeSettingsJSON(path, []byte(`{"theme":"dark"}`)); err != nil {
+		t.Fatal(err)
+	}
+	old, err := io.ReadAll(reader)
+	if err != nil || string(old) != "{\"theme\":\"light\"}\n" {
+		t.Fatalf("open reader lost snapshot: %q, %v", old, err)
+	}
+	current, err := os.ReadFile(path)
+	if err != nil || string(current) != "{\"theme\":\"dark\"}\n" {
+		t.Fatalf("replacement missing: %q, %v", current, err)
 	}
 }
 
