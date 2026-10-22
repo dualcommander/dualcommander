@@ -54,6 +54,50 @@ func TestNativeDeletionWording(t *testing.T) {
 	t.Fatalf("settings missing native deletion wording: %s", name)
 }
 
+func TestSettingsCommandArrayValidation(t *testing.T) {
+	root := fixture(t)
+	a := test.NewTempApp(t)
+	u := newTestUI(t, a, root, root)
+	u.settings()
+	w := windowByTitle(t, a, "Settings")
+	keys := []string{prefRevealCmd, prefTerminalCmd, prefEditorCmd, prefCompareFilesCmd, prefCompareFoldersCmd}
+	var fields []*escEntry
+	for _, o := range test.LaidOutObjects(w.Content()) {
+		if e, ok := o.(*escEntry); ok {
+			fields = append(fields, e)
+		}
+	}
+	if len(fields) != len(keys) {
+		t.Fatalf("command fields: got %d want %d", len(fields), len(keys))
+	}
+	for i, e := range fields {
+		valid := `["tool","{left}","{right}","argument with spaces",""]`
+		e.SetText(valid)
+		if err := e.Validate(); err != nil || a.Preferences().String(keys[i]) != valid {
+			t.Fatalf("%s: valid array rejected: %v", keys[i], err)
+		}
+		for _, invalid := range []string{
+			`["tool","{left}","{right}",null]`,
+			`tool`, `"tool"`, `{}`, `null`, `[]`, `[""]`, `[" "]`,
+			`["tool",`, `["tool",1]`, `["tool",true]`, `["tool",{}]`, `["tool",[]]`,
+			`["tool"] trailing`, `["tool","\u0000"]`,
+		} {
+			e.SetText(invalid)
+			if e.Validate() == nil {
+				t.Errorf("%s: accepted invalid command %s", keys[i], invalid)
+			}
+			if a.Preferences().String(keys[i]) != valid {
+				t.Errorf("%s: invalid command replaced saved value: %s", keys[i], invalid)
+			}
+			e.SetText(valid)
+		}
+		e.SetText(" ")
+		if err := e.Validate(); err != nil || a.Preferences().String(keys[i]) != " " {
+			t.Fatalf("%s: blank field rejected: %v", keys[i], err)
+		}
+	}
+}
+
 func TestExternalCommandsSettings(t *testing.T) {
 	root := fixture(t)
 	a := test.NewTempApp(t)

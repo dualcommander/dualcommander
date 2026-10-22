@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"runtime"
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -87,7 +88,7 @@ func TestCommandArguments(t *testing.T) {
 	if !slices.Equal(cmd.Args, []string{"/app with spaces/terminal", "--title=two words", path, "/folder with spaces"}) {
 		t.Fatalf("arguments changed: %q", cmd.Args)
 	}
-	for _, invalid := range []string{"", "null", "[]", `[""]`, `[" "]`, `"open"`, `[1]`, `["open",`, `["open","\u0000"]`} {
+	for _, invalid := range []string{"", "null", "[]", `[""]`, `[" "]`, `"open"`, `[1]`, `["open",`, `["open",null]`, `["open","\u0000"]`} {
 		if _, err := Command(invalid, path, "/dir"); err == nil {
 			t.Errorf("accepted invalid command %q", invalid)
 		}
@@ -103,6 +104,21 @@ func TestComparisonCommand(t *testing.T) {
 	for _, invalid := range []string{"", `["tool"]`, `["tool","{left}"]`, `["tool","{right}"]`, `["tool","{left}","{right}","\u0000"]`} {
 		if _, err := ComparisonCommand(invalid, left, right, "/"); err == nil {
 			t.Fatalf("accepted %s", invalid)
+		}
+	}
+}
+
+func TestCommandValidationLocation(t *testing.T) {
+	for _, tc := range []struct{ template, location string }{
+		{`["open",null]`, "/1"},
+		{`["open",true]`, "/1"},
+		{`["open",{}]`, "/1"},
+		{`["open",[]]`, "/1"},
+		{`["\u2003\t"]`, "/0"},
+	} {
+		_, err := Command(tc.template, "/file", "/dir")
+		if err == nil || !strings.Contains(err.Error(), tc.location) {
+			t.Errorf("%s: want error identifying %s, got %v", tc.template, tc.location, err)
 		}
 	}
 }

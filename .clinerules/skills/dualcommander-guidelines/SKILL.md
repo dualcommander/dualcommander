@@ -17,8 +17,9 @@ For any modal dialog or dialog-driven workflow, also follow skill `native-modal-
 
 ## 1. Libraries over custom code
 - Order: Go stdlib, then a dependency already in `go.mod`, then a small, well-known library, and custom code only last.
-- Before writing anything over ~30 lines, look for a library that does it. Note the choice in the summary.
-- Wrap each library behind one small function in `pkg/` (like `pkg/fsops`), not a big abstraction.
+- Prefer maintained third-party Go libraries over custom implementations, even for small features when the stdlib does not cover the requirement. Code reduction and lower ownership/maintenance cost are explicit priorities.
+- Before adding custom logic, check existing dependencies and maintained libraries. When reviewing code, identify replacements that delete project-owned code; avoid speculative dependencies and unrelated rewrites. Note choices and concrete follow-up candidates in the summary.
+- Judge total integration cost, not just dependency count: remove superseded implementations, avoid duplicate validation and unnecessary wrappers, and keep adapters small. Do not trade away security, accessibility, cancellation, progress, error handling, or tested behavior for fewer lines.
 
 ## 2. Edit with OS-native apps
 - No F3 viewer/preview (dropped: Enter opens with the default app already). F4 edits in an external app. No built-in editor.

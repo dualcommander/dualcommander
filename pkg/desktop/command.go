@@ -7,7 +7,27 @@ import (
 	"os/exec"
 	"runtime"
 	"strings"
+	"sync"
+
+	"github.com/santhosh-tekuri/jsonschema/v6"
 )
+
+var commandSchema = sync.OnceValues(func() (*jsonschema.Schema, error) {
+	doc, err := jsonschema.UnmarshalJSON(strings.NewReader(`{
+		"$schema": "https://json-schema.org/draft/2020-12/schema",
+		"type": "array", "minItems": 1,
+		"items": {"type": "string"},
+		"prefixItems": [{"type": "string", "pattern": "[^\\p{Z}\\s\\v\u0085]"}]
+	}`))
+	if err != nil {
+		return nil, err
+	}
+	c := jsonschema.NewCompiler()
+	if err := c.AddResource("command.json", doc); err != nil {
+		return nil, err
+	}
+	return c.Compile("command.json")
+})
 
 // Defaults returns reveal and terminal commands as JSON argument lists.
 func Defaults(goos string) (reveal, terminal string) {
@@ -63,12 +83,21 @@ func ComparisonCommand(template, left, right, dir string) (*exec.Cmd, error) {
 }
 
 func command(template, dir string, replace *strings.Replacer, required ...string) (*exec.Cmd, error) {
-	var args []string
-	if err := json.Unmarshal([]byte(template), &args); err != nil {
-		return nil, fmt.Errorf("command must be a JSON list of strings: %w", err)
+	var value any
+	if err := json.Unmarshal([]byte(template), &value); err != nil {
+		return nil, fmt.Errorf("command must be a JSON array of strings: %w", err)
 	}
-	if len(args) == 0 || strings.TrimSpace(args[0]) == "" {
-		return nil, fmt.Errorf("command needs an executable")
+	schema, err := commandSchema()
+	if err != nil {
+		return nil, fmt.Errorf("compile command schema: %w", err)
+	}
+	if err := schema.Validate(value); err != nil {
+		return nil, fmt.Errorf("command must be a JSON array of strings with a nonblank executable: %w", err)
+	}
+	values := value.([]any) // Schema guarantees the array and element types.
+	args := make([]string, len(values))
+	for i, value := range values {
+		args[i] = value.(string)
 	}
 	for _, placeholder := range required {
 		if !strings.Contains(strings.Join(args, "\x00"), placeholder) {
