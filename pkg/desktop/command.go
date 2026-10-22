@@ -2,6 +2,7 @@
 package desktop
 
 import (
+	_ "embed"
 	"encoding/json"
 	"fmt"
 	"os/exec"
@@ -12,13 +13,11 @@ import (
 	"github.com/santhosh-tekuri/jsonschema/v6"
 )
 
+//go:embed command.schema.json
+var commandSchemaJSON string
+
 var commandSchema = sync.OnceValues(func() (*jsonschema.Schema, error) {
-	doc, err := jsonschema.UnmarshalJSON(strings.NewReader(`{
-		"$schema": "https://json-schema.org/draft/2020-12/schema",
-		"type": "array", "minItems": 1,
-		"items": {"type": "string"},
-		"prefixItems": [{"type": "string", "pattern": "[^\\p{Z}\\s\\v\u0085]"}]
-	}`))
+	doc, err := jsonschema.UnmarshalJSON(strings.NewReader(commandSchemaJSON))
 	if err != nil {
 		return nil, err
 	}

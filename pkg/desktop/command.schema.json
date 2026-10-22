@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "array",
+  "minItems": 1,
+  "items": {
+    "type": "string"
+  },
+  "prefixItems": [
+    {
+      "type": "string",
+      "pattern": "[^\\p{Z}\\s\\v\u0085]"
+    }
+  ]
+}

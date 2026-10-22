@@ -7,6 +7,7 @@ require (
 	github.com/bodgit/sevenzip v1.6.0
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/mholt/archives v0.1.3
+	github.com/natefinch/atomic v1.0.1
 	github.com/nwaples/rardecode/v2 v2.1.0
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.3
 	github.com/yeka/zip v0.0.0-20231116150916-03d6312748a9

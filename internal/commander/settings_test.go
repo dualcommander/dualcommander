@@ -257,6 +257,40 @@ func TestSettingsFileWriteErrors(t *testing.T) {
 	}
 }
 
+func TestWriteSettingsJSON(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "private")
+	path := filepath.Join(dir, "settings.json")
+	for _, body := range []string{`{"theme":"light"}`, `{"theme":"dark"}`} {
+		if err := writeSettingsJSON(path, []byte(body)); err != nil {
+			t.Fatal(err)
+		}
+		data, err := os.ReadFile(path)
+		if err != nil || string(data) != body+"\n" {
+			t.Fatalf("replacement: %q, %v", data, err)
+		}
+		if runtime.GOOS != "windows" {
+			info, err := os.Stat(path)
+			if err != nil || info.Mode().Perm() != 0o600 {
+				t.Fatalf("private file permissions: %v, %v", info, err)
+			}
+			if err := os.Chmod(path, 0o644); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	blocked := filepath.Join(dir, "blocked")
+	if err := os.Mkdir(blocked, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeSettingsJSON(blocked, []byte(`{}`)); err == nil {
+		t.Fatal("directory replacement accepted")
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil || len(entries) != 2 {
+		t.Fatalf("temporary files left after success or failure: %v, %v", entries, err)
+	}
+}
+
 func TestSettingsPath(t *testing.T) {
 	home := t.TempDir()
 	key := "HOME"

@@ -1,6 +1,7 @@
 package commander
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -9,6 +10,7 @@ import (
 	"sync"
 
 	"fyne.io/fyne/v2"
+	"github.com/natefinch/atomic"
 )
 
 // settingsFile keeps Fyne's preference API and makes JSON authoritative at startup.
@@ -333,19 +335,13 @@ func writeSettingsJSON(path string, data []byte) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return err
 	}
-	f, err := os.CreateTemp(filepath.Dir(path), ".settings-*")
-	if err != nil {
+	// atomic preserves existing permissions; settings must remain private.
+	if info, err := os.Stat(path); err == nil && info.Mode().IsRegular() {
+		if err := os.Chmod(path, 0o600); err != nil {
+			return err
+		}
+	} else if err != nil && !os.IsNotExist(err) {
 		return err
 	}
-	defer os.Remove(f.Name())
-	if _, err = f.Write(append(data, '\n')); err == nil {
-		err = f.Sync()
-	}
-	if closeErr := f.Close(); err == nil {
-		err = closeErr
-	}
-	if err != nil {
-		return err
-	}
-	return os.Rename(f.Name(), path)
+	return atomic.WriteFile(path, bytes.NewReader(append(data, '\n')))
 }
