@@ -57,9 +57,36 @@ Settings use section groups in `settings.json`:
   "views": { "left": { "brief": false }, "right": { "brief": false }, "showHidden": false },
   "deletion": { "moveToTrash": true },
   "archives": { "browse": true },
-  "externalApplications": { "revealCommand": "", "terminalCommand": "" }
+  "externalApplications": {
+    "revealCommand": "", "terminalCommand": "", "editorCommand": "",
+    "compareFilesCommand": "", "compareFoldersCommand": ""
+  }
 }
 ```
+
+Configure F4 under **Settings > External applications > Edit file (F4)**.
+Use a JSON argument list, e.g. `["code","--wait","{path}"]`; `{path}` is
+the selected file and `{dir}` is the active pane folder. Commands run without
+a shell, preserving spaces in file names. Leave blank for the OS default editor.
+
+**File > Compare Files** compares the cursor file in each pane, ignoring marked
+files. **File > Compare Folder Contents** passes the current left/right folders
+to an external comparison tool. Both actions stay disabled until their command
+is configured under **Settings > External applications**. Install your chosen
+tool separately; use its executable on PATH or its full path.
+
+Commands are JSON argument lists with both `{left}` and `{right}` placeholders.
+Pane order stays fixed regardless of which pane is active. Examples:
+
+- Files with VS Code: `["code","--diff","{left}","{right}"]`
+- Files or folders with Meld: `["meld","{left}","{right}"]`
+
+For folder comparison, configure your tool to compare contents recursively,
+not only timestamps/sizes. DualCommander delegates comparison and its result UI
+to that tool; it does not scan or compare files itself. Blank commands disable
+their actions. Archives are unsupported. Exit code 1 is treated as differences
+found; other nonzero exits report an error. Use a graphical tool or an explicit
+terminal launcher for tools that need a terminal.
 
 Session state uses nested objects in `state.json`:
 

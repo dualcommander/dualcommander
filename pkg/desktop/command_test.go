@@ -93,3 +93,26 @@ func TestCommandArguments(t *testing.T) {
 		}
 	}
 }
+
+func TestComparisonCommand(t *testing.T) {
+	left, right := `/left space/";$(touch nope){right}`, `/right space/世界{left}`
+	cmd, err := ComparisonCommand(`["/tool with spaces/diff","--left={left}","{right}"]`, left, right, "/left space")
+	if err != nil || !slices.Equal(cmd.Args, []string{"/tool with spaces/diff", "--left=" + left, right}) || cmd.Dir != "/left space" {
+		t.Fatalf("comparison arguments: %v %v", cmd, err)
+	}
+	for _, invalid := range []string{"", `["tool"]`, `["tool","{left}"]`, `["tool","{right}"]`, `["tool","{left}","{right}","\u0000"]`} {
+		if _, err := ComparisonCommand(invalid, left, right, "/"); err == nil {
+			t.Fatalf("accepted %s", invalid)
+		}
+	}
+}
+
+func TestComparisonCommandEscapedPlaceholders(t *testing.T) {
+	cmd, err := ComparisonCommand(`["diff","\u007bleft\u007d","\u007bright\u007d"]`, "/left file", "/right file", "/")
+	if err != nil {
+		t.Fatalf("valid JSON-escaped placeholders rejected: %v", err)
+	}
+	if !slices.Equal(cmd.Args, []string{"diff", "/left file", "/right file"}) {
+		t.Fatalf("escaped placeholders not substituted: %q", cmd.Args)
+	}
+}

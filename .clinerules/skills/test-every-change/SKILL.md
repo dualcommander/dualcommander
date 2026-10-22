@@ -1,14 +1,23 @@
 ---
 name: test-every-change
-description: Mandatory for ANY code change in dualcommander (Go/Fyne file manager) - features, fixes, UI/visual tweaks, refactors. Defines how to test UI workflows and visuals, and requires running scripts/check.sh after every edit.
+description: Mandatory test-driven development for ANY code change in dualcommander (Go/Fyne file manager). Write or adapt tests first, observe expected failure, implement minimum fix, and run scripts/check.sh.
 ---
 
 # Test every change
 
 ## Rules
-1. After every edit to `*.go`, `go.mod`, or `testdata/`: run `sh scripts/check.sh`. Do not continue or report done while it fails.
-2. Every new behavior gets a test in the same change. No exceptions for "visual" work.
+1. After each edit batch to `*.go`, `go.mod`, or `testdata/`: run `sh scripts/check.sh`. Expected failures in the red phase below permit proceeding only to the matching implementation. Unrelated failures must be investigated; never finish with failing checks.
+2. Every new behavior gets a test written or adapted BEFORE implementation. No exceptions for fixes or "visual" work.
 3. Never weaken or delete a test to make it pass. If the test exposed a real bug, fix the app.
+
+## Required red–green workflow
+1. Identify observable behavior and existing tests before changing production code.
+2. Red: add or adapt the smallest regression/workflow test for the requested behavior. Run it against unchanged production code and observe the expected failure. Record command and failure reason. Compilation errors, broken fixtures, and unrelated failures do not prove a behavioral regression; use existing APIs where possible.
+3. Green: change only enough production code to satisfy that test. Run the focused test again, then `sh scripts/check.sh` until all checks pass.
+4. Repeat for each behavior or edge case discovered during implementation. Update tests as requirements evolve, not only after implementation is complete. Keep earlier regression assertions intact.
+5. Refactor only with passing tests; rerun affected tests and full checks afterward.
+- For already-written code under review, add missing coverage first. A test that already passes adds coverage but is not evidence of a red–green cycle. Do not claim earlier work was test-first retroactively.
+- Final summary: report observed red failure, green result, full-check result, and any manual-only checks not performed.
 
 ## Where tests go
 - `pkg/fsops/fsops_test.go`: file ops, no UI.

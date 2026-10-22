@@ -191,7 +191,10 @@ func (u *ui) delete() {
 }
 
 func trashName() string {
-	if runtime.GOOS == "windows" {
+	switch runtime.GOOS {
+	case "darwin":
+		return "Bin"
+	case "windows":
 		return "Recycle Bin"
 	}
 	return "Trash"
@@ -271,6 +274,10 @@ func (u *ui) settings() {
 				return nil
 			}
 			_, err := desktop.Command(value, u.active.path, u.active.path)
+			if key == prefCompareFilesCmd || key == prefCompareFoldersCmd {
+				_, err = desktop.ComparisonCommand(value, u.left.path, u.right.path, u.left.path)
+				return err
+			}
 			if err != nil {
 				return fmt.Errorf("Use a JSON list with an executable and its arguments")
 			}
@@ -279,6 +286,8 @@ func (u *ui) settings() {
 		e.OnChanged = func(value string) {
 			if e.Validate() == nil {
 				pr.SetString(key, value)
+				u.updateCompareMenu()
+				u.win.MainMenu().Refresh()
 			}
 		}
 		return e
@@ -287,6 +296,12 @@ func (u *ui) settings() {
 	revealItem.HintText = "{path} is the selected item; {dir} is the active pane folder."
 	terminalItem := widget.NewFormItem("Open folder in terminal", commandEntry(prefTerminalCmd, terminal))
 	terminalItem.HintText = "{dir} is the active pane folder."
+	editorItem := widget.NewFormItem("Edit file (F4)", commandEntry(prefEditorCmd, editorDefault(runtime.GOOS)))
+	editorItem.HintText = `Use {path} for the file, e.g. ["code","--wait","{path}"].`
+	filesItem := widget.NewFormItem("Compare files", commandEntry(prefCompareFilesCmd, `["meld","{left}","{right}"]`))
+	filesItem.HintText = "Cursor file in each pane. Use {left} and {right}; blank disables comparison."
+	foldersItem := widget.NewFormItem("Compare folder contents", commandEntry(prefCompareFoldersCmd, `["meld","{left}","{right}"]`))
+	foldersItem.HintText = "Current pane folders. Configure tool flags for recursive content comparison; blank disables."
 	content = u.dialogContent(container.NewVBox(
 		hint("Changes are saved automatically. Invalid commands are not saved."),
 		widget.NewSeparator(),
@@ -304,8 +319,8 @@ func (u *ui) settings() {
 		browse,
 		widget.NewSeparator(),
 		heading("External applications"),
-		hint("Custom commands use JSON argument lists, without a shell.\nLeave a field blank to use the OS default shown below."),
-		widget.NewForm(revealItem, terminalItem),
+		hint("Custom commands use JSON argument lists, without a shell.\nLeave a field blank for the OS default; comparison has no default and stays disabled."),
+		widget.NewForm(revealItem, terminalItem, editorItem, filesItem, foldersItem),
 	)).(*container.ThemeOverride)
 	w.SetContent(container.NewVScroll(content))
 	w.Resize(fyne.NewSize(700, min(700, content.MinSize().Height)))

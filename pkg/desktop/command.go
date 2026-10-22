@@ -54,6 +54,15 @@ func PrepareTerminal(cmd *exec.Cmd) {
 // Command substitutes paths after JSON parsing, keeping each argument intact.
 // The working directory lets terminals without a directory flag open in dir.
 func Command(template, path, dir string) (*exec.Cmd, error) {
+	return command(template, dir, strings.NewReplacer("{path}", path, "{dir}", dir))
+}
+
+// ComparisonCommand keeps pane order and substitutes both paths without a shell.
+func ComparisonCommand(template, left, right, dir string) (*exec.Cmd, error) {
+	return command(template, dir, strings.NewReplacer("{left}", left, "{right}", right), "{left}", "{right}")
+}
+
+func command(template, dir string, replace *strings.Replacer, required ...string) (*exec.Cmd, error) {
 	var args []string
 	if err := json.Unmarshal([]byte(template), &args); err != nil {
 		return nil, fmt.Errorf("command must be a JSON list of strings: %w", err)
@@ -61,8 +70,13 @@ func Command(template, path, dir string) (*exec.Cmd, error) {
 	if len(args) == 0 || strings.TrimSpace(args[0]) == "" {
 		return nil, fmt.Errorf("command needs an executable")
 	}
+	for _, placeholder := range required {
+		if !strings.Contains(strings.Join(args, "\x00"), placeholder) {
+			return nil, fmt.Errorf("comparison command needs %s", placeholder)
+		}
+	}
 	for i := range args {
-		args[i] = strings.NewReplacer("{path}", path, "{dir}", dir).Replace(args[i])
+		args[i] = replace.Replace(args[i])
 		if strings.ContainsRune(args[i], 0) {
 			return nil, fmt.Errorf("command cannot contain NUL characters")
 		}

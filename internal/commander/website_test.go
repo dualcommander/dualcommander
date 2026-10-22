@@ -14,6 +14,58 @@ import (
 	"fyne.io/fyne/v2/test"
 )
 
+// MANUAL_SCREENSHOTS writes full app-rendered captures for the online manual.
+func TestManualScreenshots(t *testing.T) {
+	output := os.Getenv("MANUAL_SCREENSHOTS")
+	if output == "" {
+		t.Skip("set MANUAL_SCREENSHOTS to the website screenshots directory")
+	}
+	root := fixture(t)
+	if err := os.Rename(filepath.Join(root, "src", "song.mp3"), filepath.Join(root, "src", "notes.txt")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "dst", "report.csv"), []byte("Sample report\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	a := test.NewTempApp(t)
+	u := newTestUI(t, a, filepath.Join(root, "src"), filepath.Join(root, "dst"))
+	applyTheme(a, "light", u.density)
+	u.left.setBrief(true)
+	u.right.setBrief(false)
+	u.win.Resize(fyne.NewSize(1200, 560))
+	cursorTo(t, u.left, "readme.md")
+	u.left.toggleMark()
+	u.left.pathBar.SetText("/Users/demo/Documents")
+	u.right.pathBar.SetText("/Users/demo/Backup")
+	for _, p := range []*pane{u.left, u.right} {
+		p.spaceGeneration++ // discard pending disk-space updates for fixture paths
+		p.space.SetText("128 GiB free")
+	}
+	write := func(name string, w fyne.Window) {
+		t.Helper()
+		f, err := os.Create(filepath.Join(output, name+".png"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		err = png.Encode(f, w.Canvas().Capture())
+		closeErr := f.Close()
+		if err != nil || closeErr != nil {
+			t.Fatalf("write screenshot: %v; close: %v", err, closeErr)
+		}
+	}
+	write("manual-panes", u.win)
+	u.settings()
+	windows := a.Driver().AllWindows()
+	w := windows[len(windows)-1]
+	if w.Title() != "Settings" {
+		t.Fatalf("expected Settings window, got %q", w.Title())
+	}
+	// Show the whole scrollable form; normal desktop windows may need scrolling.
+	w.Resize(fyne.NewSize(900, 800))
+	assertUIText(t, w.Content(), "Appearance", "File views", "File deletion", "Archives", "External applications")
+	write("manual-settings", w)
+}
+
 // WEBSITE_SCREENSHOT writes overlapping full canvases in both themes.
 func TestWebsiteScreenshot(t *testing.T) {
 	root := fixture(t)

@@ -2,9 +2,8 @@
 package commander
 
 import (
+	"encoding/json"
 	"image/color"
-	"os/exec"
-	"runtime"
 	"slices"
 
 	"fyne.io/fyne/v2"
@@ -128,7 +127,6 @@ func applyTheme(a fyne.App, mode, density string) {
 	a.Settings().SetTheme(t)
 }
 
-// reveal shows path selected in the platform file manager.
 // editCmd: OS default text editor (F4). No shell, so file names can't inject.
 func editCmd(goos, path string) []string {
 	switch goos {
@@ -137,10 +135,10 @@ func editCmd(goos, path string) []string {
 	case "windows":
 		return []string{"notepad", path}
 	}
-	return []string{"xdg-open", path} // ponytail: Linux has no "default editor" API; add editorCmd pref when asked
+	return []string{"xdg-open", path}
 }
 
-func edit(path string) error {
-	c := editCmd(runtime.GOOS, path)
-	return exec.Command(c[0], c[1:]...).Start()
+func editorDefault(goos string) string {
+	command, _ := json.Marshal(editCmd(goos, "{path}"))
+	return string(command)
 }

@@ -31,33 +31,37 @@ const (
 	prefTrash                      = "trash"
 	prefBrowseArchives             = "browseArchives"
 	prefRevealCmd, prefTerminalCmd = "revealCmd", "terminalCmd"
+	prefEditorCmd                  = "editorCmd"
+	prefCompareFilesCmd            = "compareFilesCmd"
+	prefCompareFoldersCmd          = "compareFoldersCmd"
 	prefW, prefH                   = "win.w", "win.h"
 )
 
 type ui struct {
-	inputWindow    *inputWindow
-	app            fyne.App
-	win            fyne.Window
-	left, right    *pane
-	active         *pane
-	split          *container.Split
-	jobs           *jobs
-	themeMode      string
-	themeItems     []*fyne.MenuItem
-	density        string
-	densItems      []*fyne.MenuItem
-	fontSize       string
-	fontItems      []*fyne.MenuItem
-	showHidden     bool
-	briefItem      *fyne.MenuItem
-	detailedItem   *fyne.MenuItem
-	hiddenItem     *fyne.MenuItem
-	starredItem    *fyne.MenuItem
-	ready          bool
-	archiveTemps   []string
-	filePreview    func(string) []byte
-	passwordGate   chan struct{}
-	passwordWindow fyne.Window
+	inputWindow                          *inputWindow
+	app                                  fyne.App
+	win                                  fyne.Window
+	left, right                          *pane
+	active                               *pane
+	split                                *container.Split
+	jobs                                 *jobs
+	themeMode                            string
+	themeItems                           []*fyne.MenuItem
+	density                              string
+	densItems                            []*fyne.MenuItem
+	fontSize                             string
+	fontItems                            []*fyne.MenuItem
+	showHidden                           bool
+	briefItem                            *fyne.MenuItem
+	detailedItem                         *fyne.MenuItem
+	hiddenItem                           *fyne.MenuItem
+	starredItem                          *fyne.MenuItem
+	compareFilesItem, compareFoldersItem *fyne.MenuItem
+	ready                                bool
+	archiveTemps                         []string
+	filePreview                          func(string) []byte
+	passwordGate                         chan struct{}
+	passwordWindow                       fyne.Window
 }
 
 func newUI(a fyne.App) *ui {
@@ -174,6 +178,9 @@ func (u *ui) mainMenu() *fyne.MainMenu {
 	u.fontItems = fontItems
 	u.starredItem = fyne.NewMenuItem("Starred", nil)
 	u.updateStarredMenu()
+	u.compareFilesItem = item("Compare Files", "", 0, func() { u.compare(false) })
+	u.compareFoldersItem = item("Compare Folder Contents", "", 0, func() { u.compare(true) })
+	u.updateCompareMenu()
 	aboutLabel := "About " + appName
 	if runtime.GOOS == "darwin" {
 		aboutLabel = "About" // Fyne moves this to the app menu and replaces the default About panel.
@@ -192,6 +199,7 @@ func (u *ui) mainMenu() *fyne.MainMenu {
 			item("Move…", fyne.KeyF6, 0, func() { u.copyOrMove(true) }),
 			item("Rename…", fyne.KeyF6, fyne.KeyModifierShift, u.rename),
 			item("Delete…", fyne.KeyF8, 0, u.delete),
+			sep(), u.compareFilesItem, u.compareFoldersItem,
 			sep(),
 			item("Settings…", fyne.KeyComma, mod, u.settings), // macOS: Fyne moves it to app menu
 		), // Fyne adds Quit to File (Win/Linux) or app menu (macOS)
@@ -281,15 +289,24 @@ func (u *ui) infoWindow(title string) fyne.Window {
 	return u.dialogWindow(title)
 }
 
-// edit opens the file under the cursor in the OS text editor; dirs and ".." ignored.
+// edit opens the file under the cursor in the configured editor; dirs and ".." ignored.
 func (u *ui) edit() {
 	if u.active.inArchive() {
 		u.showErr(fmt.Errorf("archive browsing is read-only"))
 		return
 	}
 	if e := u.active.current(); e.name != "" && e.name != ".." && !e.dir {
-		u.showErr(edit(filepath.Join(u.active.path, e.name)))
+		cmd, err := u.editorCommand(filepath.Join(u.active.path, e.name))
+		u.startExternal(cmd, err)
 	}
+}
+
+func (u *ui) editorCommand(path string) (*exec.Cmd, error) {
+	command := u.app.Preferences().String(prefEditorCmd)
+	if strings.TrimSpace(command) == "" {
+		command = editorDefault(runtime.GOOS)
+	}
+	return native.Command(command, path, u.active.path)
 }
 
 func revealLabel() string {
@@ -329,7 +346,7 @@ func (u *ui) openExternal(terminal bool) {
 	u.startExternal(cmd, err)
 }
 
-func (u *ui) startExternal(cmd *exec.Cmd, err error) {
+func (u *ui) startExternal(cmd *exec.Cmd, err error, acceptedExitCodes ...int) {
 	if err == nil {
 		var stderr bytes.Buffer
 		cmd.Stderr = &stderr
@@ -337,6 +354,9 @@ func (u *ui) startExternal(cmd *exec.Cmd, err error) {
 		if err == nil {
 			go func() {
 				if err := cmd.Wait(); err != nil {
+					if exit, ok := err.(*exec.ExitError); ok && slices.Contains(acceptedExitCodes, exit.ExitCode()) {
+						return
+					}
 					if detail := strings.TrimSpace(stderr.String()); detail != "" {
 						err = fmt.Errorf("%w: %s", err, detail)
 					}
@@ -537,6 +557,7 @@ func (u *ui) updateViewMenu() {
 	u.briefItem.Checked = u.active.brief
 	u.detailedItem.Checked = !u.active.brief
 	u.hiddenItem.Checked = u.showHidden
+	u.updateCompareMenu()
 	u.win.MainMenu().Refresh()
 }
 

@@ -25,6 +25,35 @@ import (
 	"fyne.io/fyne/v2/widget"
 )
 
+func TestNativeDeletionWording(t *testing.T) {
+	name := "Trash"
+	switch runtime.GOOS {
+	case "darwin":
+		name = "Bin"
+	case "windows":
+		name = "Recycle Bin"
+	}
+	if trashName() != name {
+		t.Fatalf("native deletion name: got %q, want %q", trashName(), name)
+	}
+	root := fixture(t)
+	u := newTestUI(t, test.NewTempApp(t), filepath.Join(root, "src"), filepath.Join(root, "dst"))
+	cursorTo(t, u.left, "readme.md")
+	press(u, fyne.KeyF8)
+	w := windowByTitle(t, u.app, "Move to "+name)
+	assertUIText(t, w.Content(), "Move to "+name+` "readme.md"?`, "Move to "+name)
+	tapDialogButton(t, u, "Cancel")
+	u.settings()
+	w = windowByTitle(t, u.app, "Settings")
+	defer w.Close()
+	for _, o := range test.LaidOutObjects(w.Content()) {
+		if c, ok := o.(*dialogCheck); ok && c.Text == "Move deleted files to "+name {
+			return
+		}
+	}
+	t.Fatalf("settings missing native deletion wording: %s", name)
+}
+
 func TestExternalCommandsSettings(t *testing.T) {
 	root := fixture(t)
 	a := test.NewTempApp(t)
@@ -69,11 +98,11 @@ func TestExternalCommandsSettings(t *testing.T) {
 			entries = append(entries, e)
 		}
 	}
-	if len(entries) != 2 {
+	if len(entries) != 5 {
 		t.Fatalf("command fields: %d", len(entries))
 	}
 	text := strings.Join(labels, "\n")
-	for _, label := range []string{"Appearance", "Theme", "Density", "Font size", "File views", "Left pane view", "Right pane view", "File deletion", "Archives", "External applications", "Show in file manager", "Open folder in terminal"} {
+	for _, label := range []string{"Appearance", "Theme", "Density", "Font size", "File views", "Left pane view", "Right pane view", "File deletion", "Archives", "External applications", "Show in file manager", "Open folder in terminal", "Edit file (F4)"} {
 		if !slices.Contains(labels, label) {
 			t.Fatalf("missing settings label: %s", label)
 		}
@@ -105,11 +134,40 @@ func TestExternalCommandsSettings(t *testing.T) {
 		t.Fatal("blank command did not restore OS default")
 	}
 	entries[0].SetText(reveal)
+	editor := `["custom-editor","--wait","{path}"]`
+	entries[2].SetText(editor)
+	if entries[2].Validate() != nil || a.Preferences().String(prefEditorCmd) != editor {
+		t.Fatal("editor command not saved")
+	}
+	entries[2].SetText("invalid")
+	if entries[2].Validate() == nil || a.Preferences().String(prefEditorCmd) != editor {
+		t.Fatal("invalid editor replaced saved command")
+	}
+	entries[2].SetText(" ")
+	if entries[2].Validate() != nil {
+		t.Fatal("blank editor rejected")
+	}
+	cmd, err := u.editorCommand(filepath.Join(u.left.path, "readme.md"))
+	if err != nil || !slices.Equal(cmd.Args, editCmd(runtime.GOOS, filepath.Join(u.left.path, "readme.md"))) {
+		t.Fatalf("blank editor must use OS default: %v %v", cmd, err)
+	}
+	entries[2].SetText(editor)
 	w.Close()
 	if slices.Contains(a.Driver().AllWindows(), w) || windowByTitle(t, a, appName) == nil {
 		t.Fatal("closing settings must leave main window open")
 	}
 	u = newTrackedUI(t, a)
+	if a.Preferences().String(prefEditorCmd) != editor {
+		t.Fatal("editor setting not restored")
+	}
+	for _, p := range []*pane{u.left, u.right} {
+		u.activate(p)
+		path := filepath.Join(p.path, `a b;$(echo unsafe)".txt`)
+		cmd, err := u.editorCommand(path)
+		if err != nil || !slices.Equal(cmd.Args, []string{"custom-editor", "--wait", path}) || cmd.Dir != p.path {
+			t.Fatalf("editor command: %v %v", cmd, err)
+		}
+	}
 	if a.Preferences().String(prefTerminalCmd) != terminal {
 		t.Fatal("terminal setting not restored")
 	}
@@ -122,7 +180,14 @@ func TestExternalCommandsSettings(t *testing.T) {
 	}
 	u.activate(u.left)
 	cursorTo(t, u.left, "readme.md")
-	cmd, err := u.externalCommand(false)
+	a.Preferences().SetString(prefEditorCmd, "invalid")
+	press(u, fyne.KeyF4)
+	if !hasWindow(a, "Error") {
+		t.Fatal("F4 must report invalid editor command")
+	}
+	tapDialogButton(t, u, "OK")
+	a.Preferences().SetString(prefEditorCmd, editor)
+	cmd, err = u.externalCommand(false)
 	if err != nil || !slices.Equal(cmd.Args, []string{"custom-manager", filepath.Join(u.left.path, "readme.md")}) {
 		t.Fatalf("reveal command: %v %v", cmd, err)
 	}

@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io/fs"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
@@ -13,7 +14,8 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/layout"
+	"fyne.io/fyne/v2/driver/desktop"
+	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 )
 
@@ -69,18 +71,58 @@ func runSearch(ctx context.Context, args []string, emit func([]string)) error {
 
 // finder is the Find Files dialog state (exposed for tests).
 type finder struct {
-	text, glob    *escEntry
-	mode          *dialogSelect
-	caseSensitive *dialogCheck
-	win           fyne.Window
-	list          *dialogList
-	status        *widget.Label
-	activity      *widget.ProgressBarInfinite
-	results       []string
-	done          bool
-	cancel        context.CancelFunc
-	ctx           context.Context
-	workerDone    chan struct{}
+	text, glob, dir  *escEntry
+	mode             string
+	caseSensitive    *searchOption
+	regexp, globMode *searchOption
+	win              fyne.Window
+	list             *dialogList
+	status           *widget.Label
+	activity         *widget.ProgressBarInfinite
+	results          []string
+	done             bool
+	cancel           context.CancelFunc
+	ctx              context.Context
+	workerDone       chan struct{}
+}
+
+// ponytail: Fyne has no tooltip widget; in-content hints never intercept pointer events.
+type searchOption struct {
+	dialogButton
+	Checked bool
+	hint    *fyne.Container
+	label   string
+}
+
+func (b *searchOption) AccessibilityLabel() string { return b.label }
+
+func (b *searchOption) SetChecked(checked bool) {
+	b.Checked = checked
+	b.Importance = widget.LowImportance
+	if checked {
+		b.Importance = widget.HighImportance
+	}
+	b.Refresh()
+}
+
+func (b *searchOption) MouseIn(e *desktop.MouseEvent) {
+	b.Button.MouseIn(e)
+	b.hint.Show()
+	b.hint.Refresh()
+}
+
+func (b *searchOption) MouseOut() { b.Button.MouseOut(); b.hint.Hide() }
+
+type searchHintLayout struct{ anchor *searchOption }
+
+func (l searchHintLayout) MinSize([]fyne.CanvasObject) fyne.Size { return fyne.Size{} }
+func (l searchHintLayout) Layout(objects []fyne.CanvasObject, size fyne.Size) {
+	pos := fyne.CurrentApp().Driver().AbsolutePositionForObject(l.anchor)
+	for _, o := range objects {
+		s := o.MinSize()
+		o.Resize(s)
+		o.Move(fyne.NewPos(max(0, min(pos.X, size.Width-s.Width)), pos.Y+l.anchor.Size().Height+4))
+	}
 }
 
 func nameMatcher(pattern, mode string, sensitive bool) (func(string) bool, error) {
@@ -127,7 +169,8 @@ func (u *ui) search() *finder {
 		return nil
 	}
 	_, rgErr := exec.LookPath("rg")
-	f := &finder{text: newEscEntry(), glob: newEscEntry(), status: widget.NewLabel(""), cancel: func() {}}
+	f := &finder{text: newEscEntry(), glob: newEscEntry(), dir: newEscEntry(), status: widget.NewLabel(""), cancel: func() {}}
+	f.dir.SetText(p.path)
 	f.activity = widget.NewProgressBarInfinite()
 	f.activity.MinSize() // Fyne starts animation when first creating the renderer; initialize before stopping.
 	f.activity.Stop()
@@ -135,12 +178,30 @@ func (u *ui) search() *finder {
 	f.text.SetPlaceHolder("Text in file (empty = names only)")
 	f.glob.SetPlaceHolder("File name, e.g. readme")
 	w := u.dialogWindow("Find Files")
-	f.mode = &dialogSelect{close: w.Close}
-	f.mode.Options, f.mode.Selected = []string{"Partial match", "Regular expression", "Wildcard"}, "Partial match"
-	f.mode.ExtendBaseWidget(f.mode)
-	f.caseSensitive = &dialogCheck{close: w.Close}
-	f.caseSensitive.Text = "Case sensitive (file names)"
-	f.caseSensitive.ExtendBaseWidget(f.caseSensitive)
+	f.mode = "Partial match"
+	option := func(text, label, hint string) *searchOption {
+		b := &searchOption{label: label}
+		b.Text, b.close, b.Importance = text, w.Close, widget.LowImportance
+		b.ExtendBaseWidget(b)
+		b.hint = container.New(searchHintLayout{b}, widget.NewCard("", "", widget.NewLabel(hint)))
+		b.hint.Hide()
+		b.OnTapped = func() { b.hint.Hide(); b.SetChecked(!b.Checked) }
+		return b
+	}
+	f.caseSensitive = option("Aa", "Match case", "Match case: distinguish uppercase and lowercase file names.")
+	f.regexp = option(".*", "Regular expression", "Regular expression: match file names using Go regexp syntax.")
+	f.globMode = option("*", "Wildcard", "Wildcard: match whole file names with * and ?.")
+	setMode := func(b, other *searchOption, mode string) {
+		b.hint.Hide()
+		b.SetChecked(!b.Checked)
+		other.SetChecked(false)
+		f.mode = "Partial match"
+		if b.Checked {
+			f.mode = mode
+		}
+	}
+	f.regexp.OnTapped = func() { setMode(f.regexp, f.globMode, "Regular expression") }
+	f.globMode.OnTapped = func() { setMode(f.globMode, f.regexp, "Wildcard") }
 	selected := -1
 	goTo := windowButton(w, "Go to", func() {
 		if selected < 0 || selected >= len(f.results) {
@@ -159,25 +220,40 @@ func (u *ui) search() *finder {
 		u.activate(p)
 	})
 	goTo.Disable()
+	resultsTheme := searchResultsTheme{dialogTheme{u.app.Settings().Theme()}}
 	f.list = &dialogList{close: w.Close}
 	f.list.Length = func() int { return len(f.results) }
 	f.list.CreateItem = func() fyne.CanvasObject {
-		l := widget.NewLabel("")
+		// A blank label has no text row; selection refresh would reset cached row height.
+		l := widget.NewLabel(" ")
 		l.Truncation = fyne.TextTruncateEllipsis
-		return l
+		// Virtualized rows are created outside the dialog's rendering theme scope.
+		return container.NewThemeOverride(l, resultsTheme)
 	}
-	f.list.UpdateItem = func(i widget.ListItemID, o fyne.CanvasObject) { o.(*widget.Label).SetText(f.results[i]) }
+	f.list.UpdateItem = func(i widget.ListItemID, o fyne.CanvasObject) {
+		o.(*container.ThemeOverride).Content.(*widget.Label).SetText(f.results[i])
+	}
 	f.list.ExtendBaseWidget(f.list)
+	f.list.HideSeparators = true
 	f.list.activate = goTo.OnTapped
 	start := func(string) {
 		if f.ctx != nil && !f.done {
 			return
 		}
-		match, err := nameMatcher(f.glob.Text, f.mode.Selected, f.caseSensitive.Checked)
+		match, err := nameMatcher(f.glob.Text, f.mode, f.caseSensitive.Checked)
 		if err != nil {
 			f.status.SetText("Invalid pattern: " + err.Error())
 			return
 		}
+		root := f.dir.Text
+		if root == "" {
+			f.status.SetText("Enter a search folder")
+			return
+		}
+		if !filepath.IsAbs(root) {
+			root = filepath.Join(p.path, root)
+		}
+		root = filepath.Clean(root)
 		f.cancel()
 		ctx, cancel := context.WithCancel(context.Background())
 		f.ctx = ctx
@@ -186,9 +262,8 @@ func (u *ui) search() *finder {
 		goTo.Disable()
 		f.list.UnselectAll()
 		f.list.Refresh()
-		args := searchCmd(runtime.GOOS, rgErr == nil, p.path, f.text.Text, "")
+		args := searchCmd(runtime.GOOS, rgErr == nil, root, f.text.Text, "")
 		content := f.text.Text != ""
-		root := p.path
 		finished := make(chan struct{})
 		f.workerDone = finished
 		f.status.SetText("Searching…")
@@ -198,8 +273,11 @@ func (u *ui) search() *finder {
 		go func() {
 			defer close(finished)
 			var results []string
-			var err error
-			if content {
+			info, err := os.Stat(root)
+			if err == nil && !info.IsDir() {
+				err = fmt.Errorf("not a folder: %s", root)
+			}
+			if err == nil && content {
 				err = runSearch(ctx, args, func(batch []string) {
 					for _, path := range batch {
 						if match(filepath.Base(path)) {
@@ -207,7 +285,7 @@ func (u *ui) search() *finder {
 						}
 					}
 				})
-			} else {
+			} else if err == nil {
 				err = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 					if ctx.Err() != nil {
 						return ctx.Err()
@@ -238,25 +316,40 @@ func (u *ui) search() *finder {
 		}()
 	}
 	f.text.OnSubmitted, f.glob.OnSubmitted = start, start
+	f.dir.OnSubmitted = start
 	f.list.OnSelected = func(i widget.ListItemID) {
 		selected = i
 		goTo.Enable()
 	}
-	form := container.New(layout.NewCustomPaddedVBoxLayout(12), widget.NewLabel("In: "+p.path),
-		widget.NewForm(widget.NewFormItem("File name", f.glob), widget.NewFormItem("Match", f.mode), widget.NewFormItem("Containing text", f.text)), f.caseSensitive,
-		dialogButtons(w, 0, windowButton(w, "Search", func() { start("") })),
-		container.NewVBox(f.status, container.New(operationTrackLayout{}, f.activity)))
+	nameRow := container.NewBorder(nil, nil, nil, container.NewHBox(f.caseSensitive, f.regexp, f.globMode), f.glob)
+	form := widget.NewForm(widget.NewFormItem("In:", f.dir), widget.NewFormItem("File name", nameRow), widget.NewFormItem("Containing text", f.text))
+	search := windowButton(w, "Search", func() { start("") })
+	buttons := dialogButtons(w, 0, search, goTo, windowButton(w, "Cancel", w.Close))
+	footer := container.NewVBox(container.NewBorder(nil, nil, nil, buttons, f.status), container.New(operationTrackLayout{}, f.activity))
 	f.win = w
-	w.SetContent(u.dialogContent(container.NewBorder(form, container.NewCenter(container.NewHBox(goTo, windowButton(w, "Cancel", w.Close))), nil, nil, f.list)))
+	// Keep result spacing compact without changing shared dialog or pane density.
+	results := container.NewThemeOverride(f.list, resultsTheme)
+	w.SetContent(container.NewStack(u.dialogContent(container.NewBorder(form, footer, nil, nil, results)),
+		f.caseSensitive.hint, f.regexp.hint, f.globMode.hint))
 	unblock := u.blockParent(w)
 	w.SetOnClosed(func() { f.cancel(); f.activity.Stop(); f.activity.Hide(); unblock() })
 	esc := escapeWindow(w)
 	f.text.esc, f.glob.esc = esc, esc // focused entry swallows keys otherwise
+	f.dir.esc = esc
 	w.Resize(fyne.NewSize(700, 500))
 	w.CenterOnScreen()
 	w.Show()
 	w.Canvas().Focus(f.text)
 	return f
+}
+
+type searchResultsTheme struct{ fyne.Theme }
+
+func (t searchResultsTheme) Size(name fyne.ThemeSizeName) float32 {
+	if name == theme.SizeNamePadding || name == theme.SizeNameInnerPadding {
+		return 4
+	}
+	return t.Theme.Size(name)
 }
 
 // escEntry: Entry that lets Esc close its window (Fyne Entry ignores Esc, and a focused

@@ -46,6 +46,8 @@ func settingsValues(p fyne.Preferences) map[string]any {
 		prefTrash:          p.BoolWithFallback(prefTrash, true),
 		prefBrowseArchives: p.BoolWithFallback(prefBrowseArchives, true),
 		prefRevealCmd:      p.String(prefRevealCmd), prefTerminalCmd: p.String(prefTerminalCmd),
+		prefEditorCmd:       p.String(prefEditorCmd),
+		prefCompareFilesCmd: p.String(prefCompareFilesCmd), prefCompareFoldersCmd: p.String(prefCompareFoldersCmd),
 		prefW: p.FloatWithFallback(prefW, 1100), prefH: p.FloatWithFallback(prefH, 700),
 		prefFavourites: slices.Clone(p.StringListWithFallback(prefFavourites, []string{})),
 	}
@@ -70,11 +72,14 @@ var settingsFields = map[string][]string{
 	prefTheme: {"appearance", "theme"}, prefDensity: {"appearance", "density"},
 	prefFontSize:  {"appearance", "fontSize"},
 	prefLeftBrief: {"views", "left", "brief"}, prefRightBrief: {"views", "right", "brief"},
-	prefHidden:         {"views", "showHidden"},
-	prefTrash:          {"deletion", "moveToTrash"},
-	prefBrowseArchives: {"archives", "browse"},
-	prefRevealCmd:      {"externalApplications", "revealCommand"},
-	prefTerminalCmd:    {"externalApplications", "terminalCommand"},
+	prefHidden:            {"views", "showHidden"},
+	prefTrash:             {"deletion", "moveToTrash"},
+	prefBrowseArchives:    {"archives", "browse"},
+	prefRevealCmd:         {"externalApplications", "revealCommand"},
+	prefTerminalCmd:       {"externalApplications", "terminalCommand"},
+	prefEditorCmd:         {"externalApplications", "editorCommand"},
+	prefCompareFilesCmd:   {"externalApplications", "compareFilesCommand"},
+	prefCompareFoldersCmd: {"externalApplications", "compareFoldersCommand"},
 }
 
 // stateObject validates objects before startup can overwrite any source file.
