@@ -759,25 +759,36 @@ func (p *pane) fillRow(i int, r *row) {
 	if c.Objects[1].Visible() {
 		c.Objects[1].(*widget.Icon).SetResource(p.entryIcon(i))
 	}
-	name.TextStyle = fyne.TextStyle{}
-	name.Importance = widget.MediumImportance
+	importance := widget.MediumImportance
 	if p.marked[e.name] {
-		name.Importance = widget.DangerImportance
+		importance = widget.DangerImportance
 	}
-	name.SetText(e.name)
+	// ponytail: Fyne SetText reshapes unchanged text; guard recycled row labels until upstream does.
+	setText := func(label *widget.Label, text string) {
+		if label.Text != text {
+			label.SetText(text)
+		}
+	}
+	if name.Text != e.name || name.TextStyle != (fyne.TextStyle{}) || name.Importance != importance {
+		name.TextStyle = fyne.TextStyle{}
+		name.Importance = importance
+		name.SetText(e.name)
+	}
 	if len(c.Objects) < 3 {
 		return
 	}
 	right := c.Objects[2].(*fyne.Container)
 	size := right.Objects[0].(*fyne.Container).Objects[0].(*widget.Label)
 	mod := right.Objects[1].(*fyne.Container).Objects[0].(*widget.Label)
-	right.Objects[2].(*fyne.Container).Objects[0].(*widget.Label).SetText(e.attrs)
-	size.SetText(humanSize(e.size))
+	setText(right.Objects[2].(*fyne.Container).Objects[0].(*widget.Label), e.attrs)
+	sizeText := humanSize(e.size)
 	if e.dir {
-		size.SetText("<DIR>")
+		sizeText = "<DIR>"
 	}
-	mod.SetText("")
+	setText(size, sizeText)
+	modified := ""
 	if !e.mod.IsZero() {
-		mod.SetText(e.mod.Format("2006-01-02 15:04"))
+		modified = e.mod.Format("2006-01-02 15:04")
 	}
+	setText(mod, modified)
 }
