@@ -224,10 +224,10 @@ No signing keys or package repository are configured.
 
 ## CI and releases
 
-[GitHub Actions](.github/workflows/build.yml) runs the full check gate on macOS,
-then runs headless workflow tests with race
-detection on every native build runner and builds Linux amd64, Windows amd64,
-and macOS arm64/amd64 packages.
+[GitHub Actions](.github/workflows/build.yml) runs vet and headless workflow tests
+with race detection on every native build runner before packaging Linux amd64,
+Windows amd64, and macOS arm64/amd64 apps. Formatting and helper-script checks run
+once inside the macOS arm64 build; no separate check job delays the build matrix.
 
 UI content and interaction assertions run on all platforms alongside command
 tests and file-operation tests; no screenshot baselines are required.

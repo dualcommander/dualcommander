@@ -11,18 +11,7 @@ permissions:
   contents: read
 
 jobs:
-  check:
-    runs-on: macos-14
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: go.mod
-          cache: true
-      - run: make check
-
   build:
-    needs: check
     strategy:
       fail-fast: false
       matrix:
@@ -46,6 +35,13 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
+      - name: Check formatting and helper scripts
+        if: matrix.os == 'darwin' && matrix.arch == 'arm64'
+        run: |
+          make fmt-check
+          sh scripts/version_test.sh
+          sh scripts/install-packager_test.sh
+          python3 .devcontainer/cline-profile.py --self-test
       - name: Install Linux development libraries
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y gcc libgl1-mesa-dev xorg-dev libxkbcommon-dev libwayland-dev wayland-protocols rpm cpio desktop-file-utils xz-utils
