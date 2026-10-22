@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"fyne.io/fyne/v2/test"
-	"github.com/fsnotify/fsnotify"
 )
 
 func TestSettingsFileMigrationAndUI(t *testing.T) {
@@ -26,7 +25,13 @@ func TestSettingsFileMigrationAndUI(t *testing.T) {
 			delete(want, key)
 		}
 	}
-	s, err := openSettingsFile(a.Preferences(), path, nil)
+	writeErrors := make(chan error, 1)
+	s, err := openSettingsFile(a.Preferences(), path, func(err error) {
+		select {
+		case writeErrors <- err:
+		default:
+		}
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -79,14 +84,6 @@ func TestSettingsFileMigrationAndUI(t *testing.T) {
 			}
 		}
 	}
-	watch, err := fsnotify.NewWatcher()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer watch.Close()
-	if err := watch.Add(filepath.Dir(path)); err != nil {
-		t.Fatal(err)
-	}
 	u.settings()
 	w := windowByTitle(t, a, "Settings")
 	var changed bool
@@ -102,10 +99,13 @@ func TestSettingsFileMigrationAndUI(t *testing.T) {
 	// Observe the real background write, not a test-only explicit save.
 	deadline := time.NewTimer(10 * time.Second)
 	defer deadline.Stop()
+	// Filesystem notifications can be coalesced or missed; assert persisted data instead.
+	poll := time.NewTicker(10 * time.Millisecond)
+	defer poll.Stop()
 	for read()[prefTheme] != "dark" {
 		select {
-		case <-watch.Events:
-		case err := <-watch.Errors:
+		case <-poll.C:
+		case err := <-writeErrors:
 			t.Fatal(err)
 		case <-deadline.C:
 			t.Fatal("UI change never reached JSON")

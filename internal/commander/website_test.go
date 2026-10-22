@@ -11,7 +11,9 @@ import (
 	"time"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/test"
+	"fyne.io/fyne/v2/widget"
 )
 
 // MANUAL_SCREENSHOTS writes full app-rendered captures for the online manual.
@@ -53,17 +55,43 @@ func TestManualScreenshots(t *testing.T) {
 			t.Fatalf("write screenshot: %v; close: %v", err, closeErr)
 		}
 	}
-	write("manual-panes", u.win)
-	u.settings()
-	windows := a.Driver().AllWindows()
-	w := windows[len(windows)-1]
-	if w.Title() != "Settings" {
-		t.Fatalf("expected Settings window, got %q", w.Title())
+	for _, mode := range []string{"light", "dark"} {
+		u.setTheme(mode)
+		suffix := ""
+		if mode == "dark" {
+			suffix = "-dark"
+		}
+		write("manual-panes"+suffix, u.win)
+		u.settings()
+		windows := a.Driver().AllWindows()
+		w := windows[len(windows)-1]
+		if w.Title() != "Settings" {
+			t.Fatalf("expected Settings window, got %q", w.Title())
+		}
+		// Show the whole scrollable form; normal desktop windows may need scrolling.
+		scroll := w.Content().(*container.Scroll)
+		w.Resize(fyne.NewSize(900, 800))
+		w.Resize(fyne.NewSize(900, scroll.Content.MinSize().Height+8))
+		assertUIText(t, w.Content(), "Appearance", "File views", "File deletion", "Archives", "External applications")
+		commands := 0
+		for _, o := range test.LaidOutObjects(w.Content()) {
+			if form, ok := o.(*widget.Form); ok {
+				for _, item := range form.Items {
+					if _, ok := item.Widget.(*escEntry); ok {
+						commands++
+					}
+				}
+			}
+		}
+		if commands != 5 {
+			t.Fatalf("expected all five external application fields, got %d", commands)
+		}
+		if scroll.Content.MinSize().Height > scroll.Size().Height {
+			t.Fatal("settings screenshot must show every field without scrolling")
+		}
+		write("manual-settings"+suffix, w)
+		w.Close()
 	}
-	// Show the whole scrollable form; normal desktop windows may need scrolling.
-	w.Resize(fyne.NewSize(900, 800))
-	assertUIText(t, w.Content(), "Appearance", "File views", "File deletion", "Archives", "External applications")
-	write("manual-settings", w)
 }
 
 // WEBSITE_SCREENSHOT writes overlapping full canvases in both themes.
@@ -111,6 +139,17 @@ func TestWebsiteScreenshot(t *testing.T) {
 	for i, mode := range []string{"light", "dark"} {
 		applyTheme(a, mode, u.density)
 		capture := u.win.Canvas().Capture()
+		if output := os.Getenv("WEBSITE_SCREENSHOT"); output != "" {
+			f, err := os.Create(filepath.Join(filepath.Dir(output), "dualcommander-"+mode+".png"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			err = png.Encode(f, capture)
+			closeErr := f.Close()
+			if err != nil || closeErr != nil {
+				t.Fatalf("write themed screenshot: %v; close: %v", err, closeErr)
+			}
+		}
 		bounds := capture.Bounds()
 		if bounds.Dx() != 1200 || bounds.Dy() != 560 || !u.left.brief || u.right.brief {
 			t.Fatal("preview must include full window and mixed pane views")

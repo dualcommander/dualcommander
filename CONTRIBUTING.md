@@ -156,7 +156,8 @@ platform's native resources. Ready-to-use icons also live in `assets/`:
 `dualcommander.png` (Linux/runtime, 1024px).
 
 Edit `assets/dualcommander.svg` for icon changes. Its two fixed file panes match
-the current UI, without folder tabs. On macOS with ImageMagick installed, run
+the current UI, without folder tabs, on a transparent background. Keep the space
+around and between the panes transparent. On macOS with ImageMagick installed, run
 `sh scripts/generate-icons.sh` to regenerate all three native/runtime icons.
 
 Plain `go build` sets the window icon but does not create native app packaging.
