@@ -1,7 +1,6 @@
 package commander
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -10,7 +9,6 @@ import (
 	"sync"
 
 	"fyne.io/fyne/v2"
-	"github.com/natefinch/atomic"
 )
 
 // settingsFile keeps Fyne's preference API and makes JSON authoritative at startup.
@@ -343,5 +341,5 @@ func writeSettingsJSON(path string, data []byte) error {
 	} else if err != nil && !os.IsNotExist(err) {
 		return err
 	}
-	return atomic.WriteFile(path, bytes.NewReader(append(data, '\n')))
+	return writeSettingsAtomic(path, append(data, '\n'))
 }
