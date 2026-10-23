@@ -2,6 +2,7 @@ package commander
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -317,6 +318,55 @@ func TestWriteSettingsJSONWithOpenReader(t *testing.T) {
 	current, err := os.ReadFile(path)
 	if err != nil || string(current) != "{\"theme\":\"dark\"}\n" {
 		t.Fatalf("replacement missing: %q, %v", current, err)
+	}
+}
+
+func TestWriteSettingsJSONWithConcurrentReaders(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "settings.json")
+	bodies := []string{"{\"theme\":\"light\"}\n", "{\"theme\":\"dark\"}\n"}
+	if err := writeSettingsJSON(path, []byte(bodies[0][:len(bodies[0])-1])); err != nil {
+		t.Fatal(err)
+	}
+	done := make(chan struct{})
+	readErrors := make(chan error, 1)
+	go func() {
+		defer close(readErrors)
+		for {
+			select {
+			case <-done:
+				return
+			default:
+			}
+			file, err := openSettingsRead(path)
+			if err != nil {
+				readErrors <- err
+				return
+			}
+			data, err := io.ReadAll(file)
+			closeErr := file.Close()
+			if err == nil {
+				err = closeErr
+			}
+			if err == nil && string(data) != bodies[0] && string(data) != bodies[1] {
+				err = fmt.Errorf("incomplete settings snapshot: %q", data)
+			}
+			if err != nil {
+				readErrors <- err
+				return
+			}
+		}
+	}()
+	defer func() {
+		close(done)
+		if err := <-readErrors; err != nil {
+			t.Fatal(err)
+		}
+	}()
+	for i := 0; i < 100; i++ {
+		body := bodies[i%len(bodies)]
+		if err := writeSettingsJSON(path, []byte(body[:len(body)-1])); err != nil {
+			t.Fatal(err)
+		}
 	}
 }
 
