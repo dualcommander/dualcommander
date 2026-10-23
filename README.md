@@ -107,6 +107,9 @@ UI changes save automatically. Close DualCommander before editing files by hand;
 changes load on the next start. Existing combined settings migrate automatically;
 separate state and favourites files take precedence over legacy copies.
 Existing Fyne preferences migrate when JSON files do not exist.
+Windows saves write JSON files directly, without temporary files or replacement.
+Interrupted or failed writes may leave empty or partial JSON; concurrent external
+readers may see incomplete data. Other platforms retain atomic replacement.
 Missing keys use defaults; unknown keys are preserved. Invalid JSON or wrong
 value types stop startup without overwriting the file. Writes use a temporary
 file and replacement, with owner-only permissions on newly created files.

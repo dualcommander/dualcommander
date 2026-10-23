@@ -51,6 +51,10 @@ func TestSettingsFileMigrationAndUI(t *testing.T) {
 		}
 		var values map[string]any
 		if err := json.Unmarshal(data, &values); err != nil {
+			if runtime.GOOS == "windows" {
+				// Direct writes can expose partial JSON while polling the background save.
+				return nil
+			}
 			t.Fatal(err)
 		}
 		// Flatten only for comparison with the preference API; disk assertions below check grouping.
@@ -308,12 +312,27 @@ func TestWriteSettingsJSONWithOpenReader(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer reader.Close()
-	if err := writeSettingsJSON(path, []byte(`{"theme":"dark"}`)); err != nil {
+	before, err := reader.Stat()
+	if err != nil {
 		t.Fatal(err)
 	}
+	// Keep the original snapshot open across multiple replacements, not just one.
+	for _, body := range []string{`{"theme":"system"}`, `{"theme":"dark"}`} {
+		if err := writeSettingsJSON(path, []byte(body)); err != nil {
+			t.Fatal(err)
+		}
+	}
 	old, err := io.ReadAll(reader)
-	if err != nil || string(old) != "{\"theme\":\"light\"}\n" {
-		t.Fatalf("open reader lost snapshot: %q, %v", old, err)
+	want := "{\"theme\":\"light\"}\n"
+	if runtime.GOOS == "windows" {
+		want = "{\"theme\":\"dark\"}\n"
+		after, err := os.Stat(path)
+		if err != nil || !os.SameFile(before, after) {
+			t.Fatalf("Windows save replaced file instead of writing in place: %v", err)
+		}
+	}
+	if err != nil || string(old) != want {
+		t.Fatalf("open reader contents: %q, want %q, %v", old, want, err)
 	}
 	current, err := os.ReadFile(path)
 	if err != nil || string(current) != "{\"theme\":\"dark\"}\n" {
@@ -322,6 +341,9 @@ func TestWriteSettingsJSONWithOpenReader(t *testing.T) {
 }
 
 func TestWriteSettingsJSONWithConcurrentReaders(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows direct writes do not guarantee complete concurrent snapshots")
+	}
 	path := filepath.Join(t.TempDir(), "settings.json")
 	bodies := []string{"{\"theme\":\"light\"}\n", "{\"theme\":\"dark\"}\n"}
 	if err := writeSettingsJSON(path, []byte(bodies[0][:len(bodies[0])-1])); err != nil {
