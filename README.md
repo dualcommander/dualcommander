@@ -111,6 +111,26 @@ Missing keys use defaults; unknown keys are preserved. Invalid JSON or wrong
 value types stop startup without overwriting the file. Writes use a temporary
 file and replacement, with owner-only permissions on newly created files.
 
+## Translations and logging
+
+UI translations use Fyne's `lang` API, backed by
+[go-i18n](https://github.com/nicksnyder/go-i18n). English ships today; the OS locale
+selects supported languages, with English fallback. Add a go-i18n JSON catalog
+named `<language>.json` alongside `en.json` in `internal/commander/translations/`
+and rebuild. Catalogs are embedded, so installed applications need no extra files.
+Use `lang.L` for new UI text; keep preference keys, command placeholders, paths,
+and search-mode identifiers unchanged. Templates use named `{{.Field}}` values;
+formatted messages retain their Go format verbs (which can use indexed arguments
+such as `%[2]s` when a translation needs different ordering).
+
+Application diagnostics use Go's standard `log/slog`, with structured text records
+on stderr, timestamps, severity, and an `app=DualCommander` field. Startup/settings
+failures and user-visible operation errors are logged. Logs remain untranslated.
+No log files or rotation are created; redirect stderr when persistent logs are
+needed. Error details can include local paths and external-tool stderr; review
+logs before sharing them. Passwords and full command arguments are not explicitly
+logged.
+
 ## Keyboard and mouse
 
 `Mod` = Cmd on macOS, Ctrl on Windows/Linux. Commands are also available in the native menu bar.

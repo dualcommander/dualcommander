@@ -2,6 +2,7 @@ package commander
 
 import (
 	"fmt"
+	"fyne.io/fyne/v2/lang"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -23,7 +24,7 @@ func (u *ui) updateCompareMenu() {
 
 func (u *ui) comparisonCommand(folders bool) (*exec.Cmd, error) {
 	if u.left.inArchive() || u.right.inArchive() {
-		return nil, fmt.Errorf("leave archive folders before comparing")
+		return nil, fmt.Errorf(lang.L("leave archive folders before comparing"))
 	}
 	key := prefCompareFilesCmd
 	left, right := u.left.path, u.right.path
@@ -33,7 +34,7 @@ func (u *ui) comparisonCommand(folders bool) (*exec.Cmd, error) {
 		for _, p := range []*pane{u.left, u.right} {
 			e := p.current()
 			if e.name == "" || e.name == ".." || e.dir {
-				return nil, fmt.Errorf("select one file under the cursor in each pane")
+				return nil, fmt.Errorf(lang.L("select one file under the cursor in each pane"))
 			}
 		}
 		left = filepath.Join(left, u.left.current().name)
@@ -41,7 +42,7 @@ func (u *ui) comparisonCommand(folders bool) (*exec.Cmd, error) {
 	}
 	command := u.app.Preferences().String(key)
 	if strings.TrimSpace(command) == "" {
-		return nil, fmt.Errorf("configure comparison command in Settings > External applications")
+		return nil, fmt.Errorf(lang.L("configure comparison command in Settings > External applications"))
 	}
 	return desktop.ComparisonCommand(command, left, right, u.left.path)
 }

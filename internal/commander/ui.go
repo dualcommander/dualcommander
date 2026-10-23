@@ -3,6 +3,8 @@ package commander
 import (
 	"bytes"
 	"fmt"
+	"fyne.io/fyne/v2/lang"
+	"log/slog"
 	"net/url"
 	"os"
 	"os/exec"
@@ -152,87 +154,87 @@ func (u *ui) mainMenu() *fyne.MainMenu {
 	radio := func(label string, opts []string, cur string, set func(string)) (*fyne.MenuItem, []*fyne.MenuItem) {
 		its := make([]*fyne.MenuItem, len(opts))
 		for i, m := range opts {
-			its[i] = fyne.NewMenuItem(strings.ToUpper(m[:1])+m[1:], func() { set(m) })
+			its[i] = fyne.NewMenuItem(lang.L(strings.ToUpper(m[:1])+m[1:]), func() { set(m) })
 			its[i].Checked = m == cur
 		}
 		parent := fyne.NewMenuItem(label, nil)
 		parent.ChildMenu = fyne.NewMenu("", its...)
 		return parent, its
 	}
-	appearance, themeItems := radio("Appearance", themeModes, u.themeMode, u.setTheme)
-	density, densItems := radio("Density", densities, u.density, u.setDensity)
-	fontSize, fontItems := radio("Font Size", fontSizes, u.fontSize, u.setFontSize)
+	appearance, themeItems := radio(lang.L("Appearance"), themeModes, u.themeMode, u.setTheme)
+	density, densItems := radio(lang.L("Density"), densities, u.density, u.setDensity)
+	fontSize, fontItems := radio(lang.L("Font Size"), fontSizes, u.fontSize, u.setFontSize)
 	for i, item := range fontItems {
-		item.Label = fontSizes[i]
+		item.Label = lang.L(fontSizes[i])
 	}
-	hidden := fyne.NewMenuItem("Show Hidden Files", nil)
+	hidden := fyne.NewMenuItem(lang.L("Show Hidden Files"), nil)
 	hidden.Shortcut = &desktop.CustomShortcut{KeyName: fyne.KeyPeriod, Modifier: mod | fyne.KeyModifierShift}
 	hidden.Checked = u.showHidden
 	hidden.Action = u.toggleHidden
 	u.win.Canvas().AddShortcut(hidden.Shortcut, func(fyne.Shortcut) { hidden.Action() })
 	u.hiddenItem = hidden
-	u.briefItem = item("Brief", fyne.Key1, mod, func() { u.active.setBrief(true); u.save() })
-	u.detailedItem = item("Detailed", fyne.Key2, mod, func() { u.active.setBrief(false); u.save() })
+	u.briefItem = item(lang.L("Brief"), fyne.Key1, mod, func() { u.active.setBrief(true); u.save() })
+	u.detailedItem = item(lang.L("Detailed"), fyne.Key2, mod, func() { u.active.setBrief(false); u.save() })
 	u.themeItems = themeItems
 	u.densItems = densItems
 	u.fontItems = fontItems
-	u.starredItem = fyne.NewMenuItem("Starred", nil)
+	u.starredItem = fyne.NewMenuItem(lang.L("Starred"), nil)
 	u.updateStarredMenu()
-	u.compareFilesItem = item("Compare Files", "", 0, func() { u.compare(false) })
-	u.compareFoldersItem = item("Compare Folder Contents", "", 0, func() { u.compare(true) })
+	u.compareFilesItem = item(lang.L("Compare Files"), "", 0, func() { u.compare(false) })
+	u.compareFoldersItem = item(lang.L("Compare Folder Contents"), "", 0, func() { u.compare(true) })
 	u.updateCompareMenu()
-	aboutLabel := "About " + appName
+	aboutLabel := lang.L("About {{.App}}", map[string]any{"App": appName})
 	if runtime.GOOS == "darwin" {
-		aboutLabel = "About" // Fyne moves this to the app menu and replaces the default About panel.
+		aboutLabel = lang.L("About") // Fyne moves this to the app menu and replaces the default About panel.
 	}
 
 	return fyne.NewMainMenu(
-		fyne.NewMenu("File",
-			item("Open", fyne.KeyO, mod, func() { u.active.open() }),
-			item("Edit", fyne.KeyF4, 0, u.edit),
+		fyne.NewMenu(lang.L("File"),
+			item(lang.L("Open"), fyne.KeyO, mod, func() { u.active.open() }),
+			item(lang.L("Edit"), fyne.KeyF4, 0, u.edit),
 			item(revealLabel(), fyne.KeyR, mod|fyne.KeyModifierShift, func() { u.openExternal(false) }),
-			item("Open in Terminal", fyne.KeyF9, 0, func() { u.openExternal(true) }),
+			item(lang.L("Open in Terminal"), fyne.KeyF9, 0, func() { u.openExternal(true) }),
 			sep(),
-			item("New Folder", fyne.KeyF7, 0, u.mkdir),
-			item("Find Files…", fyne.KeyF, mod, func() { u.search() }),
-			item("Copy…", fyne.KeyF5, 0, func() { u.copyOrMove(false) }),
-			item("Move…", fyne.KeyF6, 0, func() { u.copyOrMove(true) }),
-			item("Rename…", fyne.KeyF6, fyne.KeyModifierShift, u.rename),
-			item("Delete…", fyne.KeyF8, 0, u.delete),
+			item(lang.L("New Folder"), fyne.KeyF7, 0, u.mkdir),
+			item(lang.L("Find Files…"), fyne.KeyF, mod, func() { u.search() }),
+			item(lang.L("Copy…"), fyne.KeyF5, 0, func() { u.copyOrMove(false) }),
+			item(lang.L("Move…"), fyne.KeyF6, 0, func() { u.copyOrMove(true) }),
+			item(lang.L("Rename…"), fyne.KeyF6, fyne.KeyModifierShift, u.rename),
+			item(lang.L("Delete…"), fyne.KeyF8, 0, u.delete),
 			sep(), u.compareFilesItem, u.compareFoldersItem,
 			sep(),
-			item("Settings…", fyne.KeyComma, mod, u.settings), // macOS: Fyne moves it to app menu
+			item(lang.L("Settings…"), fyne.KeyComma, mod, u.settings), // macOS: Fyne moves it to app menu
 		), // Fyne adds Quit to File (Win/Linux) or app menu (macOS)
-		fyne.NewMenu("Edit",
-			item("Select All", fyne.KeyA, mod, func() { u.active.markAll(true) }),
-			item("Deselect All", fyne.KeyA, mod|fyne.KeyModifierShift, func() { u.active.markAll(false) }),
+		fyne.NewMenu(lang.L("Edit"),
+			item(lang.L("Select All"), fyne.KeyA, mod, func() { u.active.markAll(true) }),
+			item(lang.L("Deselect All"), fyne.KeyA, mod|fyne.KeyModifierShift, func() { u.active.markAll(false) }),
 		),
-		fyne.NewMenu("View",
+		fyne.NewMenu(lang.L("View"),
 			u.briefItem, u.detailedItem,
 			sep(), hidden,
-			item("Refresh", fyne.KeyR, mod, func() { u.active.refresh() }),
+			item(lang.L("Refresh"), fyne.KeyR, mod, func() { u.active.refresh() }),
 			sep(), appearance, density, fontSize,
 		),
-		fyne.NewMenu("Go",
-			item("Enclosing Folder", fyne.KeyUp, mod, func() { u.active.up() }),
-			item("Home", fyne.KeyH, mod|fyne.KeyModifierShift, func() { h, _ := os.UserHomeDir(); u.active.cd(h, "") }),
+		fyne.NewMenu(lang.L("Go"),
+			item(lang.L("Enclosing Folder"), fyne.KeyUp, mod, func() { u.active.up() }),
+			item(lang.L("Home"), fyne.KeyH, mod|fyne.KeyModifierShift, func() { h, _ := os.UserHomeDir(); u.active.cd(h, "") }),
 			u.starredItem,
-			item("Swap Panes", fyne.KeyU, mod, u.swap),
-			item("Other Pane Same Folder", fyne.KeyE, mod, func() { u.other().navigate(u.active.path, "") }),
+			item(lang.L("Swap Panes"), fyne.KeyU, mod, u.swap),
+			item(lang.L("Other Pane Same Folder"), fyne.KeyE, mod, func() { u.other().navigate(u.active.path, "") }),
 		),
-		fyne.NewMenu("Help",
+		fyne.NewMenu(lang.L("Help"),
 			item(aboutLabel, "", 0, u.about),
 		),
 	)
 }
 
 func (u *ui) about() {
-	w := u.infoWindow("About " + appName)
+	w := u.infoWindow(lang.L("About {{.App}}", map[string]any{"App": appName}))
 	icon := canvas.NewImageFromResource(appIcon)
 	icon.FillMode = canvas.ImageFillContain
 	icon.SetMinSize(fyne.NewSize(80, 80))
-	version := "Version " + applicationVersion()
-	description := widget.NewLabelWithStyle("A keyboard-friendly, two-pane file manager.\nBrowse folders side by side.\nCopy, move, and organize your files\nwithout switching windows.", fyne.TextAlignCenter, fyne.TextStyle{})
+	version := lang.L("Version {{.Version}}", map[string]any{"Version": applicationVersion()})
+	description := widget.NewLabelWithStyle(lang.L("A keyboard-friendly, two-pane file manager.\nBrowse folders side by side.\nCopy, move, and organize your files\nwithout switching windows."), fyne.TextAlignCenter, fyne.TextStyle{})
 	description.Wrapping = fyne.TextWrapWord
 	findKey := "Ctrl+F / Alt+F7"
 	if runtime.GOOS == "darwin" {
@@ -240,20 +242,20 @@ func (u *ui) about() {
 	}
 	shortcuts := container.NewGridWithColumns(2)
 	for _, shortcut := range [][2]string{
-		{"Tab", "Switch active pane"},
-		{"Enter", "Open folder or file"},
-		{"Backspace", "Parent folder / trim search"},
-		{"Space", "Mark item and show size"},
-		{"Insert", "Mark or unmark item"},
-		{"F4", "Edit file"},
-		{"Shift+F4", "Create new file"},
-		{"F5", "Copy"},
-		{"F6", "Move"},
-		{"F2 / Shift+F6", "Rename selected item"},
-		{"F7", "Create folder"},
-		{"F8 / Delete", "Delete"},
-		{findKey, "Find files"},
-		{"F10", "Quit"},
+		{"Tab", lang.L("Switch active pane")},
+		{"Enter", lang.L("Open folder or file")},
+		{"Backspace", lang.L("Parent folder / trim search")},
+		{"Space", lang.L("Mark item and show size")},
+		{"Insert", lang.L("Mark or unmark item")},
+		{"F4", lang.L("Edit file")},
+		{"Shift+F4", lang.L("Create new file")},
+		{"F5", lang.L("Copy")},
+		{"F6", lang.L("Move")},
+		{"F2 / Shift+F6", lang.L("Rename selected item")},
+		{"F7", lang.L("Create folder")},
+		{"F8 / Delete", lang.L("Delete")},
+		{findKey, lang.L("Find files")},
+		{"F10", lang.L("Quit")},
 	} {
 		shortcuts.Add(widget.NewLabelWithStyle(shortcut[0], fyne.TextAlignLeading, fyne.TextStyle{Bold: true}))
 		shortcuts.Add(widget.NewLabel(shortcut[1]))
@@ -264,14 +266,14 @@ func (u *ui) about() {
 		widget.NewLabelWithStyle(version, fyne.TextAlignCenter, fyne.TextStyle{}),
 		widget.NewSeparator(),
 		container.New(layout.NewCustomPaddedLayout(8, 8, 20, 20), description),
-		widget.NewLabelWithStyle("Free and open source.\nLicensed under the MIT license.", fyne.TextAlignCenter, fyne.TextStyle{}),
+		widget.NewLabelWithStyle(lang.L("Free and open source.\nLicensed under the MIT license."), fyne.TextAlignCenter, fyne.TextStyle{}),
 		windowButton(w, "https://dualcommander.github.io/", func() {
 			if err := u.app.OpenURL(&url.URL{Scheme: "https", Host: "dualcommander.github.io", Path: "/"}); err != nil {
 				u.showErr(err)
 			}
 		}),
 		widget.NewSeparator(),
-		widget.NewLabelWithStyle("Keyboard shortcuts", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
+		widget.NewLabelWithStyle(lang.L("Keyboard shortcuts"), fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
 		container.New(layout.NewCustomPaddedLayout(0, 8, 20, 20), shortcuts),
 	))))
 	w.Resize(fyne.NewSize(520, 740))
@@ -292,7 +294,7 @@ func (u *ui) infoWindow(title string) fyne.Window {
 // edit opens the file under the cursor in the configured editor; dirs and ".." ignored.
 func (u *ui) edit() {
 	if u.active.inArchive() {
-		u.showErr(fmt.Errorf("archive browsing is read-only"))
+		u.showErr(fmt.Errorf(lang.L("archive browsing is read-only")))
 		return
 	}
 	if e := u.active.current(); e.name != "" && e.name != ".." && !e.dir {
@@ -312,16 +314,16 @@ func (u *ui) editorCommand(path string) (*exec.Cmd, error) {
 func revealLabel() string {
 	switch runtime.GOOS {
 	case "darwin":
-		return "Reveal in Finder"
+		return lang.L("Reveal in Finder")
 	case "windows":
-		return "Show in Explorer"
+		return lang.L("Show in Explorer")
 	}
-	return "Open in File Manager"
+	return lang.L("Open in File Manager")
 }
 
 func (u *ui) externalCommand(terminal bool) (*exec.Cmd, error) {
 	if u.active.inArchive() {
-		return nil, fmt.Errorf("leave archive folder before using terminal or reveal")
+		return nil, fmt.Errorf(lang.L("leave archive folder before using terminal or reveal"))
 	}
 	reveal, term := native.Defaults(runtime.GOOS)
 	key, fallback := prefRevealCmd, reveal
@@ -417,13 +419,13 @@ func (u *ui) swap() {
 func (u *ui) fkeyBar() fyne.CanvasObject {
 	b := func(l string, f func()) fyne.CanvasObject { return widget.NewButton(l, f) }
 	return container.NewGridWithColumns(7,
-		b("F4 Edit", u.edit),
-		b("F5 Copy", func() { u.copyOrMove(false) }),
-		b("F6 Move", func() { u.copyOrMove(true) }),
-		b("F7 MkDir", u.mkdir),
-		b("F8 Delete", u.delete),
-		b("F9 Terminal", func() { u.openExternal(true) }),
-		b("F10 Quit", u.quit))
+		b(lang.L("F4 Edit"), u.edit),
+		b(lang.L("F5 Copy"), func() { u.copyOrMove(false) }),
+		b(lang.L("F6 Move"), func() { u.copyOrMove(true) }),
+		b(lang.L("F7 MkDir"), u.mkdir),
+		b(lang.L("F8 Delete"), u.delete),
+		b(lang.L("F9 Terminal"), func() { u.openExternal(true) }),
+		b(lang.L("F10 Quit"), u.quit))
 }
 
 // key handles commander keys for pane p; page = entries per PgUp/PgDn.
@@ -618,7 +620,11 @@ func (p *pane) savedPath() string {
 }
 
 func (u *ui) showErr(err error) {
-	if err != nil && u.win != nil {
+	if err == nil {
+		return
+	}
+	slog.Error("Operation failed", "error", err)
+	if u.win != nil {
 		u.errorWindow(err)
 	}
 }

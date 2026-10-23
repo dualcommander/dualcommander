@@ -1,6 +1,7 @@
 package commander
 
 import (
+	"fyne.io/fyne/v2/lang"
 	"image"
 	"image/color"
 
@@ -299,7 +300,7 @@ func (u *ui) confirm(title, message string, ok func()) {
 	w.SetOnClosed(u.blockParent(w))
 	label := widget.NewLabel(message)
 	label.Wrapping = fyne.TextWrapWord
-	cancel := windowButton(w, "Cancel", w.Close)
+	cancel := windowButton(w, lang.L("Cancel"), w.Close)
 	w.SetContent(u.dialogContent(container.New(layout.NewCustomPaddedVBoxLayout(12), label,
 		dialogButtons(w, 0, cancel, windowButton(w, title, func() { w.Close(); ok() })),
 	)))
@@ -309,10 +310,10 @@ func (u *ui) confirm(title, message string, ok func()) {
 }
 
 func (u *ui) errorWindow(err error) {
-	w := u.dialogWindow("Error")
+	w := u.dialogWindow(lang.L("Error"))
 	label := widget.NewLabel(err.Error())
 	label.Wrapping = fyne.TextWrapWord
-	ok := windowButton(w, "OK", w.Close)
+	ok := windowButton(w, lang.L("OK"), w.Close)
 	w.SetContent(u.dialogContent(container.NewBorder(nil,
 		dialogButtons(w, 0, ok), nil, nil, label)))
 	w.Resize(fyne.NewSize(500, 180))

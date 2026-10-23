@@ -3,9 +3,11 @@ package commander
 import (
 	"context"
 	"fmt"
+	"fyne.io/fyne/v2/lang"
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"sync"
 
@@ -53,23 +55,23 @@ func latestUpdate[T any](dispatch func(func()), update func(T)) func(T) {
 func (u *ui) copyOrMove(move bool) {
 	src, dst := u.active, u.other()
 	if src.inArchive() || dst.inArchive() {
-		u.showErr(fmt.Errorf("archive browsing is read-only; copy/move involving archive folders is not supported"))
+		u.showErr(fmt.Errorf(lang.L("archive browsing is read-only; copy/move involving archive folders is not supported")))
 		return
 	}
 	sel := src.selection()
 	if len(sel) == 0 {
 		return
 	}
-	verb := "Copy"
+	verb := lang.L("Copy")
 	if move {
-		verb = "Move/Rename"
+		verb = lang.L("Move/Rename")
 	}
 	target := newEscEntry()
 	target.SetText(dst.path)
 	if len(sel) == 1 && move && dst.path == src.path {
 		target.SetText(sel[0])
 	}
-	inputDialog(u, fmt.Sprintf("%s %d item(s) to", verb, len(sel)), verb, "Target", target, func() {
+	inputDialog(u, fmt.Sprintf(lang.L("%s %d item(s) to"), verb, len(sel)), verb, lang.L("Target"), target, func() {
 		if strings.TrimSpace(target.Text) == "" {
 			return
 		}
@@ -77,7 +79,7 @@ func (u *ui) copyOrMove(move bool) {
 		if !filepath.IsAbs(to) {
 			to = filepath.Join(src.path, to)
 		}
-		title := fmt.Sprintf("%s %d item(s) → %s", verb, len(sel), to)
+		title := fmt.Sprintf(lang.L("%s %d item(s) → %s"), verb, len(sel), to)
 		if !move {
 			u.jobs.runCounted(title, []*pane{src, dst}, func(ctx context.Context, report func(fsops.CopyProgress)) error {
 				return fsops.CopyWithConflicts(ctx, sel, to, report, u.overwriteConflict)
@@ -110,7 +112,7 @@ func inputDialog(u *ui, title, confirm, label string, e *escEntry, ok func()) {
 	e.OnSubmitted = func(string) { submit() }
 	w.SetContent(u.dialogContent(container.NewVBox(
 		widget.NewForm(widget.NewFormItem(label, e)),
-		dialogButtons(w, 1, windowButton(w, "Cancel", w.Close), windowButton(w, confirm, submit)),
+		dialogButtons(w, 1, windowButton(w, lang.L("Cancel"), w.Close), windowButton(w, confirm, submit)),
 	)))
 	w.Resize(fyne.NewSize(500, w.Content().MinSize().Height))
 	w.Canvas().Focus(e)
@@ -120,7 +122,7 @@ func inputDialog(u *ui, title, confirm, label string, e *escEntry, ok func()) {
 func (u *ui) rename() {
 	p := u.active
 	if p.inArchive() {
-		u.showErr(fmt.Errorf("archive browsing is read-only"))
+		u.showErr(fmt.Errorf(lang.L("archive browsing is read-only")))
 		return
 	}
 	item := p.current()
@@ -133,16 +135,16 @@ func (u *ui) rename() {
 	name.SetText(item.name)
 	name.Validator = func(value string) error {
 		if strings.TrimSpace(value) == "" || value == "." || value == ".." || strings.ContainsAny(value, "/\\\x00") {
-			return fmt.Errorf("Enter a file name without path separators")
+			return fmt.Errorf(lang.L("Enter a file name without path separators"))
 		}
 		if value != item.name {
 			if _, err := os.Lstat(filepath.Join(dir, value)); !os.IsNotExist(err) {
-				return fmt.Errorf("Destination exists or cannot be checked")
+				return fmt.Errorf(lang.L("Destination exists or cannot be checked"))
 			}
 		}
 		return nil
 	}
-	inputDialog(u, "Rename", "Rename", "New name", name, func() {
+	inputDialog(u, lang.L("Rename"), lang.L("Rename"), lang.L("New name"), name, func() {
 		if name.Text == item.name {
 			return
 		}
@@ -167,7 +169,7 @@ var trash = fsops.Trash
 func (u *ui) delete() {
 	p := u.active
 	if p.inArchive() {
-		u.showErr(fmt.Errorf("archive browsing is read-only"))
+		u.showErr(fmt.Errorf(lang.L("archive browsing is read-only")))
 		return
 	}
 	sel := p.selection()
@@ -175,16 +177,16 @@ func (u *ui) delete() {
 		return
 	}
 	toTrash := u.app.Preferences().BoolWithFallback(prefTrash, true)
-	verb, warn, op := "Delete", "\n\nThis cannot be undone.", fsops.Delete
+	verb, warn, op := lang.L("Delete"), lang.L("\n\nThis cannot be undone."), fsops.Delete
 	if toTrash {
-		verb, warn, op = "Move to "+trashName(), "", trash
+		verb, warn, op = lang.L("Move to {{.Trash}}", map[string]any{"Trash": trashName()}), "", trash
 	}
 	msg := fmt.Sprintf("%s %q?", verb, filepath.Base(sel[0]))
 	if len(sel) > 1 {
-		msg = fmt.Sprintf("%s %d items?\n%s, …", verb, len(sel), filepath.Base(sel[0]))
+		msg = fmt.Sprintf(lang.L("%s %d items?\n%s, …"), verb, len(sel), filepath.Base(sel[0]))
 	}
 	u.confirm(verb, msg+warn, func() {
-		u.jobs.run(fmt.Sprintf("%s %d item(s)", verb, len(sel)), []*pane{p, u.other()},
+		u.jobs.run(fmt.Sprintf(lang.L("%s %d item(s)"), verb, len(sel)), []*pane{p, u.other()},
 			func(ctx context.Context, prog fsops.Progress) error { return op(ctx, sel, prog) })
 		p.markAll(false)
 	})
@@ -193,16 +195,16 @@ func (u *ui) delete() {
 func trashName() string {
 	switch runtime.GOOS {
 	case "darwin":
-		return "Bin"
+		return lang.L("Bin")
 	case "windows":
-		return "Recycle Bin"
+		return lang.L("Recycle Bin")
 	}
-	return "Trash"
+	return lang.L("Trash")
 }
 
 // Settings are saved immediately, like macOS settings windows.
 func (u *ui) settings() {
-	w := u.infoWindow("Settings")
+	w := u.infoWindow(lang.L("Settings"))
 	pr := u.app.Preferences()
 	hint := func(text string) fyne.CanvasObject {
 		label := widget.NewLabel(text)
@@ -214,11 +216,17 @@ func (u *ui) settings() {
 	}
 	var content *container.ThemeOverride
 	choice := func(options []string, selected string, changed func(string)) *dialogSelect {
+		labels := make([]string, len(options))
+		for i, option := range options {
+			labels[i] = lang.L(option)
+		}
 		s := &dialogSelect{close: w.Close}
-		s.Options, s.Selected = options, selected
+		s.Options, s.Selected = labels, lang.L(selected)
 		s.ExtendBaseWidget(s)
 		s.OnChanged = func(value string) {
-			changed(value)
+			if i := slices.Index(labels, value); i >= 0 {
+				changed(options[i])
+			}
 			content.Theme = dialogTheme{u.app.Settings().Theme()}
 			content.Refresh()
 			w.Canvas().Focus(s)
@@ -226,26 +234,26 @@ func (u *ui) settings() {
 		return s
 	}
 	appearance := widget.NewForm(
-		widget.NewFormItem("Theme", choice(themeModes, u.themeMode, u.setTheme)),
-		widget.NewFormItem("Density", choice(densities, u.density, u.setDensity)),
-		widget.NewFormItem("Font size", choice(fontSizes, u.fontSize, u.setFontSize)),
+		widget.NewFormItem(lang.L("Theme"), choice(themeModes, u.themeMode, u.setTheme)),
+		widget.NewFormItem(lang.L("Density"), choice(densities, u.density, u.setDensity)),
+		widget.NewFormItem(lang.L("Font size"), choice(fontSizes, u.fontSize, u.setFontSize)),
 	)
 	viewChoice := func(p *pane) *dialogSelect {
-		selected := "Detailed"
+		selected := lang.L("Detailed")
 		if p.brief {
-			selected = "Brief"
+			selected = lang.L("Brief")
 		}
-		return choice([]string{"Brief", "Detailed"}, selected, func(value string) {
-			p.setBrief(value == "Brief")
+		return choice([]string{lang.L("Brief"), lang.L("Detailed")}, selected, func(value string) {
+			p.setBrief(value == lang.L("Brief"))
 			u.save()
 		})
 	}
 	views := widget.NewForm(
-		widget.NewFormItem("Left pane view", viewChoice(u.left)),
-		widget.NewFormItem("Right pane view", viewChoice(u.right)),
+		widget.NewFormItem(lang.L("Left pane view"), viewChoice(u.left)),
+		widget.NewFormItem(lang.L("Right pane view"), viewChoice(u.right)),
 	)
 	hidden := &dialogCheck{close: w.Close}
-	hidden.Text = "Show hidden files"
+	hidden.Text = lang.L("Show hidden files")
 	hidden.Checked = u.showHidden
 	hidden.OnChanged = func(b bool) {
 		if b != u.showHidden {
@@ -254,12 +262,12 @@ func (u *ui) settings() {
 	}
 	hidden.ExtendBaseWidget(hidden)
 	c := &dialogCheck{close: w.Close}
-	c.Text = "Move deleted files to " + trashName()
+	c.Text = lang.L("Move deleted files to {{.Trash}}", map[string]any{"Trash": trashName()})
 	c.OnChanged = func(b bool) { pr.SetBool(prefTrash, b) }
 	c.ExtendBaseWidget(c)
 	c.Checked = pr.BoolWithFallback(prefTrash, true)
 	browse := &dialogCheck{close: w.Close}
-	browse.Text = "Browse archives in DualCommander"
+	browse.Text = lang.L("Browse archives in DualCommander")
 	browse.OnChanged = func(b bool) { pr.SetBool(prefBrowseArchives, b) }
 	browse.ExtendBaseWidget(browse)
 	browse.Checked = pr.BoolWithFallback(prefBrowseArchives, true)
@@ -279,7 +287,7 @@ func (u *ui) settings() {
 				return err
 			}
 			if err != nil {
-				return fmt.Errorf("Use a JSON list with an executable and its arguments")
+				return fmt.Errorf(lang.L("Use a JSON list with an executable and its arguments"))
 			}
 			return nil
 		}
@@ -292,34 +300,34 @@ func (u *ui) settings() {
 		}
 		return e
 	}
-	revealItem := widget.NewFormItem("Show in file manager", commandEntry(prefRevealCmd, reveal))
-	revealItem.HintText = "{path} is the selected item; {dir} is the active pane folder."
-	terminalItem := widget.NewFormItem("Open folder in terminal", commandEntry(prefTerminalCmd, terminal))
-	terminalItem.HintText = "{dir} is the active pane folder."
-	editorItem := widget.NewFormItem("Edit file (F4)", commandEntry(prefEditorCmd, editorDefault(runtime.GOOS)))
-	editorItem.HintText = `Use {path} for the file, e.g. ["code","--wait","{path}"].`
-	filesItem := widget.NewFormItem("Compare files", commandEntry(prefCompareFilesCmd, `["meld","{left}","{right}"]`))
-	filesItem.HintText = "Cursor file in each pane. Use {left} and {right}; blank disables comparison."
-	foldersItem := widget.NewFormItem("Compare folder contents", commandEntry(prefCompareFoldersCmd, `["meld","{left}","{right}"]`))
-	foldersItem.HintText = "Current pane folders. Configure tool flags for recursive content comparison; blank disables."
+	revealItem := widget.NewFormItem(lang.L("Show in file manager"), commandEntry(prefRevealCmd, reveal))
+	revealItem.HintText = lang.L("{path} is the selected item; {dir} is the active pane folder.")
+	terminalItem := widget.NewFormItem(lang.L("Open folder in terminal"), commandEntry(prefTerminalCmd, terminal))
+	terminalItem.HintText = lang.L("{dir} is the active pane folder.")
+	editorItem := widget.NewFormItem(lang.L("Edit file (F4)"), commandEntry(prefEditorCmd, editorDefault(runtime.GOOS)))
+	editorItem.HintText = lang.L(`Use {path} for the file, e.g. ["code","--wait","{path}"].`)
+	filesItem := widget.NewFormItem(lang.L("Compare files"), commandEntry(prefCompareFilesCmd, `["meld","{left}","{right}"]`))
+	filesItem.HintText = lang.L("Cursor file in each pane. Use {left} and {right}; blank disables comparison.")
+	foldersItem := widget.NewFormItem(lang.L("Compare folder contents"), commandEntry(prefCompareFoldersCmd, `["meld","{left}","{right}"]`))
+	foldersItem.HintText = lang.L("Current pane folders. Configure tool flags for recursive content comparison; blank disables.")
 	content = u.dialogContent(container.NewVBox(
-		hint("Changes are saved automatically. Invalid commands are not saved."),
+		hint(lang.L("Changes are saved automatically. Invalid commands are not saved.")),
 		widget.NewSeparator(),
-		heading("Appearance"),
+		heading(lang.L("Appearance")),
 		appearance,
 		widget.NewSeparator(),
-		heading("File views"),
+		heading(lang.L("File views")),
 		views,
 		hidden,
 		widget.NewSeparator(),
-		heading("File deletion"),
+		heading(lang.L("File deletion")),
 		c,
 		widget.NewSeparator(),
-		heading("Archives"),
+		heading(lang.L("Archives")),
 		browse,
 		widget.NewSeparator(),
-		heading("External applications"),
-		hint("Custom commands use JSON argument lists, without a shell.\nLeave a field blank for the OS default; comparison has no default and stays disabled."),
+		heading(lang.L("External applications")),
+		hint(lang.L("Custom commands use JSON argument lists, without a shell.\nLeave a field blank for the OS default; comparison has no default and stays disabled.")),
 		widget.NewForm(revealItem, terminalItem, editorItem, filesItem, foldersItem),
 	)).(*container.ThemeOverride)
 	w.SetContent(container.NewVScroll(content))
@@ -333,21 +341,21 @@ func (u *ui) newFile() {
 	}
 	p := u.active
 	if p.inArchive() {
-		u.showErr(fmt.Errorf("archive browsing is read-only"))
+		u.showErr(fmt.Errorf(lang.L("archive browsing is read-only")))
 		return
 	}
 	dir := p.path
 	name := newEscEntry()
 	name.Validator = func(value string) error {
 		if strings.TrimSpace(value) == "" || value == "." || value == ".." || strings.ContainsAny(value, "/\\:\x00") {
-			return fmt.Errorf("Enter a file name without path separators")
+			return fmt.Errorf(lang.L("Enter a file name without path separators"))
 		}
 		if _, err := os.Lstat(filepath.Join(dir, value)); !os.IsNotExist(err) {
-			return fmt.Errorf("Destination exists or cannot be checked")
+			return fmt.Errorf(lang.L("Destination exists or cannot be checked"))
 		}
 		return nil
 	}
-	inputDialog(u, "New file", "Create", "File name", name, func() {
+	inputDialog(u, lang.L("New file"), lang.L("Create"), lang.L("File name"), name, func() {
 		file, err := os.OpenFile(filepath.Join(dir, name.Text), os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
 		if err == nil {
 			err = file.Close()
@@ -364,11 +372,11 @@ func (u *ui) newFile() {
 func (u *ui) mkdir() {
 	p := u.active
 	if p.inArchive() {
-		u.showErr(fmt.Errorf("archive browsing is read-only"))
+		u.showErr(fmt.Errorf(lang.L("archive browsing is read-only")))
 		return
 	}
 	name := newEscEntry()
-	inputDialog(u, "New directory", "Create", "Name", name, func() {
+	inputDialog(u, lang.L("New directory"), lang.L("Create"), lang.L("Name"), name, func() {
 		if name.Text != "" {
 			dir := filepath.Join(p.path, name.Text)
 			u.showErr(os.MkdirAll(dir, 0o755))

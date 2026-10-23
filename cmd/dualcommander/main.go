@@ -1,6 +1,14 @@
 // Command dualcommander runs the two-pane desktop file manager.
 package main
 
-import "github.com/dualcommander/dualcommander/internal/commander"
+import (
+	"log/slog"
+	"os"
 
-func main() { commander.Run() }
+	"github.com/dualcommander/dualcommander/internal/commander"
+)
+
+func main() {
+	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, nil)).With("app", "DualCommander"))
+	commander.Run()
+}

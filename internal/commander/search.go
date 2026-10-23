@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"fyne.io/fyne/v2/lang"
 	"io/fs"
 	"os"
 	"os/exec"
@@ -165,7 +166,7 @@ func (u *ui) search() *finder {
 	}
 	p := u.active
 	if p.inArchive() {
-		u.showErr(fmt.Errorf("Find Files is not supported inside archives"))
+		u.showErr(fmt.Errorf(lang.L("Find Files is not supported inside archives")))
 		return nil
 	}
 	_, rgErr := exec.LookPath("rg")
@@ -175,9 +176,9 @@ func (u *ui) search() *finder {
 	f.activity.MinSize() // Fyne starts animation when first creating the renderer; initialize before stopping.
 	f.activity.Stop()
 	f.activity.Hide()
-	f.text.SetPlaceHolder("Text in file (empty = names only)")
-	f.glob.SetPlaceHolder("File name, e.g. readme")
-	w := u.dialogWindow("Find Files")
+	f.text.SetPlaceHolder(lang.L("Text in file (empty = names only)"))
+	f.glob.SetPlaceHolder(lang.L("File name, e.g. readme"))
+	w := u.dialogWindow(lang.L("Find Files"))
 	f.mode = "Partial match"
 	option := func(text, label, hint string) *searchOption {
 		b := &searchOption{label: label}
@@ -188,9 +189,9 @@ func (u *ui) search() *finder {
 		b.OnTapped = func() { b.hint.Hide(); b.SetChecked(!b.Checked) }
 		return b
 	}
-	f.caseSensitive = option("Aa", "Match case", "Match case: distinguish uppercase and lowercase file names.")
-	f.regexp = option(".*", "Regular expression", "Regular expression: match file names using Go regexp syntax.")
-	f.globMode = option("*", "Wildcard", "Wildcard: match whole file names with * and ?.")
+	f.caseSensitive = option("Aa", lang.L("Match case"), lang.L("Match case: distinguish uppercase and lowercase file names."))
+	f.regexp = option(".*", lang.L("Regular expression"), lang.L("Regular expression: match file names using Go regexp syntax."))
+	f.globMode = option("*", lang.L("Wildcard"), lang.L("Wildcard: match whole file names with * and ?."))
 	setMode := func(b, other *searchOption, mode string) {
 		b.hint.Hide()
 		b.SetChecked(!b.Checked)
@@ -203,7 +204,7 @@ func (u *ui) search() *finder {
 	f.regexp.OnTapped = func() { setMode(f.regexp, f.globMode, "Regular expression") }
 	f.globMode.OnTapped = func() { setMode(f.globMode, f.regexp, "Wildcard") }
 	selected := -1
-	goTo := windowButton(w, "Go to", func() {
+	goTo := windowButton(w, lang.L("Go to"), func() {
 		if selected < 0 || selected >= len(f.results) {
 			return
 		}
@@ -242,12 +243,12 @@ func (u *ui) search() *finder {
 		}
 		match, err := nameMatcher(f.glob.Text, f.mode, f.caseSensitive.Checked)
 		if err != nil {
-			f.status.SetText("Invalid pattern: " + err.Error())
+			f.status.SetText(lang.L("Invalid pattern: ") + err.Error())
 			return
 		}
 		root := f.dir.Text
 		if root == "" {
-			f.status.SetText("Enter a search folder")
+			f.status.SetText(lang.L("Enter a search folder"))
 			return
 		}
 		if !filepath.IsAbs(root) {
@@ -266,7 +267,7 @@ func (u *ui) search() *finder {
 		content := f.text.Text != ""
 		finished := make(chan struct{})
 		f.workerDone = finished
-		f.status.SetText("Searching…")
+		f.status.SetText(lang.L("Searching…"))
 		// ponytail: recursive search has no known total; avoid a second traversal just for percentages.
 		f.activity.Show()
 		f.activity.Start()
@@ -275,7 +276,7 @@ func (u *ui) search() *finder {
 			var results []string
 			info, err := os.Stat(root)
 			if err == nil && !info.IsDir() {
-				err = fmt.Errorf("not a folder: %s", root)
+				err = fmt.Errorf(lang.L("not a folder: %s"), root)
 			}
 			if err == nil && content {
 				err = runSearch(ctx, args, func(batch []string) {
@@ -308,9 +309,9 @@ func (u *ui) search() *finder {
 				f.done = true
 				f.activity.Stop()
 				f.activity.Hide()
-				f.status.SetText(fmt.Sprintf("%d found", len(f.results)))
+				f.status.SetText(fmt.Sprintf(lang.L("%d found"), len(f.results)))
 				if err != nil {
-					f.status.SetText(fmt.Sprintf("%d found; search incomplete: %v", len(f.results), err))
+					f.status.SetText(fmt.Sprintf(lang.L("%d found; search incomplete: %v"), len(f.results), err))
 				}
 			})
 		}()
@@ -322,9 +323,9 @@ func (u *ui) search() *finder {
 		goTo.Enable()
 	}
 	nameRow := container.NewBorder(nil, nil, nil, container.NewHBox(f.caseSensitive, f.regexp, f.globMode), f.glob)
-	form := widget.NewForm(widget.NewFormItem("In:", f.dir), widget.NewFormItem("File name", nameRow), widget.NewFormItem("Containing text", f.text))
-	search := windowButton(w, "Search", func() { start("") })
-	buttons := dialogButtons(w, 0, search, goTo, windowButton(w, "Cancel", w.Close))
+	form := widget.NewForm(widget.NewFormItem(lang.L("In:"), f.dir), widget.NewFormItem(lang.L("File name"), nameRow), widget.NewFormItem(lang.L("Containing text"), f.text))
+	search := windowButton(w, lang.L("Search"), func() { start("") })
+	buttons := dialogButtons(w, 0, search, goTo, windowButton(w, lang.L("Cancel"), w.Close))
 	footer := container.NewVBox(container.NewBorder(nil, nil, nil, buttons, f.status), container.New(operationTrackLayout{}, f.activity))
 	f.win = w
 	// Keep result spacing compact without changing shared dialog or pane density.

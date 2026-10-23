@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"fyne.io/fyne/v2/lang"
 	"io/fs"
 	"net/url"
 	"os"
@@ -98,7 +99,7 @@ func newPane(u *ui, path string, brief bool, sortPref string) *pane {
 	homeBtn := widget.NewButtonWithIcon("", theme.HomeIcon(), func() { h, _ := os.UserHomeDir(); p.navigate(h, "") })
 	p.favourite = widget.NewButton("☆", func() { u.toggleFavourite(p.path) })
 	p.favourites = widget.NewButtonWithIcon("", theme.MenuDropDownIcon(), p.showFavourites)
-	p.space = widget.NewLabel("Disk usage unavailable")
+	p.space = widget.NewLabel(lang.L("Disk usage unavailable"))
 	p.space.Alignment = fyne.TextAlignTrailing
 	p.space.Truncation = fyne.TextTruncateEllipsis
 	p.mounts = fsops.Mounts
@@ -271,7 +272,7 @@ func (p *pane) setSort(by string) {
 
 func (p *pane) setSortLabels() {
 	for i, b := range p.headers {
-		b.SetText(strings.ToUpper(sortKeys[i][:1]) + sortKeys[i][1:] + arrow(sortKeys[i] == p.sortBy, p.desc))
+		b.SetText(lang.L(strings.ToUpper(sortKeys[i][:1])+sortKeys[i][1:]) + arrow(sortKeys[i] == p.sortBy, p.desc))
 	}
 }
 
@@ -296,7 +297,7 @@ func arrow(on, desc bool) string {
 func (p *pane) header() fyne.CanvasObject {
 	p.headers = make([]*widget.Button, len(sortKeys))
 	for i, k := range sortKeys {
-		p.headers[i] = widget.NewButton(strings.ToUpper(k[:1])+k[1:]+arrow(k == p.sortBy, p.desc), func() { p.setSort(k) })
+		p.headers[i] = widget.NewButton(lang.L(strings.ToUpper(k[:1])+k[1:])+arrow(k == p.sortBy, p.desc), func() { p.setSort(k) })
 		p.headers[i].Importance = widget.LowImportance
 	}
 	p.headers[0].Alignment = widget.ButtonAlignLeading
@@ -304,7 +305,7 @@ func (p *pane) header() fyne.CanvasObject {
 	fixed := func(o fyne.CanvasObject, s string) fyne.CanvasObject {
 		return container.NewGridWrap(fyne.NewSize(widget.NewLabel(s).MinSize().Width, p.headers[0].MinSize().Height), o)
 	}
-	right := container.NewHBox(fixed(p.headers[1], "0000.0 MB"), fixed(p.headers[2], "0000-00-00 00:00"), fixed(widget.NewLabel("Attributes"), "drwxrwxrwx"))
+	right := container.NewHBox(fixed(p.headers[1], "0000.0 MB"), fixed(p.headers[2], "0000-00-00 00:00"), fixed(widget.NewLabel(lang.L("Attributes")), "drwxrwxrwx"))
 	return container.NewBorder(nil, nil, nil, right, p.headers[0])
 }
 
@@ -425,7 +426,7 @@ func (p *pane) open() {
 			_, inner := archive.Root(name)
 			f := p.archiveFS
 			root := p.archiveRoot
-			p.ui.jobs.run("Open archive member", nil, func(ctx context.Context, _ fsops.Progress) error {
+			p.ui.jobs.run(lang.L("Open archive member"), nil, func(ctx context.Context, _ fsops.Progress) error {
 				var tmp string
 				err := p.ui.archiveRetry(ctx, root, func(password string) error {
 					if password != "" {
@@ -485,7 +486,7 @@ func (p *pane) navigate(dir, selected string) {
 		p.cd(dir, selected)
 		return
 	}
-	p.ui.jobs.run("Browse archive", nil, func(ctx context.Context, _ fsops.Progress) error {
+	p.ui.jobs.run(lang.L("Browse archive"), nil, func(ctx context.Context, _ fsops.Progress) error {
 		var f fs.FS
 		err := p.ui.archiveRetry(ctx, root, func(password string) error {
 			var err error
@@ -592,7 +593,7 @@ func (p *pane) updateStatus() {
 	p.statusRow.Hide()
 	p.status.Show()
 	if p.searchPrefix != "" {
-		p.status.SetText("Search: " + p.searchPrefix)
+		p.status.SetText(lang.L("Search: ") + p.searchPrefix)
 		return
 	}
 	var files, dirs, selectedFiles, selectedDirs int
@@ -625,9 +626,9 @@ func (p *pane) updateStatus() {
 						selectedSize += e.size
 						folderFiles += e.sizeFiles
 					} else if e.sizeError != "" {
-						sizeNotice = " · Folder size unavailable: " + e.sizeError
+						sizeNotice = lang.L(" · Folder size unavailable: ") + e.sizeError
 					} else if e.sizeRequested && sizeNotice == "" {
-						sizeNotice = fmt.Sprintf(" · Calculating folder size: %s · %s · %d files…", e.name, humanSize(e.size), e.sizeFiles)
+						sizeNotice = fmt.Sprintf(lang.L(" · Calculating folder size: %s · %s · %d files…"), e.name, humanSize(e.size), e.sizeFiles)
 					}
 				}
 			} else {
@@ -643,24 +644,24 @@ func (p *pane) updateStatus() {
 	}
 	e := p.current()
 	if measured {
-		p.status.SetText(fmt.Sprintf("%s · %d files", humanSize(selectedSize), folderFiles+int64(selectedFiles)))
-		if strings.HasPrefix(sizeNotice, " · Folder size unavailable:") {
+		p.status.SetText(fmt.Sprintf(lang.L("%s · %d files"), humanSize(selectedSize), folderFiles+int64(selectedFiles)))
+		if strings.HasPrefix(sizeNotice, lang.L(" · Folder size unavailable: ")) {
 			p.status.SetText(p.status.Text + sizeNotice)
 		}
 		if pending {
-			p.status.SetText(p.status.Text + " · Calculating…")
+			p.status.SetText(p.status.Text + lang.L(" · Calculating…"))
 		}
 		return
 	}
 	if selectedFiles+selectedDirs > 0 {
 		if folderFiles > 0 {
-			sizeNotice += fmt.Sprintf(" · Folder contents: %d files", folderFiles)
+			sizeNotice += fmt.Sprintf(lang.L(" · Folder contents: %d files"), folderFiles)
 		}
 		// ponytail: totals include only folders measured with Space; refresh invalidates cached sizes.
 		if sizeNotice != "" {
 			sizeNotice = strings.TrimPrefix(sizeNotice, " · ") + " · "
 		}
-		p.status.SetText(fmt.Sprintf("%sSelected: %s of %s · Files: %d of %d · Folders: %d of %d",
+		p.status.SetText(fmt.Sprintf(lang.L("%sSelected: %s of %s · Files: %d of %d · Folders: %d of %d"),
 			sizeNotice, humanSize(selectedSize), humanSize(totalSize), selectedFiles, files, selectedDirs, dirs))
 		return
 	}
@@ -670,15 +671,15 @@ func (p *pane) updateStatus() {
 	}
 	size := humanSize(e.size)
 	if e.dir && !e.sizeKnown {
-		size = "<DIR>"
+		size = lang.L("<DIR>")
 		if e.sizeError != "" {
-			size = "Folder size unavailable: " + e.sizeError
+			size = lang.L("Folder size unavailable: ") + e.sizeError
 		} else if e.sizeRequested {
-			size = fmt.Sprintf("%s · %d files · Calculating folder size…", humanSize(e.size), e.sizeFiles)
+			size = fmt.Sprintf(lang.L("%s · %d files · Calculating folder size…"), humanSize(e.size), e.sizeFiles)
 		}
 	}
 	if e.dir && e.sizeKnown {
-		size += fmt.Sprintf(" · %d files", e.sizeFiles)
+		size += fmt.Sprintf(lang.L(" · %d files"), e.sizeFiles)
 	}
 	modified := ""
 	if !e.mod.IsZero() {
@@ -783,7 +784,7 @@ func (p *pane) fillRow(i int, r *row) {
 	setText(right.Objects[2].(*fyne.Container).Objects[0].(*widget.Label), e.attrs)
 	sizeText := humanSize(e.size)
 	if e.dir {
-		sizeText = "<DIR>"
+		sizeText = lang.L("<DIR>")
 	}
 	setText(size, sizeText)
 	modified := ""

@@ -2,6 +2,7 @@ package commander
 
 import (
 	"fmt"
+	"fyne.io/fyne/v2/lang"
 	"os"
 	"path/filepath"
 	"slices"
@@ -46,7 +47,7 @@ func (u *ui) updateStarredMenu() {
 		}))
 	}
 	if len(items) == 0 {
-		empty := fyne.NewMenuItem("No starred paths", nil)
+		empty := fyne.NewMenuItem(lang.L("No starred paths"), nil)
 		empty.Disabled = true
 		items = append(items, empty)
 	}
@@ -78,7 +79,7 @@ func (p *pane) showFavourites() {
 			open := widget.NewButton(filepath.Base(path), func() {
 				info, err := os.Stat(path)
 				if err == nil && !info.IsDir() {
-					err = fmt.Errorf("not a folder: %s", path)
+					err = fmt.Errorf(lang.L("not a folder: %s"), path)
 				}
 				if err == nil {
 					err = p.cd(path, "")
@@ -98,7 +99,7 @@ func (p *pane) showFavourites() {
 			rows.Add(container.NewBorder(nil, nil, nil, remove, container.NewBorder(nil, nil, open, nil, label)))
 		}
 		if len(rows.Objects) == 0 {
-			rows.Add(widget.NewLabel("No favourites. Star a folder to add it."))
+			rows.Add(widget.NewLabel(lang.L("No favourites. Star a folder to add it.")))
 		}
 		scroll := container.NewVScroll(rows)
 		scroll.SetMinSize(fyne.NewSize(min(480, p.ui.win.Canvas().Size().Width-32), min(280, rows.MinSize().Height)))
@@ -154,9 +155,9 @@ func currentMount(path string, mounts []string) string {
 }
 
 func (p *pane) setSpace(used, total uint64, err error) {
-	text := "Disk usage unavailable"
+	text := lang.L("Disk usage unavailable")
 	if err == nil && total > 0 && used <= total {
-		text = fmt.Sprintf("%s used / %s total", humanSize(int64(used)), humanSize(int64(total)))
+		text = fmt.Sprintf(lang.L("%s used / %s total"), humanSize(int64(used)), humanSize(int64(total)))
 	}
 	p.space.SetText(text)
 }
@@ -185,7 +186,7 @@ func (p *pane) showMounts() {
 				rows.Add(button)
 			}
 			if len(paths) == 0 {
-				rows.Add(widget.NewLabel("No mounted volumes"))
+				rows.Add(widget.NewLabel(lang.L("No mounted volumes")))
 			}
 			scroll := container.NewVScroll(rows)
 			scroll.SetMinSize(fyne.NewSize(min(480, p.ui.win.Canvas().Size().Width-32), min(280, rows.MinSize().Height)))

@@ -2,6 +2,7 @@ package commander
 
 import (
 	"context"
+	"fyne.io/fyne/v2/lang"
 	"path/filepath"
 
 	"fyne.io/fyne/v2"
@@ -28,20 +29,20 @@ func (u *ui) archivePassword(ctx context.Context, name string, retry bool) (stri
 		if ctx.Err() != nil {
 			return
 		}
-		w := u.dialogWindow("Archive password")
+		w := u.dialogWindow(lang.L("Archive password"))
 		u.passwordWindow = w
 		e := newEscEntry()
 		e.Password = true
 		e.esc = escapeWindow(w)
-		message := "Enter password for " + filepath.Base(name)
+		message := lang.L("Enter password for {{.Name}}", map[string]any{"Name": filepath.Base(name)})
 		if retry {
-			message = "Password incorrect, or encrypted data damaged. Try again."
+			message = lang.L("Password incorrect, or encrypted data damaged. Try again.")
 		}
 		label := widget.NewLabel(message)
 		label.Wrapping = fyne.TextWrapWord
 		// Fyne has no decorated modal-window API. Its modal overlay blocks parent input;
 		// password controls live in a separate OS-decorated window, not an in-canvas dialog.
-		block := widget.NewModalPopUp(widget.NewLabel("Waiting for archive password…"), u.win.Canvas())
+		block := widget.NewModalPopUp(widget.NewLabel(lang.L("Waiting for archive password…")), u.win.Canvas())
 		block.Show()
 		u.win.Canvas().Unfocus()
 		menu := u.win.MainMenu()
@@ -85,8 +86,8 @@ func (u *ui) archivePassword(ctx context.Context, name string, retry bool) (stri
 		}
 		e.OnSubmitted = func(string) { submit() }
 		w.SetContent(u.dialogContent(container.NewVBox(label,
-			widget.NewForm(widget.NewFormItem("Password", e)),
-			dialogButtons(w, 1, windowButton(w, "Cancel", w.Close), windowButton(w, "Unlock", submit)))))
+			widget.NewForm(widget.NewFormItem(lang.L("Password"), e)),
+			dialogButtons(w, 1, windowButton(w, lang.L("Cancel"), w.Close), windowButton(w, lang.L("Unlock"), submit)))))
 		w.Resize(fyne.NewSize(500, w.Content().MinSize().Height))
 		w.Show()
 		w.Canvas().Focus(e)

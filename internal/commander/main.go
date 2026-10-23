@@ -4,10 +4,12 @@ package commander
 import (
 	"encoding/json"
 	"image/color"
+	"log/slog"
 	"slices"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
+	"fyne.io/fyne/v2/lang"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 	"github.com/dualcommander/dualcommander/assets"
@@ -66,15 +68,16 @@ func Run() {
 	a := app.NewWithID(appID)
 	path, err := settingsPath()
 	if err != nil {
-		fyne.LogError("Cannot locate settings", err)
+		slog.Error("Cannot locate settings", "error", err)
 		return
 	}
 	store, err := openSettingsFile(a.Preferences(), path, func(err error) {
-		fyne.LogError("Cannot save settings", err)
+		slog.Error("Cannot save settings", "path", path, "error", err)
 	})
 	if err != nil {
+		slog.Error("Cannot load settings", "path", path, "error", err)
 		w := a.NewWindow(appName)
-		label := widget.NewLabel("Cannot load settings: " + err.Error())
+		label := widget.NewLabel(lang.L("Cannot load settings: {{.Error}}", map[string]any{"Error": err.Error()}))
 		label.Wrapping = fyne.TextWrapWord
 		w.SetContent(label)
 		w.Resize(fyne.NewSize(600, 180))
@@ -83,7 +86,7 @@ func Run() {
 	}
 	defer func() {
 		if err := store.close(); err != nil {
-			fyne.LogError("Cannot save settings on exit", err)
+			slog.Error("Cannot save settings on exit", "path", path, "error", err)
 		}
 	}()
 	desktop.SetAppIcon(assets.IconPNG)

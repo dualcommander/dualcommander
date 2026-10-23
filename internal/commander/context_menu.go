@@ -1,6 +1,7 @@
 package commander
 
 import (
+	"fyne.io/fyne/v2/lang"
 	"os/exec"
 	"path/filepath"
 	"runtime"
@@ -104,7 +105,7 @@ func (p *pane) contextMenu() *fyne.Menu {
 		it.Disabled = !enabled
 		return it
 	}
-	open := item("Open", valid, func() {
+	open := item(lang.L("Open"), valid, func() {
 		for i, current := range p.entries {
 			if current.name == e.name {
 				p.moveTo(i)
@@ -125,17 +126,17 @@ func (p *pane) contextMenu() *fyne.Menu {
 				p.ui.startExternal(cmd, err)
 			}
 		}
-		label := "Properties"
+		label := lang.L("Properties")
 		if runtime.GOOS == "darwin" {
-			label = "Get Info"
+			label = lang.L("Get Info")
 		}
-		items = append(items, item("Open With…", native && (!e.dir || runtime.GOOS == "darwin"), launch("open-with")),
+		items = append(items, item(lang.L("Open With…"), native && (!e.dir || runtime.GOOS == "darwin"), launch("open-with")),
 			item(label, native, launch("properties")))
 	}
 	items = append(items, fyne.NewMenuItemSeparator(), item(revealLabel(), native, func() {
 		reveal, _ := desktop.Defaults(runtime.GOOS)
 		cmd, err := desktop.Command(reveal, path, p.path)
 		p.ui.startExternal(cmd, err)
-	}), item("Copy Path", native, func() { p.ui.win.Clipboard().SetContent(path) }))
+	}), item(lang.L("Copy Path"), native, func() { p.ui.win.Clipboard().SetContent(path) }))
 	return fyne.NewMenu("", items...)
 }

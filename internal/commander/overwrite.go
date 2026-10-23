@@ -3,6 +3,7 @@ package commander
 import (
 	"context"
 	"fmt"
+	"fyne.io/fyne/v2/lang"
 	"os"
 
 	"fyne.io/fyne/v2"
@@ -30,37 +31,37 @@ func (u *ui) overwriteConflict(ctx context.Context, conflict fsops.Conflict) (fs
 			return
 		}
 		u.jobs.closeMonitor()
-		w := u.dialogWindow("Target already exists")
+		w := u.dialogWindow(lang.L("Target already exists"))
 		unblock := u.blockParent(w)
 		value := answer{err: context.Canceled}
 		w.SetOnClosed(func() { unblock(); result <- value })
 		closeWindow = w.Close
 		details := func(title, path string, info os.FileInfo) fyne.CanvasObject {
-			kind := "File"
+			kind := lang.L("File")
 			if info.IsDir() {
-				kind = "Folder"
+				kind = lang.L("Folder")
 			}
 			if info.Mode()&os.ModeSymlink != 0 {
-				kind = "Symbolic link"
+				kind = lang.L("Symbolic link")
 			}
-			text := fmt.Sprintf("%s\nName: %s\nPath: %s\nType: %s\nSize: %s (%d bytes)\nModified: %s\nAttributes: %s", title, info.Name(), path, kind, humanSize(info.Size()), info.Size(), info.ModTime().Format("2006-01-02 15:04:05 MST"), info.Mode())
+			text := fmt.Sprintf(lang.L("%s\nName: %s\nPath: %s\nType: %s\nSize: %s (%d bytes)\nModified: %s\nAttributes: %s"), title, info.Name(), path, kind, humanSize(info.Size()), info.Size(), info.ModTime().Format("2006-01-02 15:04:05 MST"), info.Mode())
 			label := widget.NewLabel(text)
 			label.Wrapping = fyne.TextWrapBreak
 			return label
 		}
-		message := "Choose what to do with this conflict. All applies only to this operation."
+		message := lang.L("Choose what to do with this conflict. All applies only to this operation.")
 		if conflict.SourceInfo.IsDir() && conflict.TargetInfo.IsDir() {
-			message += " Overwrite merges folders; conflicting children are checked individually."
+			message += lang.L(" Overwrite merges folders; conflicting children are checked individually.")
 		}
 		label := widget.NewLabel(message)
 		label.Wrapping = fyne.TextWrapWord
 		var buttons []*dialogButton
-		buttons = append(buttons, windowButton(w, "Cancel", w.Close))
+		buttons = append(buttons, windowButton(w, lang.L("Cancel"), w.Close))
 		for _, option := range []struct {
 			label  string
 			action fsops.ConflictAction
 		}{
-			{"Skip", fsops.Skip}, {"Skip All", fsops.SkipAll}, {"Overwrite", fsops.Overwrite}, {"Overwrite All", fsops.OverwriteAll},
+			{lang.L("Skip"), fsops.Skip}, {lang.L("Skip All"), fsops.SkipAll}, {lang.L("Overwrite"), fsops.Overwrite}, {lang.L("Overwrite All"), fsops.OverwriteAll},
 		} {
 			buttons = append(buttons, windowButton(w, option.label, func() {
 				value = answer{action: option.action}
@@ -68,8 +69,8 @@ func (u *ui) overwriteConflict(ctx context.Context, conflict fsops.Conflict) (fs
 			}))
 		}
 		body := container.NewVScroll(container.NewVBox(label,
-			details("Source", conflict.Source, conflict.SourceInfo),
-			details("Target", conflict.Target, conflict.TargetInfo)))
+			details(lang.L("Source"), conflict.Source, conflict.SourceInfo),
+			details(lang.L("Target"), conflict.Target, conflict.TargetInfo)))
 		w.SetContent(u.dialogContent(container.NewBorder(nil, dialogButtons(w, 1, buttons...), nil, nil, body)))
 		w.Resize(fyne.NewSize(720, 480))
 		w.Canvas().Focus(buttons[1]) // safe default: Enter skips, never overwrites silently

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"fyne.io/fyne/v2/lang"
 	"path/filepath"
 	"slices"
 
@@ -123,16 +124,16 @@ func (j *jobs) update() {
 		j.activity = widget.NewProgressBarInfinite()
 		j.activity.Stop()
 	}
-	text := fmt.Sprintf("%d operations · Show details", len(j.active))
+	text := fmt.Sprintf(lang.L("%d operations · Show details"), len(j.active))
 	// ponytail: progress callbacks have no unit; mixed tasks are not safely summable.
 	// Add explicit work units before aggregating multiple task percentages.
 	known := len(j.active) == 1 && j.active[0].total > 0
 	if known {
 		op := j.active[0]
 		value := min(1.0, max(0.0, float64(op.done)/float64(op.total)))
-		text = fmt.Sprintf("1 operation · %.0f%% · Show details", value*100)
+		text = fmt.Sprintf(lang.L("1 operation · %.0f%% · Show details"), value*100)
 		if op.counted {
-			text = fmt.Sprintf("1 operation · %.0f%% · %d/%d files · Show details", value*100, op.filesDone, op.filesTotal)
+			text = fmt.Sprintf(lang.L("1 operation · %.0f%% · %d/%d files · Show details"), value*100, op.filesDone, op.filesTotal)
 		}
 		j.bar.SetValue(value)
 		j.activity.Stop()
@@ -164,17 +165,17 @@ func (j *jobs) show() {
 	if j.ui.passwordWindow != nil || len(j.active) == 0 {
 		return
 	}
-	w := j.ui.dialogWindow("Running Operations")
+	w := j.ui.dialogWindow(lang.L("Running Operations"))
 	j.monitor = w
 	unblock := j.ui.blockParent(w)
 	l := &dialogList{close: w.Close}
 	l.Length = func() int { return len(j.active) }
 	l.CreateItem = func() fyne.CanvasObject {
-		title, file := widget.NewLabel("Operation"), widget.NewLabel("Current file")
+		title, file := widget.NewLabel(lang.L("Operation")), widget.NewLabel(lang.L("Current file"))
 		title.Truncation, file.Truncation = fyne.TextTruncateEllipsis, fyne.TextTruncateEllipsis
 		bar := widget.NewProgressBar()
 		bar.TextFormatter = func() string { return "" }
-		return container.NewBorder(nil, nil, nil, windowButton(w, "Cancel", nil),
+		return container.NewBorder(nil, nil, nil, windowButton(w, lang.L("Cancel"), nil),
 			container.NewVBox(title, file, container.New(operationTrackLayout{}, bar)))
 	}
 	l.UpdateItem = func(i widget.ListItemID, obj fyne.CanvasObject) {
@@ -182,17 +183,17 @@ func (j *jobs) show() {
 		row := obj.(*fyne.Container)
 		fields := row.Objects[0].(*fyne.Container).Objects
 		fields[0].(*widget.Label).SetText(op.title)
-		file := "Discovering work…"
+		file := lang.L("Discovering work…")
 		if op.file != "" {
 			file = filepath.Base(op.file)
 		}
 		if op.total <= 0 {
-			file += " · Working…"
+			file += lang.L(" · Working…")
 		} else {
 			file += fmt.Sprintf(" · %.0f%%", min(1.0, max(0.0, float64(op.done)/float64(op.total)))*100)
 		}
 		if op.counted {
-			file += fmt.Sprintf(" · %d/%d files", op.filesDone, op.filesTotal)
+			file += fmt.Sprintf(lang.L(" · %d/%d files"), op.filesDone, op.filesTotal)
 		}
 		fields[1].(*widget.Label).SetText(file)
 		bar := fields[2].(*fyne.Container).Objects[0].(*widget.ProgressBar)
@@ -213,7 +214,7 @@ func (j *jobs) show() {
 	l.ExtendBaseWidget(l)
 	j.list = l
 	w.SetOnClosed(func() { j.monitor, j.list = nil, nil; unblock() })
-	close := windowButton(w, "Close", w.Close)
+	close := windowButton(w, lang.L("Close"), w.Close)
 	w.SetContent(j.ui.dialogContent(container.NewBorder(nil, dialogButtons(w, 0, close), nil, nil, l)))
 	w.Resize(fyne.NewSize(600, 360))
 	w.Show()
