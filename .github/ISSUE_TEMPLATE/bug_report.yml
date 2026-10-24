@@ -1,0 +1,44 @@
+name: Bug report
+description: Report unexpected behavior or a crash.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Search existing issues first. Remove passwords, private paths, and other sensitive data from logs and screenshots.
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Include DualCommander version (from About), OS version, CPU architecture, and installation source. For Linux, include distribution and desktop environment.
+      placeholder: DualCommander version; OS version; arm64/amd64; downloaded package or source build
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: Include relevant settings and file types. Use sample files without private data where possible.
+      placeholder: |
+        1. Open…
+        2. Select…
+        3. Run…
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: Include exact error text and whether the issue happens consistently.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Logs, screenshots, or sample files
+      description: Optional. Review attachments for sensitive data before submitting.

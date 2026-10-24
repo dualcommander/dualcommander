@@ -1,0 +1,26 @@
+name: Feature request
+description: Suggest an improvement to DualCommander.
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: Search existing issues first. Describe the use case, not just the proposed feature.
+  - type: textarea
+    id: use_case
+    attributes:
+      label: Idea or use case
+      description: What would you like to do, and why? Include the affected OS if relevant.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed improvement
+      description: Describe the behavior you would like and how it helps.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives or current workaround
+      description: Optional. Include other approaches you considered.

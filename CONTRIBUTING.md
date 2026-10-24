@@ -37,4 +37,5 @@ git push origin v1.2.3
 
 After all platform builds pass, CI publishes packages as GitHub Release assets.
 Tagged builds use the tag version; development builds include the commit hash.
-macOS and Windows packages remain unsigned; macOS packages are not notarized.
+Signing defaults off. Release tags can opt into Apple signing/notarization and
+SignPath Windows signing; see [release signing setup](docs/release-signing.md).
