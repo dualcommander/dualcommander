@@ -15,6 +15,7 @@ vet:
 test:
 	sh scripts/version_test.sh
 	sh scripts/install-packager_test.sh
+	python3 scripts/signing_test.py
 	python3 .devcontainer/cline-profile.py --self-test
 	go test -race -count=1 ./...
 
