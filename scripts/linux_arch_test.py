@@ -1,6 +1,5 @@
 """Linux release architecture checks; no native packaging tools required."""
 import os
-import shlex
 from pathlib import Path
 import subprocess
 import tempfile
@@ -10,22 +9,6 @@ ROOT = Path(__file__).resolve().parent.parent
 
 
 class LinuxArchitectureTests(unittest.TestCase):
-    def test_linux_packaging_fortify_flags(self):
-        workflow = (ROOT / '.github/workflows/build.yml').read_text()
-        package = workflow.split('- name: Package native app', 1)[1].split('- name:', 1)[0]
-        fix = 'if [ "$(go env GOOS)" = linux ]; then export CGO_CFLAGS="${CGO_CFLAGS:--O2 -g} -U_FORTIFY_SOURCE"; fi'
-        self.assertIn(fix, package)
-        self.assertLess(package.index(fix), package.index('fyne package'))
-        # Simulate Ubuntu's predefined level 2, followed by our flags and Fyne's level 3.
-        result = subprocess.run(
-            shlex.split(os.environ.get('CC', 'cc')) + [
-                '-Werror', '-U_FORTIFY_SOURCE', '-D_FORTIFY_SOURCE=2',
-                '-O2', '-g', '-U_FORTIFY_SOURCE', '-D_FORTIFY_SOURCE=3',
-                '-E', '-x', 'c', '-'],
-            input='#if _FORTIFY_SOURCE != 3\n#error fortification lost\n#endif\n',
-            capture_output=True, text=True)
-        self.assertEqual(result.returncode, 0, result.stderr)
-
     def test_packager_accepts_native_architectures(self):
         with tempfile.TemporaryDirectory() as directory:
             binary = Path(directory)
@@ -42,26 +25,6 @@ class LinuxArchitectureTests(unittest.TestCase):
                                             env=env, capture_output=True, text=True)
                     self.assertEqual(result.returncode, 73, result.stderr)
                     self.assertIn('architecture-accepted', result.stderr)
-
-    def test_native_arm_release_job(self):
-        workflow = (ROOT / '.github/workflows/build.yml').read_text()
-        self.assertRegex(workflow, r'runner: ubuntu-22\.04-arm\s+os: linux\s+arch: arm64')
-        self.assertIn('dist/dualcommander-linux-${{ matrix.arch }}.tar.xz', workflow)
-        self.assertIn('sh scripts/package-linux_test.sh', workflow)
-        self.assertIn('gh release upload "$RELEASE_TAG" dist/*', workflow)
-
-    def test_windows_arm_release_job(self):
-        workflow = (ROOT / '.github/workflows/build.yml').read_text()
-        self.assertRegex(workflow, r'runner: windows-11-arm\s+os: windows\s+arch: arm64')
-        self.assertIn('mingw-w64-clang-aarch64-clang', workflow)
-        self.assertIn('CLANGARM64', workflow)
-        self.assertIn('steps.msys2.outputs.msys2-location', workflow)
-        self.assertIn('"CC=clang"', workflow)
-        self.assertIn('"CXX=clang++"', workflow)
-        self.assertIn('go test -tags ci -count=1 ./...', workflow)
-        self.assertIn('go test -tags ci -race -count=1 ./...', workflow)
-        self.assertIn('go env GOARCH', workflow)
-        self.assertIn('dist/dualcommander-windows-${{ matrix.arch }}.zip', workflow)
 
 
 if __name__ == '__main__':

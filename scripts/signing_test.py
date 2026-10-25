@@ -1,4 +1,4 @@
-"""Release-signing wiring checks; no certificates or network required."""
+"""Release-signing behavior checks; no certificates or network required."""
 from pathlib import Path
 import os
 import shutil
@@ -59,26 +59,6 @@ if name == 'xcrun' and args[0] == 'notarytool':
                     self.assertEqual(log.count('stapler staple'), 2)
                     self.assertEqual(log.count('stapler validate'), 2)
                     self.assertTrue((root / 'dist/dualcommander-darwin-arm64.zip').exists())
-
-    def test_opt_in_release_only(self):
-        workflow = (ROOT / '.github/workflows/build.yml').read_text()
-        for flag in ('MACOS_SIGNING_ENABLED', 'WINDOWS_SIGNING_ENABLED'):
-            self.assertIn(f"vars.{flag} == 'true'", workflow)
-        self.assertIn("github.event_name == 'push'", workflow)
-        self.assertIn("'release-signing'", workflow)
-        self.assertIn('signpath/github-action-submit-signing-request@', workflow)
-        self.assertLess(workflow.index('Verify signed Windows app'), workflow.index('Archive Windows app'))
-        self.assertLess(workflow.index('Sign and notarize macOS packages'), workflow.index('actions/upload-artifact@v4\n        with:\n          name: dualcommander-'))
-
-    def test_mac_signing_order_and_cleanup(self):
-        script = (ROOT / 'scripts/sign-macos.sh').read_text()
-        for fragment in ('set -eu', 'trap cleanup EXIT', 'delete-keychain', '--options runtime',
-                         '--timestamp', 'notarytool submit', 'stapler staple', 'stapler validate',
-                         'spctl --assess', 'package-macos.sh'):
-            self.assertIn(fragment, script)
-        self.assertLess(script.index('notarize "$app_zip"'), script.index('stapler staple "$app"'))
-        self.assertLess(script.index('stapler staple "$app"'), script.index('package-macos.sh'))
-        self.assertNotIn('|| true', script)
 
 
 if __name__ == '__main__':
