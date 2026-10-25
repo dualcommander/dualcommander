@@ -109,6 +109,8 @@ jobs:
           version=$(sh ../../scripts/version.sh)
           native_version=${version%%[-+]*}
           export GOFLAGS="-ldflags=-X=github.com/dualcommander/dualcommander/internal/commander.buildVersion=$version"
+          # Ubuntu predefines fortification; Fyne appends its own level 3 definition.
+          if [ "$(go env GOOS)" = linux ]; then export CGO_CFLAGS="${CGO_CFLAGS:--O2 -g} -U_FORTIFY_SOURCE"; fi
           fyne package -os ${{ matrix.os }} -release -app-version "$native_version"
       - name: Archive macOS app
         if: runner.os == 'macOS'

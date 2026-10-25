@@ -110,8 +110,12 @@ func newKeyGrid(p *pane) *keyGrid {
 	g.UpdateCell = func(id widget.TableCellID, o fyne.CanvasObject) {
 		r := o.(*row)
 		c := r.content.(*fyne.Container)
-		c.Layout = layout.NewGridWrapLayout(g.cell)
-		c.Refresh()
+		// ponytail: refresh geometry only on resize; Fyne recursively reshapes every
+		// label on Container.Refresh, including unchanged cells during selection.
+		if c.Layout.MinSize(c.Objects) != g.cell {
+			c.Layout = layout.NewGridWrapLayout(g.cell)
+			c.Refresh()
+		}
 		index := g.entryID(id)
 		if index >= len(p.entries) {
 			r.id = -1

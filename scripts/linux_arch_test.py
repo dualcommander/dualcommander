@@ -1,5 +1,6 @@
 """Linux release architecture checks; no native packaging tools required."""
 import os
+import shlex
 from pathlib import Path
 import subprocess
 import tempfile
@@ -9,6 +10,22 @@ ROOT = Path(__file__).resolve().parent.parent
 
 
 class LinuxArchitectureTests(unittest.TestCase):
+    def test_linux_packaging_fortify_flags(self):
+        workflow = (ROOT / '.github/workflows/build.yml').read_text()
+        package = workflow.split('- name: Package native app', 1)[1].split('- name:', 1)[0]
+        fix = 'if [ "$(go env GOOS)" = linux ]; then export CGO_CFLAGS="${CGO_CFLAGS:--O2 -g} -U_FORTIFY_SOURCE"; fi'
+        self.assertIn(fix, package)
+        self.assertLess(package.index(fix), package.index('fyne package'))
+        # Simulate Ubuntu's predefined level 2, followed by our flags and Fyne's level 3.
+        result = subprocess.run(
+            shlex.split(os.environ.get('CC', 'cc')) + [
+                '-Werror', '-U_FORTIFY_SOURCE', '-D_FORTIFY_SOURCE=2',
+                '-O2', '-g', '-U_FORTIFY_SOURCE', '-D_FORTIFY_SOURCE=3',
+                '-E', '-x', 'c', '-'],
+            input='#if _FORTIFY_SOURCE != 3\n#error fortification lost\n#endif\n',
+            capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+
     def test_packager_accepts_native_architectures(self):
         with tempfile.TemporaryDirectory() as directory:
             binary = Path(directory)
