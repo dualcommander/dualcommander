@@ -3,17 +3,20 @@
 package desktop
 
 import (
-	"os/exec"
-	"path/filepath"
+	"os"
+	"strings"
 	"testing"
 )
 
-func TestNativeModalActivation(t *testing.T) {
-	binary := filepath.Join(t.TempDir(), "modal-test")
-	if output, err := exec.Command("clang", "-framework", "AppKit", "modal_darwin.m", "testdata/modal_darwin.m", "-o", binary).CombinedOutput(); err != nil {
-		t.Fatalf("compile native modal check: %v\n%s", err, output)
+func TestMacOSModalUsesFrameworkBehavior(t *testing.T) {
+	source, err := os.ReadFile("modal_darwin.go")
+	if err != nil {
+		t.Fatal(err)
 	}
-	if output, err := exec.Command(binary).CombinedOutput(); err != nil {
-		t.Fatalf("native modal check: %v\n%s", err, output)
+	if strings.Contains(string(source), `import "C"`) {
+		t.Fatal("macOS modal blocking must not override native window activation through cgo")
+	}
+	if _, err := os.Stat("modal_darwin.m"); !os.IsNotExist(err) {
+		t.Fatal("macOS modal activation workaround must be removed")
 	}
 }
