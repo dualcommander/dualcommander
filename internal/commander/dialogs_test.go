@@ -22,6 +22,30 @@ type modalParentWindow struct {
 	nativeCalls int
 }
 
+func TestSettingsAndAboutBlockParent(t *testing.T) {
+	for _, settings := range []bool{true, false} {
+		root := fixture(t)
+		u := newTestUI(t, test.NewTempApp(t), filepath.Join(root, "src"), filepath.Join(root, "dst"))
+		if settings {
+			u.settings()
+		} else {
+			u.about()
+		}
+		w := u.passwordWindow
+		if w == nil || w == u.win || u.win.Canvas().Overlays().Top() == nil {
+			t.Fatal("decorated information/settings window left parent interactive")
+		}
+		press(u, fyne.KeyF7)
+		if u.passwordWindow != w {
+			t.Fatal("parent shortcut opened another dialog")
+		}
+		w.Close()
+		if u.passwordWindow != nil || u.win.Canvas().Overlays().Top() != nil {
+			t.Fatal("close left parent blocked")
+		}
+	}
+}
+
 func (w *modalParentWindow) RunNative(callback func(any)) {
 	w.nativeCalls++
 	callback(driver.UnknownContext{})

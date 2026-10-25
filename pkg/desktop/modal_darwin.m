@@ -30,7 +30,8 @@ void setWindowBlocked(unsigned long handle, int blocked) {
             [guardedClasses addObject:name];
         }
         objc_setAssociatedObject(window, &blockedKey, @(blocked != 0), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-        window.ignoresMouseEvents = blocked != 0;
+        // Keep hit testing enabled: ignoring events sends clicks to other apps.
+        window.ignoresMouseEvents = NO;
         if (blocked && window.keyWindow) [window resignKeyWindow];
         if (blocked && window.mainWindow) [window resignMainWindow];
     });

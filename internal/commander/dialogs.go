@@ -83,6 +83,9 @@ func (b *busyBlocker) Scrolled(*fyne.ScrollEvent)       {}
 
 // blockParent also covers native panels while their worker waits for AppKit.
 func (u *ui) blockParent(w fyne.Window) func() {
+	if modal, ok := w.(*modalWindow); ok {
+		w = modal.Window
+	}
 	previous := u.passwordWindow
 	u.passwordWindow = w
 	u.blockNativeParent(true)
@@ -108,10 +111,12 @@ func (u *ui) blockParent(w fyne.Window) func() {
 			}
 		}
 	}
-	for _, child := range menu.Items {
-		disable(child)
+	if menu != nil {
+		for _, child := range menu.Items {
+			disable(child)
+		}
+		menu.Refresh()
 	}
-	menu.Refresh()
 	closed := false
 	return func() {
 		if closed {
@@ -122,14 +127,18 @@ func (u *ui) blockParent(w fyne.Window) func() {
 		for _, item := range disabled {
 			item.Disabled = false
 		}
-		menu.Refresh()
+		if menu != nil {
+			menu.Refresh()
+		}
 		u.passwordWindow = previous
 		if previous != nil {
 			previous.RequestFocus()
 		} else {
 			u.blockNativeParent(false)
 			u.win.RequestFocus()
-			u.activate(u.active)
+			if u.active != nil {
+				u.activate(u.active)
+			}
 		}
 	}
 }
@@ -184,20 +193,60 @@ func (u *ui) inputDialogWindow(title string) fyne.Window {
 	w.SetTitle(title)
 	w.CenterOnScreen()
 	w.Canvas().SetOnTypedKey(func(e *fyne.KeyEvent) { escapeWindow(w)(e) })
-	w.SetOnClosed(func() { u.win.RequestFocus(); u.activate(u.active) })
 	return w
 }
 
 func (u *ui) dialogWindow(title string) fyne.Window {
-	w := u.app.NewWindow(title)
+	w := &modalWindow{Window: u.app.NewWindow(title), ui: u}
+	w.Window.SetOnClosed(func() {
+		if w.unblock != nil {
+			w.unblock()
+			w.unblock = nil
+		}
+		if w.closed != nil {
+			w.closed()
+		}
+	})
 	w.CenterOnScreen()
 	w.Canvas().SetOnTypedKey(func(e *fyne.KeyEvent) {
 		if e.Name == fyne.KeyEscape {
 			w.Close()
 		}
 	})
-	w.SetOnClosed(func() { u.win.RequestFocus(); u.activate(u.active) })
 	return w
+}
+
+// modalWindow applies native relationships after Show creates the native handle.
+// Existing workflow-specific cancellation callbacks remain independent of blocking.
+type modalWindow struct {
+	fyne.Window
+	ui      *ui
+	unblock func()
+	closed  func()
+}
+
+func (w *modalWindow) SetOnClosed(closed func()) { w.closed = closed }
+
+func (w *modalWindow) Hide() {
+	w.Window.Hide()
+	if w.unblock != nil {
+		w.unblock()
+		w.unblock = nil
+	}
+}
+
+func (w *modalWindow) Show() {
+	if w.ui.passwordWindow == nil {
+		w.unblock = w.ui.blockParent(w)
+	}
+	w.Window.Show()
+	parent, parentOK := w.ui.win.(driver.NativeWindow)
+	child, childOK := w.Window.(driver.NativeWindow)
+	if parentOK && childOK {
+		parent.RunNative(func(parentContext any) {
+			child.RunNative(func(childContext any) { native.SetModalParent(parentContext, childContext) })
+		})
+	}
 }
 
 func escapeWindow(w fyne.Window) func(*fyne.KeyEvent) bool {

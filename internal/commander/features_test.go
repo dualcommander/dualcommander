@@ -513,7 +513,7 @@ func TestSearchEscCloses(t *testing.T) {
 	root := fixture(t)
 	u := newTestUI(t, test.NewTempApp(t), root, root)
 	var f *finder
-	open := func() bool { return slices.Contains(u.app.Driver().AllWindows(), f.win) }
+	open := func() bool { return hasWindow(u.app, f.win.Title()) }
 	esc := &fyne.KeyEvent{Name: fyne.KeyEscape}
 	f = u.search()
 	test.Type(f.glob, "x")

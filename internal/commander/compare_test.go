@@ -60,6 +60,10 @@ func TestComparisonSettingsAndCommands(t *testing.T) {
 	u.right.cd(u.left.path, "song.mp3")
 	cursorTo(t, u.left, "readme.md")
 	cursorTo(t, u.right, "song.mp3")
+	if !u.compareFilesItem.Disabled || !u.compareFoldersItem.Disabled {
+		t.Fatal("Settings must keep parent comparison actions blocked")
+	}
+	w.Close()
 	if u.compareFilesItem.Disabled || !u.compareFoldersItem.Disabled {
 		t.Fatal("file selection must enable only file comparison")
 	}
@@ -68,7 +72,6 @@ func TestComparisonSettingsAndCommands(t *testing.T) {
 		t.Fatal("blank must disable only its action")
 	}
 	fields["Compare files"].SetText(command)
-	w.Close()
 	if err := store.close(); err != nil {
 		t.Fatal(err)
 	}

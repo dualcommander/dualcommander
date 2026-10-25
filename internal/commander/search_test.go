@@ -48,7 +48,7 @@ func TestFindFileNameWorkflow(t *testing.T) {
 	root := fixture(t)
 	u := newTestUI(t, test.NewTempApp(t), root, root)
 	f := u.search()
-	if u.passwordWindow != f.win || u.win.Canvas().Overlays().Top() == nil {
+	if u.passwordWindow.Canvas() != f.win.Canvas() || u.win.Canvas().Overlays().Top() == nil {
 		t.Fatal("parent not blocked")
 	}
 	f.glob.SetText("READ")

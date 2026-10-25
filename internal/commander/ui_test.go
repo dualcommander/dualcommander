@@ -114,8 +114,8 @@ func TestExternalCommandsSettings(t *testing.T) {
 	u.settings()
 	w := windowByTitle(t, a, "Settings")
 	u.settings()
-	if windowByTitle(t, a, "Settings") != w || u.win.Canvas().Overlays().Top() != nil {
-		t.Fatal("settings must reuse its own window, not an overlay")
+	if windowByTitle(t, a, "Settings") != w || u.win.Canvas().Overlays().Top() == nil {
+		t.Fatal("settings must reuse its decorated window and block parent input")
 	}
 	entries := []*escEntry{}
 	labels := []string{}
@@ -645,8 +645,8 @@ func TestAppBranding(t *testing.T) {
 	help.Items[0].Action()
 	w := windowByTitle(t, a, "About DualCommander")
 	help.Items[0].Action()
-	if windowByTitle(t, a, "About DualCommander") != w || u.win.Canvas().Overlays().Top() != nil {
-		t.Fatal("About must reuse its own window, not an overlay")
+	if windowByTitle(t, a, "About DualCommander") != w || u.win.Canvas().Overlays().Top() == nil {
+		t.Fatal("About must reuse its decorated window and block parent input")
 	}
 	var website *dialogButton
 	labels := []string{}

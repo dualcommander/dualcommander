@@ -27,7 +27,7 @@ int main(void) {
             setWindowBlocked((unsigned long)parent, 1);
             drain();
             assert(!parent.canBecomeKeyWindow && !parent.canBecomeMainWindow);
-            assert(parent.ignoresMouseEvents);
+            assert(!parent.ignoresMouseEvents); // Blocked windows must absorb clicks, not expose apps underneath.
             assert(other.canBecomeKeyWindow && other.canBecomeMainWindow);
             assert(!other.ignoresMouseEvents);
             setWindowBlocked((unsigned long)parent, 0);

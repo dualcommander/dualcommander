@@ -557,7 +557,11 @@ func (u *ui) toggleHidden() {
 	if u.passwordWindow != nil {
 		return
 	}
-	u.showHidden = !u.showHidden
+	u.setHidden(!u.showHidden)
+}
+
+func (u *ui) setHidden(hidden bool) {
+	u.showHidden = hidden
 	u.left.refresh()
 	u.right.refresh()
 	u.updateViewMenu()

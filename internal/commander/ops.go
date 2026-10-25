@@ -274,7 +274,7 @@ func (u *ui) settings() {
 	hidden.Checked = u.showHidden
 	hidden.OnChanged = func(b bool) {
 		if b != u.showHidden {
-			u.toggleHidden()
+			u.setHidden(b)
 		}
 	}
 	hidden.ExtendBaseWidget(hidden)

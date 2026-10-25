@@ -11,6 +11,8 @@ Always also follow `dualcommander-guidelines` and `test-every-change`.
 - Every modal dialog must use a separate OS-decorated window with the native title bar and close button. No borderless/splash windows, drawn close buttons, or in-canvas dialogs as substitutes.
 - Reuse `ui.dialogWindow`, `escapeWindow`, `newEscEntry`, and `windowButton` from existing commander dialog helpers. Extend shared helpers only when needed; do not duplicate dialog infrastructure.
 - Keep the parent blocked while the dialog is open, including pane keys, mouse actions, menus, and shortcuts. An overlay may block parent input, but dialog controls must remain in the decorated window.
+- Apply blocking centrally to every modal workflow, including Settings/About. Prevent native parent activation too: use Windows activation guards and Linux X11 transient-parent/modal hints; document unsupported backends such as Wayland explicitly. Never set macOS `ignoresMouseEvents` to block a parent: clicks must be absorbed, not passed to applications underneath.
+- Release blockers on both hide and close, including cached input windows; restore them when shown again. Keep native window identity consistent through wrappers. Dialog controls may update their own settings while parent actions remain blocked.
 - Escape must close the dialog regardless of focused control: text/password entry, button, checkbox, list, or other focusable widget. A canvas key handler alone is insufficient in Fyne.
 
 ## Close means cancel
