@@ -41,6 +41,7 @@ func settingsValues(p fyne.Preferences) map[string]any {
 		prefLeftSort: p.String(prefLeftSort), prefRightSort: p.String(prefRightSort),
 		prefActive: p.StringWithFallback(prefActive, "left"),
 		prefTheme:  p.StringWithFallback(prefTheme, "system"),
+		"language": p.String("language"),
 		prefHidden: p.Bool(prefHidden), prefDensity: p.StringWithFallback(prefDensity, "standard"),
 		prefFontSize:       p.StringWithFallback(prefFontSize, "medium"),
 		prefTrash:          p.BoolWithFallback(prefTrash, true),
@@ -69,7 +70,8 @@ var stateFields = map[string][]string{
 }
 
 var settingsFields = map[string][]string{
-	prefTheme: {"appearance", "theme"}, prefDensity: {"appearance", "density"},
+	"language": {"appearance", "language"},
+	prefTheme:  {"appearance", "theme"}, prefDensity: {"appearance", "density"},
 	prefFontSize:  {"appearance", "fontSize"},
 	prefLeftBrief: {"views", "left", "brief"}, prefRightBrief: {"views", "right", "brief"},
 	prefHidden:            {"views", "showHidden"},
@@ -209,6 +211,9 @@ func openSettingsFile(p fyne.Preferences, path string, onError func(error)) (*se
 			}
 			if key == prefActive && *target.(*string) != "left" && *target.(*string) != "right" {
 				return nil, fmt.Errorf("invalid active pane: expected left or right")
+			}
+			if key == "language" && !slices.Contains(languageCodes, *target.(*string)) {
+				return nil, fmt.Errorf("unsupported language: %q", *target.(*string))
 			}
 			if v, ok := target.(*float64); ok && (*v <= 0 || *v > 100000) {
 				return nil, fmt.Errorf("invalid setting %q: window size must be between 0 and 100000", key)

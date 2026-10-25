@@ -136,7 +136,11 @@ func (u *ui) mainMenu() *fyne.MainMenu {
 				it.Shortcut = &fyne.ShortcutSelectAll{}
 			}
 			it.Action = func() {
-				if text, ok := u.win.Canvas().Focused().(interface {
+				window := u.win
+				if u.passwordWindow != nil {
+					window = u.passwordWindow
+				}
+				if text, ok := window.Canvas().Focused().(interface {
 					fyne.Shortcutable
 					SelectedText() string
 				}); ok {
@@ -180,8 +184,16 @@ func (u *ui) mainMenu() *fyne.MainMenu {
 	u.fontItems = fontItems
 	u.starredItem = fyne.NewMenuItem(lang.L("Starred"), nil)
 	u.updateStarredMenu()
-	u.compareFilesItem = item(lang.L("Compare Files"), "", 0, func() { u.compare(false) })
-	u.compareFoldersItem = item(lang.L("Compare Folder Contents"), "", 0, func() { u.compare(true) })
+	u.compareFilesItem = item(lang.L("Compare Files"), fyne.KeyD, mod|fyne.KeyModifierAlt, func() {
+		if !u.compareFilesItem.Disabled {
+			u.compare(false)
+		}
+	})
+	u.compareFoldersItem = item(lang.L("Compare Folder Contents"), fyne.KeyD, mod|fyne.KeyModifierAlt|fyne.KeyModifierShift, func() {
+		if !u.compareFoldersItem.Disabled {
+			u.compare(true)
+		}
+	})
 	u.updateCompareMenu()
 	aboutLabel := lang.L("About {{.App}}", map[string]any{"App": appName})
 	if runtime.GOOS == "darwin" {

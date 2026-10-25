@@ -19,6 +19,9 @@ jobs:
           - runner: ubuntu-22.04
             os: linux
             arch: amd64
+          - runner: ubuntu-22.04-arm
+            os: linux
+            arch: arm64
           - runner: macos-14
             os: darwin
             arch: arm64
@@ -28,6 +31,9 @@ jobs:
           - runner: windows-latest
             os: windows
             arch: amd64
+          - runner: windows-11-arm
+            os: windows
+            arch: arm64
     runs-on: ${{ matrix.runner }}
     # Configure release-signing with required reviewers and v* tag-only deployments.
     environment: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && ((matrix.os == 'darwin' && vars.MACOS_SIGNING_ENABLED == 'true') || (matrix.os == 'windows' && vars.WINDOWS_SIGNING_ENABLED == 'true')) && 'release-signing' || 'unsigned-build' }}
@@ -50,28 +56,52 @@ jobs:
           sh scripts/version_test.sh
           sh scripts/install-packager_test.sh
           python3 scripts/signing_test.py
+          python3 scripts/linux_arch_test.py
+          python3 scripts/package-snap_test.py
           python3 .devcontainer/cline-profile.py --self-test
       - name: Install Linux development libraries
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y gcc libgl1-mesa-dev xorg-dev libxkbcommon-dev libwayland-dev wayland-protocols rpm cpio desktop-file-utils xz-utils
       - name: Install Windows C compiler
         if: runner.os == 'Windows'
+        id: msys2
         uses: msys2/setup-msys2@v2
         with:
-          install: mingw-w64-x86_64-gcc
+          msystem: ${{ matrix.arch == 'arm64' && 'CLANGARM64' || 'MINGW64' }}
+          install: ${{ matrix.arch == 'arm64' && 'mingw-w64-clang-aarch64-clang' || 'mingw-w64-x86_64-gcc' }}
           update: true
       - name: Configure Windows C compiler
         if: runner.os == 'Windows'
         shell: pwsh
-        run: '"C:\msys64\mingw64\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append'
+        env:
+          MSYS2_LOCATION: ${{ steps.msys2.outputs.msys2-location }}
+          TARGET_ARCH: ${{ matrix.arch }}
+        run: |
+          if ($env:TARGET_ARCH -eq 'arm64') {
+            "$env:MSYS2_LOCATION\clangarm64\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+            "CC=clang" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+            "CXX=clang++" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          } else {
+            "$env:MSYS2_LOCATION\mingw64\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          }
       - name: Install packager
         shell: bash
         run: sh scripts/install-packager.sh
       - name: Check native OS workflows
         shell: bash
+        env:
+          TARGET_OS: ${{ matrix.os }}
+          TARGET_ARCH: ${{ matrix.arch }}
         run: |
+          test "$(go env GOOS)" = "$TARGET_OS"
+          test "$(go env GOARCH)" = "$TARGET_ARCH"
           go vet -tags ci ./...
-          go test -tags ci -race -count=1 ./...
+          # Go's race detector does not support windows/arm64.
+          if [ "$TARGET_OS/$TARGET_ARCH" = windows/arm64 ]; then
+            go test -tags ci -count=1 ./...
+          else
+            go test -tags ci -race -count=1 ./...
+          fi
       - name: Package native app
         working-directory: cmd/dualcommander
         shell: bash
@@ -110,6 +140,11 @@ jobs:
         run: |
           sh scripts/package-linux.sh
           sh scripts/package-linux_test.sh
+      - name: Build classic Snap package
+        if: runner.os == 'Linux'
+        run: |
+          sudo snap install snapcraft --classic
+          sudo env "PATH=$PATH" make package-snap SNAPCRAFT_ARGS=--destructive-mode
       - name: Upload unsigned Windows app for SignPath
         if: env.SIGN_WINDOWS == 'true'
         id: unsigned-windows

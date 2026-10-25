@@ -10,11 +10,66 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/driver"
 	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/test"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 )
+
+type modalParentWindow struct {
+	fyne.Window
+	nativeCalls int
+}
+
+func (w *modalParentWindow) RunNative(callback func(any)) {
+	w.nativeCalls++
+	callback(driver.UnknownContext{})
+}
+
+func TestModalParentAndTextShortcuts(t *testing.T) {
+	for _, close := range []string{"escape", "cancel", "native close"} {
+		t.Run(close, func(t *testing.T) {
+			root := fixture(t)
+			u := newTestUI(t, test.NewTempApp(t), filepath.Join(root, "src"), filepath.Join(root, "dst"))
+			parent := &modalParentWindow{Window: u.win}
+			u.win = parent
+			u.mkdir()
+			w := windowByTitle(t, u.app, "New directory")
+			e := w.Canvas().Focused().(*escEntry)
+			test.Type(e, "do-not-create")
+			if u.win.MainMenu().Items[1].Items[0].Disabled {
+				t.Error("native Select All menu disabled while editing dialog text")
+			}
+			u.win.MainMenu().Items[1].Items[0].Action() // Native menus dispatch through main window.
+			if e.SelectedText() != e.Text || len(u.left.marked) != 0 || len(u.right.marked) != 0 {
+				t.Error("Select All must select dialog text, not pane files")
+			}
+			if parent.nativeCalls == 0 {
+				t.Error("modal did not block native parent activation")
+			}
+			calls := parent.nativeCalls
+			press(u, fyne.KeyF7)
+			if u.passwordWindow != u.inputWindow {
+				t.Fatal("parent shortcut replaced modal")
+			}
+			switch close {
+			case "escape":
+				e.TypedKey(&fyne.KeyEvent{Name: fyne.KeyEscape})
+			case "cancel":
+				tapDialogButton(t, u, "Cancel")
+			case "native close":
+				u.inputWindow.Window.Close()
+			}
+			if parent.nativeCalls <= calls || u.passwordWindow != nil || u.win.Canvas().Focused() != u.active.focusable() {
+				t.Error("close did not restore native parent and pane focus")
+			}
+			if exists(filepath.Join(u.left.path, "do-not-create")) {
+				t.Error("closing modal confirmed operation")
+			}
+		})
+	}
+}
 
 type inputReadyApp struct {
 	fyne.App

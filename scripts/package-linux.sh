@@ -5,6 +5,7 @@ cd "$(dirname "$0")/.."
 arch=$(go env GOARCH)
 case "$arch" in
     amd64) rpm_arch=x86_64 ;;
+    arm64) rpm_arch=aarch64 ;;
     *) echo "Unsupported package architecture: $arch" >&2; exit 1 ;;
 esac
 version=$(sh scripts/version.sh)

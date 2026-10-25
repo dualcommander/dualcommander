@@ -71,6 +71,9 @@ func TestSettingsCommandArrayValidation(t *testing.T) {
 		t.Fatalf("command fields: got %d want %d", len(fields), len(keys))
 	}
 	for i, e := range fields {
+		w.Canvas().Focus(e)
+		var reportedError error
+		e.SetOnValidationChanged(func(err error) { reportedError = err })
 		valid := `["tool","{left}","{right}","argument with spaces",""]`
 		e.SetText(valid)
 		if err := e.Validate(); err != nil || a.Preferences().String(keys[i]) != valid {
@@ -83,6 +86,9 @@ func TestSettingsCommandArrayValidation(t *testing.T) {
 			`["tool"] trailing`, `["tool","\u0000"]`,
 		} {
 			e.SetText(invalid)
+			if reportedError == nil {
+				t.Errorf("%s: focused invalid input still has OK validation state: %s", keys[i], invalid)
+			}
 			if e.Validate() == nil {
 				t.Errorf("%s: accepted invalid command %s", keys[i], invalid)
 			}
@@ -90,6 +96,9 @@ func TestSettingsCommandArrayValidation(t *testing.T) {
 				t.Errorf("%s: invalid command replaced saved value: %s", keys[i], invalid)
 			}
 			e.SetText(valid)
+			if reportedError != nil {
+				t.Errorf("%s: corrected input retains validation error: %v", keys[i], reportedError)
+			}
 		}
 		e.SetText(" ")
 		if err := e.Validate(); err != nil || a.Preferences().String(keys[i]) != " " {
@@ -325,7 +334,7 @@ func TestAppearanceSettings(t *testing.T) {
 			choices = append(choices, s)
 		}
 	}
-	if len(choices) != 5 {
+	if len(choices) != 6 {
 		t.Fatalf("appearance controls: %d", len(choices))
 	}
 	for i, group := range []struct {
@@ -375,7 +384,7 @@ func TestAppearanceSettings(t *testing.T) {
 			restored = append(restored, s.Selected)
 		}
 	}
-	if !slices.Equal(restored, []string{"dark", "compact", "large", "Detailed", "Brief"}) || u.themeMode != "dark" || u.density != "compact" || u.fontSize != "large" {
+	if !slices.Equal(restored, []string{"dark", "compact", "large", "System", "Detailed", "Brief"}) || u.themeMode != "dark" || u.density != "compact" || u.fontSize != "large" {
 		t.Fatalf("appearance preferences not restored: %v", restored)
 	}
 	w.Close()
@@ -392,7 +401,7 @@ func TestSettingsDropdownAlternatives(t *testing.T) {
 			choices = append(choices, s)
 		}
 	}
-	if len(choices) != 5 {
+	if len(choices) != 6 {
 		t.Fatal("settings choices missing")
 	}
 	for _, s := range choices {

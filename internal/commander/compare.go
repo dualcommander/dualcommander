@@ -7,18 +7,28 @@ import (
 	"path/filepath"
 	"strings"
 
-	"fyne.io/fyne/v2"
 	"github.com/dualcommander/dualcommander/pkg/desktop"
 )
+
+func (u *ui) comparisonSelected(folders bool) bool {
+	for _, p := range []*pane{u.left, u.right} {
+		e := p.current()
+		if p.inArchive() || e.name == "" || e.name == ".." || e.dir != folders {
+			return false
+		}
+	}
+	return true
+}
 
 func (u *ui) updateCompareMenu() {
 	if u.compareFilesItem == nil {
 		return
 	}
-	for key, item := range map[string]*fyne.MenuItem{
-		prefCompareFilesCmd: u.compareFilesItem, prefCompareFoldersCmd: u.compareFoldersItem,
-	} {
-		item.Disabled = u.passwordWindow != nil || strings.TrimSpace(u.app.Preferences().String(key)) == ""
+	filesDisabled, foldersDisabled := u.compareFilesItem.Disabled, u.compareFoldersItem.Disabled
+	u.compareFilesItem.Disabled = u.passwordWindow != nil || !u.comparisonSelected(false) || strings.TrimSpace(u.app.Preferences().String(prefCompareFilesCmd)) == ""
+	u.compareFoldersItem.Disabled = u.passwordWindow != nil || !u.comparisonSelected(true) || strings.TrimSpace(u.app.Preferences().String(prefCompareFoldersCmd)) == ""
+	if (filesDisabled != u.compareFilesItem.Disabled || foldersDisabled != u.compareFoldersItem.Disabled) && u.win.MainMenu() != nil {
+		u.win.MainMenu().Refresh()
 	}
 }
 
@@ -30,16 +40,15 @@ func (u *ui) comparisonCommand(folders bool) (*exec.Cmd, error) {
 	left, right := u.left.path, u.right.path
 	if folders {
 		key = prefCompareFoldersCmd
-	} else {
-		for _, p := range []*pane{u.left, u.right} {
-			e := p.current()
-			if e.name == "" || e.name == ".." || e.dir {
-				return nil, fmt.Errorf(lang.L("select one file under the cursor in each pane"))
-			}
-		}
-		left = filepath.Join(left, u.left.current().name)
-		right = filepath.Join(right, u.right.current().name)
 	}
+	if !u.comparisonSelected(folders) {
+		if folders {
+			return nil, fmt.Errorf(lang.L("select one folder under the cursor in each pane"))
+		}
+		return nil, fmt.Errorf(lang.L("select one file under the cursor in each pane"))
+	}
+	left = filepath.Join(left, u.left.current().name)
+	right = filepath.Join(right, u.right.current().name)
 	command := u.app.Preferences().String(key)
 	if strings.TrimSpace(command) == "" {
 		return nil, fmt.Errorf(lang.L("configure comparison command in Settings > External applications"))

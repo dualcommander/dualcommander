@@ -590,6 +590,7 @@ func (p *pane) selection() []string {
 }
 
 func (p *pane) updateStatus() {
+	p.ui.updateCompareMenu()
 	p.statusRow.Hide()
 	p.status.Show()
 	if p.searchPrefix != "" {

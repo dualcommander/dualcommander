@@ -18,6 +18,7 @@ import (
 	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
+	"github.com/dualcommander/dualcommander/pkg/archive"
 )
 
 // searchCmd picks native tooling: ripgrep if installed (fastest), else OS tools.
@@ -76,6 +77,7 @@ type finder struct {
 	mode             string
 	caseSensitive    *searchOption
 	regexp, globMode *searchOption
+	archives         *dialogCheck
 	win              fyne.Window
 	list             *dialogList
 	status           *widget.Label
@@ -192,6 +194,16 @@ func (u *ui) search() *finder {
 	f.caseSensitive = option("Aa", lang.L("Match case"), lang.L("Match case: distinguish uppercase and lowercase file names."))
 	f.regexp = option(".*", lang.L("Regular expression"), lang.L("Regular expression: match file names using Go regexp syntax."))
 	f.globMode = option("*", lang.L("Wildcard"), lang.L("Wildcard: match whole file names with * and ?."))
+	f.archives = &dialogCheck{close: w.Close}
+	f.archives.Text = lang.L("Search in archives")
+	f.archives.ExtendBaseWidget(f.archives)
+	f.archives.OnChanged = func(enabled bool) {
+		if enabled {
+			f.text.Disable()
+		} else {
+			f.text.Enable()
+		}
+	}
 	setMode := func(b, other *searchOption, mode string) {
 		b.hint.Hide()
 		b.SetChecked(!b.Checked)
@@ -209,6 +221,15 @@ func (u *ui) search() *finder {
 			return
 		}
 		r := f.results[selected]
+		if root, _ := archive.Root(r); root != "" && root != r {
+			w.Close()
+			if strings.HasPrefix(filepath.Base(r), ".") && !u.showHidden {
+				u.toggleHidden()
+			}
+			p.navigate(filepath.Dir(r), filepath.Base(r))
+			u.activate(p)
+			return
+		}
 		if err := p.cd(filepath.Dir(r), filepath.Base(r)); err != nil {
 			f.status.SetText(err.Error())
 			return
@@ -264,7 +285,8 @@ func (u *ui) search() *finder {
 		f.list.UnselectAll()
 		f.list.Refresh()
 		args := searchCmd(runtime.GOOS, rgErr == nil, root, f.text.Text, "")
-		content := f.text.Text != ""
+		includeArchives := f.archives.Checked
+		content := f.text.Text != "" && !includeArchives
 		finished := make(chan struct{})
 		f.workerDone = finished
 		f.status.SetText(lang.L("Searching…"))
@@ -287,6 +309,7 @@ func (u *ui) search() *finder {
 					}
 				})
 			} else if err == nil {
+				var archiveErr error
 				err = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 					if ctx.Err() != nil {
 						return ctx.Err()
@@ -297,8 +320,18 @@ func (u *ui) search() *finder {
 					if path != root && match(d.Name()) {
 						results = append(results, path)
 					}
+					if includeArchives && d.Type().IsRegular() && archive.Supported(path) {
+						if err := searchArchiveNames(ctx, path, match, func(member string) {
+							results = append(results, member)
+						}); err != nil && archiveErr == nil {
+							archiveErr = fmt.Errorf("%s: %w", path, err)
+						}
+					}
 					return nil
 				})
+				if err == nil {
+					err = archiveErr
+				}
 			}
 			post(func() {
 				if ctx.Err() != nil {
@@ -324,6 +357,7 @@ func (u *ui) search() *finder {
 	}
 	nameRow := container.NewBorder(nil, nil, nil, container.NewHBox(f.caseSensitive, f.regexp, f.globMode), f.glob)
 	form := widget.NewForm(widget.NewFormItem(lang.L("In:"), f.dir), widget.NewFormItem(lang.L("File name"), nameRow), widget.NewFormItem(lang.L("Containing text"), f.text))
+	form.Append("", f.archives)
 	search := windowButton(w, lang.L("Search"), func() { start("") })
 	buttons := dialogButtons(w, 0, search, goTo, windowButton(w, lang.L("Cancel"), w.Close))
 	footer := container.NewVBox(container.NewBorder(nil, nil, nil, buttons, f.status), container.New(operationTrackLayout{}, f.activity))
@@ -342,6 +376,43 @@ func (u *ui) search() *finder {
 	w.Show()
 	w.Canvas().Focus(f.text)
 	return f
+}
+
+func searchArchiveNames(ctx context.Context, name string, match func(string) bool, emit func(string)) error {
+	f, err := archive.Open(ctx, name)
+	if err != nil {
+		return err
+	}
+	// ponytail: search one archive level; nested archives require bounded indexing first.
+	var walk func(string) error
+	walk = func(dir string) error {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		entries, err := archive.ReadDir(f, dir)
+		if err != nil {
+			return err
+		}
+		for _, entry := range entries {
+			if err := ctx.Err(); err != nil {
+				return err
+			}
+			member := entry.Name()
+			if dir != "." {
+				member = dir + "/" + member
+			}
+			if match(entry.Name()) {
+				emit(filepath.Join(name, filepath.FromSlash(member)))
+			}
+			if entry.IsDir() {
+				if err := walk(member); err != nil {
+					return err
+				}
+			}
+		}
+		return nil
+	}
+	return walk(".")
 }
 
 type searchResultsTheme struct{ fyne.Theme }

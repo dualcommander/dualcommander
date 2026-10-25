@@ -30,7 +30,7 @@ func (u *ui) archivePassword(ctx context.Context, name string, retry bool) (stri
 			return
 		}
 		w := u.dialogWindow(lang.L("Archive password"))
-		u.passwordWindow = w
+		unblock := u.blockParent(w)
 		e := newEscEntry()
 		e.Password = true
 		e.esc = escapeWindow(w)
@@ -40,40 +40,10 @@ func (u *ui) archivePassword(ctx context.Context, name string, retry bool) (stri
 		}
 		label := widget.NewLabel(message)
 		label.Wrapping = fyne.TextWrapWord
-		// Fyne has no decorated modal-window API. Its modal overlay blocks parent input;
-		// password controls live in a separate OS-decorated window, not an in-canvas dialog.
-		block := widget.NewModalPopUp(widget.NewLabel(lang.L("Waiting for archive password…")), u.win.Canvas())
-		block.Show()
-		u.win.Canvas().Unfocus()
-		menu := u.win.MainMenu()
-		var disabled []*fyne.MenuItem
-		var disable func(*fyne.Menu)
-		disable = func(menu *fyne.Menu) {
-			for _, item := range menu.Items {
-				if item.ChildMenu != nil {
-					disable(item.ChildMenu)
-				}
-				if !item.Disabled {
-					item.Disabled = true
-					disabled = append(disabled, item)
-				}
-			}
-		}
-		for _, child := range menu.Items {
-			disable(child)
-		}
-		menu.Refresh()
 		value := answer{}
 		w.SetOnClosed(func() {
 			e.SetText("")
-			block.Hide()
-			for _, item := range disabled {
-				item.Disabled = false
-			}
-			menu.Refresh()
-			u.passwordWindow = nil
-			u.win.RequestFocus()
-			u.activate(u.active)
+			unblock()
 			result <- value
 		})
 		closeWindow = w.Close

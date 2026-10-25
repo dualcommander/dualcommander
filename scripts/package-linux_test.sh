@@ -1,12 +1,18 @@
 #!/bin/sh
 set -eu
 cd "$(dirname "$0")/.."
-deb=dist/dualcommander-linux-amd64.deb
-rpm=dist/dualcommander-linux-amd64.rpm
+arch=$(go env GOARCH)
+case "$arch" in
+    amd64) rpm_arch=x86_64 ;;
+    arm64) rpm_arch=aarch64 ;;
+    *) echo "Unsupported package architecture: $arch" >&2; exit 1 ;;
+esac
+deb=dist/dualcommander-linux-$arch.deb
+rpm=dist/dualcommander-linux-$arch.rpm
 [ "$(dpkg-deb -f "$deb" Package)" = dualcommander ]
-[ "$(dpkg-deb -f "$deb" Architecture)" = amd64 ]
+[ "$(dpkg-deb -f "$deb" Architecture)" = "$arch" ]
 [ "$(rpm -qp --qf '%{NAME}' "$rpm")" = dualcommander ]
-[ "$(rpm -qp --qf '%{ARCH}' "$rpm")" = x86_64 ]
+[ "$(rpm -qp --qf '%{ARCH}' "$rpm")" = "$rpm_arch" ]
 [ "$(dpkg-deb -f "$deb" Version)" = "$(rpm -qp --qf '%{VERSION}-%{RELEASE}' "$rpm")" ]
 glibc_version=$(getconf GNU_LIBC_VERSION)
 glibc_version=${glibc_version#glibc }

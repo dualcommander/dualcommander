@@ -1,0 +1,36 @@
+name: dualcommander
+base: core22
+version: '0.0.0'
+summary: Keyboard-friendly two-pane file manager
+description: |
+  Browse folders side by side, manage files and archives, and launch external
+  editors and comparison tools with DualCommander.
+grade: stable
+confinement: classic
+license: MIT
+icon: payload/meta/gui/dualcommander.png
+
+apps:
+  dualcommander:
+    command: bin/dualcommander
+    desktop: meta/gui/dualcommander.desktop
+
+parts:
+  dualcommander:
+    plugin: dump
+    source: payload
+    build-attributes: [enable-patchelf]
+    stage-packages:
+      - libgl1
+      - libegl1
+      - libgl1-mesa-dri
+      - libx11-6
+      - libxcursor1
+      - libxrandr2
+      - libxinerama1
+      - libxi6
+      - libxxf86vm1
+      - libxkbcommon0
+      - libwayland-client0
+      - libwayland-cursor0
+      - libwayland-egl1

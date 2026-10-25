@@ -18,14 +18,18 @@ make check     # check formatting, vet, helper scripts, and uncached race tests
 ```
 
 Use `make fmt-check`, `make vet`, or `make test` for individual checks.
+On Linux, `make package-snap` packages the existing
+`cmd/dualcommander/DualCommander.tar.xz` using Snapcraft (classic confinement).
+CI builds it natively on amd64 and arm64; `.snap` files ship with other release assets.
 Add regression tests for changes; keep blocking work off the UI thread.
 See [development guidelines](.clinerules/skills/dualcommander-guidelines/SKILL.md).
 
 ## CI and tagging
 
 [GitHub Actions](.github/workflows/build.yml) runs on pushes, pull requests, and
-manual dispatch. It vets, tests with race detection, and packages Linux amd64,
-Windows amd64, and macOS arm64/amd64 apps. Successful builds upload artifacts.
+manual dispatch. It vets, tests, and packages Linux, Windows, and macOS apps for
+amd64 and arm64. Race detection runs except on Windows arm64, where Go does not
+support it. Successful builds upload artifacts.
 
 Maintainers publish releases by tagging the intended commit with a semantic
 version such as `v1.2.3` and pushing that tag:

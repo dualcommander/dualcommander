@@ -238,6 +238,23 @@ func (u *ui) settings() {
 		widget.NewFormItem(lang.L("Density"), choice(densities, u.density, u.setDensity)),
 		widget.NewFormItem(lang.L("Font size"), choice(fontSizes, u.fontSize, u.setFontSize)),
 	)
+	languageChoice := &dialogSelect{close: w.Close}
+	languageChoice.Options = slices.Clone(languageNames)
+	languageChoice.Options[0] = lang.L("System")
+	index := slices.Index(languageCodes, pr.String("language"))
+	if index < 0 {
+		index = 0
+	}
+	languageChoice.Selected = languageChoice.Options[index]
+	languageChoice.ExtendBaseWidget(languageChoice)
+	languageChoice.OnChanged = func(value string) {
+		if i := slices.Index(languageChoice.Options, value); i >= 0 {
+			pr.SetString("language", languageCodes[i])
+		}
+	}
+	languageItem := widget.NewFormItem(lang.L("Language"), languageChoice)
+	languageItem.HintText = lang.L("Restart DualCommander to apply language changes.")
+	appearance.AppendItem(languageItem)
 	viewChoice := func(p *pane) *dialogSelect {
 		selected := lang.L("Detailed")
 		if p.brief {
@@ -274,6 +291,7 @@ func (u *ui) settings() {
 	reveal, terminal := desktop.Defaults(runtime.GOOS)
 	commandEntry := func(key, fallback string) *escEntry {
 		e := newEscEntry()
+		e.AlwaysShowValidationError = true // Keep invalid focused input from showing a stale OK marker.
 		e.esc = escapeWindow(w)
 		e.SetPlaceHolder(fallback)
 		e.SetText(pr.String(key))
@@ -309,7 +327,7 @@ func (u *ui) settings() {
 	filesItem := widget.NewFormItem(lang.L("Compare files"), commandEntry(prefCompareFilesCmd, `["meld","{left}","{right}"]`))
 	filesItem.HintText = lang.L("Cursor file in each pane. Use {left} and {right}; blank disables comparison.")
 	foldersItem := widget.NewFormItem(lang.L("Compare folder contents"), commandEntry(prefCompareFoldersCmd, `["meld","{left}","{right}"]`))
-	foldersItem.HintText = lang.L("Current pane folders. Configure tool flags for recursive content comparison; blank disables.")
+	foldersItem.HintText = lang.L("Cursor folder in each pane. Configure tool flags for recursive content comparison; blank disables.")
 	content = u.dialogContent(container.NewVBox(
 		hint(lang.L("Changes are saved automatically. Invalid commands are not saved.")),
 		widget.NewSeparator(),

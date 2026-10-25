@@ -89,9 +89,11 @@ func TestFindFileNameWorkflow(t *testing.T) {
 
 func TestFindCancelRunning(t *testing.T) {
 	root := fixture(t)
+	archiveFixture(t, root)
 	u := newTestUI(t, test.NewTempApp(t), root, root)
 	for _, closeBy := range []string{"Escape", "Cancel", "native close"} {
 		f := u.search()
+		test.Tap(findArchiveSearchOption(t, f))
 		f.glob.SetText("read")
 		f.glob.TypedKey(&fyne.KeyEvent{Name: fyne.KeyReturn})
 		switch closeBy {
@@ -116,6 +118,101 @@ func TestFindCancelRunning(t *testing.T) {
 		if u.left.path != root || u.passwordWindow != nil || hasWindow(u.app, "Find Files") {
 			t.Fatal("cancel navigated or left parent blocked")
 		}
+	}
+}
+
+func findArchiveSearchOption(t *testing.T, f *finder) *dialogCheck {
+	t.Helper()
+	for _, object := range test.LaidOutObjects(f.win.Content()) {
+		if check, ok := object.(*dialogCheck); ok && check.Text == "Search in archives" {
+			return check
+		}
+	}
+	t.Fatal("missing Search in archives option")
+	return nil
+}
+
+func TestFindArchiveNames(t *testing.T) {
+	root := fixture(t)
+	name := archiveFixture(t, root)
+	u := newTestUI(t, test.NewTempApp(t), root, root)
+	f := u.search()
+	defer func() {
+		if hasWindow(u.app, "Find Files") {
+			f.win.Close()
+		}
+	}()
+	f.glob.SetText("readme")
+	f.glob.TypedKey(&fyne.KeyEvent{Name: fyne.KeyReturn})
+	waitUntil(t, func() bool { return f.done })
+	if !slices.Equal(f.results, []string{filepath.Join(root, "src", "readme.md")}) {
+		t.Fatalf("archive search must be opt-in: %v", f.results)
+	}
+	check := findArchiveSearchOption(t, f)
+	f.text.SetText("absent content")
+	test.Tap(check)
+	if !f.text.Disabled() {
+		t.Fatal("archive search must disable content entry")
+	}
+	f.glob.TypedKey(&fyne.KeyEvent{Name: fyne.KeyReturn})
+	waitUntil(t, func() bool { return f.done })
+	member := filepath.Join(name, "docs", "readme.txt")
+	if !slices.Contains(f.results, member) || !slices.Contains(f.results, filepath.Join(root, "src", "readme.md")) || len(f.results) != 2 {
+		t.Fatalf("search must ignore disabled content and include archive members: %v", f.results)
+	}
+	test.Tap(check)
+	if f.text.Disabled() || f.text.Text != "absent content" {
+		t.Fatal("content search not restored when archive search disabled")
+	}
+	test.Tap(check)
+	test.Tap(f.caseSensitive)
+	f.glob.SetText("README")
+	f.glob.TypedKey(&fyne.KeyEvent{Name: fyne.KeyReturn})
+	waitUntil(t, func() bool { return f.done })
+	if len(f.results) != 0 {
+		t.Fatal("archive search ignored case sensitivity")
+	}
+	test.Tap(f.caseSensitive)
+	test.Tap(f.globMode)
+	f.glob.SetText("*.txt")
+	f.glob.TypedKey(&fyne.KeyEvent{Name: fyne.KeyReturn})
+	waitUntil(t, func() bool { return f.done })
+	if !slices.Contains(f.results, member) {
+		t.Fatalf("wildcard failed for archive member: %v", f.results)
+	}
+	f.list.Select(slices.Index(f.results, member))
+	tapDialogButton(t, u, "Go to")
+	waitJobs(t, u)
+	if u.left.path != filepath.Dir(member) || u.left.current().name != "readme.txt" || u.passwordWindow != nil {
+		t.Fatalf("archive result navigation: %s %s", u.left.path, u.left.current().name)
+	}
+}
+
+func TestFindArchiveFailureKeepsOtherResults(t *testing.T) {
+	root := fixture(t)
+	name := archiveFixture(t, root)
+	if err := os.WriteFile(filepath.Join(root, "broken.zip"), []byte("invalid archive"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	u := newTestUI(t, test.NewTempApp(t), root, root)
+	f := u.search()
+	defer func() {
+		if hasWindow(u.app, "Find Files") {
+			f.win.Close()
+		}
+	}()
+	test.Tap(findArchiveSearchOption(t, f))
+	f.glob.SetText("readme")
+	f.glob.TypedKey(&fyne.KeyEvent{Name: fyne.KeyReturn})
+	waitUntil(t, func() bool { return f.done })
+	if !strings.Contains(f.status.Text, "search incomplete") || !slices.Contains(f.results, filepath.Join(name, "docs", "readme.txt")) || !slices.Contains(f.results, filepath.Join(root, "src", "readme.md")) {
+		t.Fatalf("archive failure lost results or stayed silent: %v %s", f.results, f.status.Text)
+	}
+	check := findArchiveSearchOption(t, f)
+	f.win.Canvas().Focus(check)
+	check.TypedKey(&fyne.KeyEvent{Name: fyne.KeyEscape})
+	if hasWindow(u.app, "Find Files") || u.passwordWindow != nil {
+		t.Fatal("Escape from archive option left parent blocked")
 	}
 }
 

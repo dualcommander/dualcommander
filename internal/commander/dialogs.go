@@ -8,10 +8,12 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/driver"
 	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
+	native "github.com/dualcommander/dualcommander/pkg/desktop"
 )
 
 type dialogTheme struct{ fyne.Theme }
@@ -81,7 +83,9 @@ func (b *busyBlocker) Scrolled(*fyne.ScrollEvent)       {}
 
 // blockParent also covers native panels while their worker waits for AppKit.
 func (u *ui) blockParent(w fyne.Window) func() {
+	previous := u.passwordWindow
 	u.passwordWindow = w
+	u.blockNativeParent(true)
 	block := &busyBlocker{}
 	block.ExtendBaseWidget(block)
 	u.win.Canvas().Overlays().Add(block)
@@ -91,6 +95,10 @@ func (u *ui) blockParent(w fyne.Window) func() {
 	var disable func(*fyne.Menu)
 	disable = func(menu *fyne.Menu) {
 		for _, item := range menu.Items {
+			// Native menus must still dispatch text selection to the active dialog.
+			if _, ok := item.Shortcut.(*fyne.ShortcutSelectAll); ok && w != u.win {
+				continue
+			}
 			if item.ChildMenu != nil {
 				disable(item.ChildMenu)
 			}
@@ -104,15 +112,31 @@ func (u *ui) blockParent(w fyne.Window) func() {
 		disable(child)
 	}
 	menu.Refresh()
+	closed := false
 	return func() {
+		if closed {
+			return
+		}
+		closed = true
 		u.win.Canvas().Overlays().Remove(block)
 		for _, item := range disabled {
 			item.Disabled = false
 		}
 		menu.Refresh()
-		u.passwordWindow = nil
-		u.win.RequestFocus()
-		u.activate(u.active)
+		u.passwordWindow = previous
+		if previous != nil {
+			previous.RequestFocus()
+		} else {
+			u.blockNativeParent(false)
+			u.win.RequestFocus()
+			u.activate(u.active)
+		}
+	}
+}
+
+func (u *ui) blockNativeParent(blocked bool) {
+	if window, ok := u.win.(driver.NativeWindow); ok {
+		window.RunNative(func(context any) { native.SetWindowBlocked(context, blocked) })
 	}
 }
 

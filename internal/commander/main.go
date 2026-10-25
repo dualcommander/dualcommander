@@ -90,6 +90,9 @@ func Run() {
 		}
 	}()
 	desktop.SetAppIcon(assets.IconPNG)
+	if code := a.Preferences().String("language"); code != "" {
+		lang.L = languageTranslator(code)
+	}
 	initIcons()
 	u := newUI(a)
 	u.filePreview = fileicon.Preview

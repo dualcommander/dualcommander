@@ -4,9 +4,12 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"testing"
 
+	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/test"
 	"fyne.io/fyne/v2/widget"
 )
@@ -51,11 +54,17 @@ func TestComparisonSettingsAndCommands(t *testing.T) {
 		}
 		e.SetText(command)
 	}
-	if u.compareFilesItem.Disabled || u.compareFoldersItem.Disabled {
-		t.Fatal("configured comparison must enable menus immediately")
+	if !u.compareFilesItem.Disabled || !u.compareFoldersItem.Disabled {
+		t.Fatal("configuration alone must not enable comparison without selected targets")
+	}
+	u.right.cd(u.left.path, "song.mp3")
+	cursorTo(t, u.left, "readme.md")
+	cursorTo(t, u.right, "song.mp3")
+	if u.compareFilesItem.Disabled || !u.compareFoldersItem.Disabled {
+		t.Fatal("file selection must enable only file comparison")
 	}
 	fields["Compare files"].SetText("")
-	if !u.compareFilesItem.Disabled || u.compareFoldersItem.Disabled {
+	if !u.compareFilesItem.Disabled || !u.compareFoldersItem.Disabled {
 		t.Fatal("blank must disable only its action")
 	}
 	fields["Compare files"].SetText(command)
@@ -77,12 +86,14 @@ func TestComparisonSettingsAndCommands(t *testing.T) {
 	// Continue using original app so pane selection remains deterministic.
 	// newTrackedUI verifies commands enable menus again after restart.
 	u = newTrackedUI(t, a)
-	if u.compareFilesItem.Disabled || u.compareFoldersItem.Disabled {
-		t.Fatal("settings not restored")
+	cursorTo(t, u.left, "photos")
+	cursorTo(t, u.right, "photos")
+	if !u.compareFilesItem.Disabled || u.compareFoldersItem.Disabled {
+		t.Fatal("restored settings and folder selection must enable only folder comparison")
 	}
 	u.activate(u.right)
 	cmd, err := u.comparisonCommand(true)
-	if err != nil || !slices.Equal(cmd.Args, []string{"compare-app", u.left.path, u.right.path}) || cmd.Dir != u.left.path {
+	if err != nil || !slices.Equal(cmd.Args, []string{"compare-app", filepath.Join(u.left.path, "photos"), filepath.Join(u.right.path, "photos")}) || cmd.Dir != u.left.path {
 		t.Fatalf("folder command: %v %v", cmd, err)
 	}
 	u.right.cd(u.left.path, "song.mp3")
@@ -93,17 +104,16 @@ func TestComparisonSettingsAndCommands(t *testing.T) {
 		t.Fatalf("file command order changed with active pane: %v %v", cmd, err)
 	}
 	cursorTo(t, u.right, "photos")
-	u.compareFilesItem.Action()
-	if !hasWindow(a, "Error") {
+	if _, err := u.comparisonCommand(false); err == nil {
 		t.Fatal("directory accepted as file")
 	}
-	tapDialogButton(t, u, "OK")
 	previousPath := u.right.path
 	u.right.path = filepath.Join(u.left.path, "app.zip")
 	if _, err := u.comparisonCommand(true); err == nil {
 		t.Fatal("archive comparison accepted")
 	}
 	u.right.path = previousPath
+	cursorTo(t, u.left, "photos")
 	a.Preferences().SetString(prefCompareFoldersCmd, `["dualcommander-no-such-comparison-tool","{left}","{right}"]`)
 	u.compareFoldersItem.Action()
 	if !hasWindow(a, "Error") {
@@ -122,6 +132,8 @@ func TestComparisonLaunch(t *testing.T) {
 	}
 	root := fixture(t)
 	u := newTestUI(t, test.NewTempApp(t), filepath.Join(root, "src"), filepath.Join(root, "dst"))
+	u.right.cd(u.left.path, "photos")
+	cursorTo(t, u.left, "photos")
 	log := filepath.Join(t.TempDir(), "arguments.json")
 	t.Setenv("DUALCOMMANDER_TEST_COMPARE", "1")
 	t.Setenv("DUALCOMMANDER_COMPARE_LOG", log)
@@ -131,7 +143,11 @@ func TestComparisonLaunch(t *testing.T) {
 	}
 	u.app.Preferences().SetString(prefCompareFoldersCmd, string(data))
 	u.updateCompareMenu()
-	u.compareFoldersItem.Action()
+	shortcut, ok := u.compareFoldersItem.Shortcut.(*desktop.CustomShortcut)
+	if !ok || shortcut.KeyName != fyne.KeyD || shortcut.Modifier != fyne.KeyModifierShortcutDefault|fyne.KeyModifierAlt|fyne.KeyModifierShift {
+		t.Fatalf("folder shortcut: %#v", u.compareFoldersItem.Shortcut)
+	}
+	reflect.ValueOf(u.win.Canvas()).Elem().FieldByName("WindowlessCanvas").Interface().(fyne.Shortcutable).TypedShortcut(shortcut)
 	waitUntil(t, func() bool { return hasWindow(u.app, "Error") })
 	assertUIText(t, windowByTitle(t, u.app, "Error").Content(), "exit status 2")
 	tapDialogButton(t, u, "OK")
@@ -143,7 +159,49 @@ func TestComparisonLaunch(t *testing.T) {
 	if err := json.Unmarshal(data, &got); err != nil {
 		t.Fatal(err)
 	}
-	if !slices.Equal(got, []string{u.left.path, u.right.path}) {
+	if !slices.Equal(got, []string{filepath.Join(u.left.path, "photos"), filepath.Join(u.right.path, "photos")}) {
 		t.Fatalf("launched arguments: %v", got)
+	}
+}
+
+func TestComparisonMenuSelectionAndShortcuts(t *testing.T) {
+	root := fixture(t)
+	u := newTestUI(t, test.NewTempApp(t), filepath.Join(root, "src"), filepath.Join(root, "dst"))
+	for _, key := range []string{prefCompareFilesCmd, prefCompareFoldersCmd} {
+		u.app.Preferences().SetString(key, `["dualcommander-no-such-comparison-tool","{left}","{right}"]`)
+	}
+	u.updateCompareMenu()
+	if !u.compareFilesItem.Disabled || !u.compareFoldersItem.Disabled {
+		t.Fatal("parent entry is not a comparison target")
+	}
+	shortcut, ok := u.compareFilesItem.Shortcut.(*desktop.CustomShortcut)
+	if !ok || shortcut.KeyName != fyne.KeyD || shortcut.Modifier != fyne.KeyModifierShortcutDefault|fyne.KeyModifierAlt {
+		t.Fatalf("file shortcut: %#v", u.compareFilesItem.Shortcut)
+	}
+	reflect.ValueOf(u.win.Canvas()).Elem().FieldByName("WindowlessCanvas").Interface().(fyne.Shortcutable).TypedShortcut(shortcut)
+	if hasWindow(u.app, "Error") {
+		t.Fatal("disabled shortcut invoked comparison")
+	}
+	u.right.cd(u.left.path, "song.mp3")
+	cursorTo(t, u.left, "readme.md")
+	if u.compareFilesItem.Disabled || !u.compareFoldersItem.Disabled {
+		t.Fatal("two files must enable only file comparison")
+	}
+	reflect.ValueOf(u.win.Canvas()).Elem().FieldByName("WindowlessCanvas").Interface().(fyne.Shortcutable).TypedShortcut(shortcut)
+	if !hasWindow(u.app, "Error") {
+		t.Fatal("enabled file shortcut did not attempt tool launch")
+	}
+	tapDialogButton(t, u, "OK")
+	cursorTo(t, u.right, "photos")
+	if !u.compareFilesItem.Disabled || !u.compareFoldersItem.Disabled {
+		t.Fatal("mixed target types must disable both comparisons")
+	}
+	cursorTo(t, u.left, "photos")
+	if !u.compareFilesItem.Disabled || u.compareFoldersItem.Disabled {
+		t.Fatal("two folders must enable only folder comparison")
+	}
+	u.right.cd(filepath.Join(root, "dst"), "")
+	if !u.compareFilesItem.Disabled || !u.compareFoldersItem.Disabled {
+		t.Fatal("navigation must invalidate comparison selection")
 	}
 }
