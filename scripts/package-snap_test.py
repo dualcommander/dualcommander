@@ -16,11 +16,10 @@ class SnapTests(unittest.TestCase):
                 with self.subTest(arch=arch, prefix=prefix), tempfile.TemporaryDirectory() as directory:
                     root = Path(directory)
                     (root / 'scripts').mkdir()
-                    (root / 'snap').mkdir()
                     (root / 'tools').mkdir()
                     (root / 'cmd/dualcommander').mkdir(parents=True)
                     shutil.copy(ROOT / 'scripts/package-snap.sh', root / 'scripts')
-                    shutil.copy(ROOT / 'snap/snapcraft.yaml', root / 'snap')
+                    shutil.copytree(ROOT / 'snap', root / 'snap')
                     shutil.copy(ROOT / 'LICENSE', root)
                     (root / 'scripts/version.sh').write_text('echo 1.2.3+abcdef.dirty\n')
                     payload = root / 'payload/DualCommander' / prefix
@@ -44,13 +43,16 @@ grep -Fx 'confinement: classic' snap/snapcraft.yaml
 test -x payload/bin/dualcommander
 test -s payload/meta/gui/dualcommander.png
 test -s payload/LICENSE
+cmp "$TEST_DESKTOP" payload/meta/gui/dualcommander.desktop
 grep -Fx 'Exec=dualcommander' payload/meta/gui/dualcommander.desktop
 grep -Fx 'Icon=${SNAP}/meta/gui/dualcommander.png' payload/meta/gui/dualcommander.desktop
+grep -Fx 'Categories=System;FileTools;FileManager;' payload/meta/gui/dualcommander.desktop
 test -d "$3"
 printf snap > "$3/dualcommander.snap"
 ''')
                     snapcraft.chmod(0o755)
-                    env = dict(os.environ, PATH=str(root / 'tools') + os.pathsep + os.environ['PATH'])
+                    env = dict(os.environ, PATH=str(root / 'tools') + os.pathsep + os.environ['PATH'],
+                               TEST_DESKTOP=str(root / 'snap/gui/dualcommander.desktop'))
                     subprocess.run(['sh', 'scripts/package-snap.sh'], cwd=root, env=env, check=True)
                     self.assertEqual((root / f'dist/dualcommander-linux-{arch}.snap').read_text(), 'snap')
 

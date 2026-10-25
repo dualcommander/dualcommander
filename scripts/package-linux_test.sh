@@ -36,6 +36,7 @@ for format in deb rpm; do
     desktop="$root/usr/share/applications/io.github.typekpb.gommander.desktop"
     grep -Fx 'Exec=dualcommander' "$desktop"
     grep -Fx 'Icon=io.github.typekpb.gommander' "$desktop"
+    grep -Fx 'Categories=System;FileTools;FileManager;' "$desktop"
     desktop-file-validate "$desktop"
     [ -s "$root/usr/share/pixmaps/io.github.typekpb.gommander.png" ]
     cmp LICENSE "$root/usr/share/licenses/dualcommander/LICENSE"

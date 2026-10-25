@@ -4,3 +4,6 @@ Name = "DualCommander"
 ID = "io.github.typekpb.gommander"
 Version = "0.1.0"
 Build = 1
+
+[LinuxAndBSD]
+Categories = ["System", "FileTools", "FileManager"]

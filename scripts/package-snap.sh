@@ -23,16 +23,7 @@ prefix="$tmp/source/usr/local"
 install -m 755 "$prefix/bin/dualcommander" "$tmp/payload/bin/dualcommander"
 cp "$prefix/share/pixmaps/io.github.typekpb.gommander.png" "$tmp/payload/meta/gui/dualcommander.png"
 cp LICENSE "$tmp/payload/LICENSE"
-cat > "$tmp/payload/meta/gui/dualcommander.desktop" <<'EOF'
-[Desktop Entry]
-Type=Application
-Name=DualCommander
-Comment=Two-pane file manager
-Exec=dualcommander
-Icon=${SNAP}/meta/gui/dualcommander.png
-Terminal=false
-Categories=System;FileTools;FileManager;
-EOF
+cp snap/gui/dualcommander.desktop "$tmp/payload/meta/gui/dualcommander.desktop"
 sed "s/^version: .*/version: '$version'/" snap/snapcraft.yaml > "$tmp/snap/snapcraft.yaml"
 (
     cd "$tmp"

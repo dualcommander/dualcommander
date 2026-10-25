@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=DualCommander
+Comment=Two-pane file manager
+Exec=dualcommander
+Icon=${SNAP}/meta/gui/dualcommander.png
+Terminal=false
+Categories=System;FileTools;FileManager;
