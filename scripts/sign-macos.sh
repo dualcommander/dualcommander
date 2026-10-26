@@ -55,4 +55,3 @@ notarize "$dmg"
 xcrun stapler staple "$dmg"
 xcrun stapler validate "$dmg"
 spctl --assess --type open --context context:primary-signature --verbose=2 "$dmg"
-sh scripts/package-macos_test.sh

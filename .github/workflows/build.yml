@@ -49,15 +49,10 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
-      - name: Check formatting and helper scripts
+      - name: Check formatting and development profile
         if: matrix.os == 'darwin' && matrix.arch == 'arm64'
         run: |
           make fmt-check
-          sh scripts/version_test.sh
-          sh scripts/install-packager_test.sh
-          python3 scripts/signing_test.py
-          python3 scripts/linux_arch_test.py
-          python3 scripts/package-snap_test.py
           python3 .devcontainer/cline-profile.py --self-test
       - name: Install Linux development libraries
         if: runner.os == 'Linux'
@@ -117,11 +112,10 @@ jobs:
         run: |
           mkdir -p dist
           ditto -c -k --sequesterRsrc --keepParent cmd/dualcommander/DualCommander.app dist/dualcommander-darwin-${{ matrix.arch }}.zip
-      - name: Build and check macOS DMG
+      - name: Build macOS DMG
         if: runner.os == 'macOS'
         run: |
           sh scripts/package-macos.sh
-          sh scripts/package-macos_test.sh
       - name: Sign and notarize macOS packages
         if: env.SIGN_MACOS == 'true'
         env:
@@ -137,11 +131,10 @@ jobs:
         run: |
           mkdir -p dist
           cp cmd/dualcommander/DualCommander.tar.xz dist/dualcommander-linux-${{ matrix.arch }}.tar.xz
-      - name: Build and check DEB and RPM packages
+      - name: Build DEB and RPM packages
         if: runner.os == 'Linux'
         run: |
           sh scripts/package-linux.sh
-          sh scripts/package-linux_test.sh
       - name: Build classic Snap package
         if: runner.os == 'Linux'
         run: |
@@ -214,3 +207,82 @@ jobs:
         run: |
           gh release view "$RELEASE_TAG" >/dev/null 2>&1 || gh release create "$RELEASE_TAG" --verify-tag --generate-notes
           gh release upload "$RELEASE_TAG" dist/* --clobber
+
+  windows-store:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && !contains(github.ref_name, '-') && !contains(github.ref_name, '+') && vars.WINDOWS_STORE_ENABLED == 'true'
+    needs: release
+    runs-on: windows-latest
+    environment: windows-store
+    concurrency:
+      group: windows-store
+      cancel-in-progress: false
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: dualcommander-windows-*
+          path: windows-artifacts
+          merge-multiple: true
+      - name: Build Store MSIX bundle
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+          WINDOWS_STORE_IDENTITY_NAME: ${{ vars.WINDOWS_STORE_IDENTITY_NAME }}
+          WINDOWS_STORE_PUBLISHER: ${{ vars.WINDOWS_STORE_PUBLISHER }}
+          WINDOWS_STORE_PUBLISHER_DISPLAY_NAME: ${{ vars.WINDOWS_STORE_PUBLISHER_DISPLAY_NAME }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $sdk = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin" -Directory |
+            Where-Object { Test-Path "$($_.FullName)\x64\makeappx.exe" } |
+            Sort-Object { [version]$_.Name } -Descending | Select-Object -First 1
+          if (-not $sdk) { throw 'Windows SDK MakeAppx not found' }
+          $makeappx = "$($sdk.FullName)\x64\makeappx.exe"
+          Add-Type -AssemblyName System.Drawing
+          New-Item -ItemType Directory -Force store-packages, store-output | Out-Null
+          foreach ($arch in @('amd64', 'arm64')) {
+            $stage = "store-stage/$arch"
+            New-Item -ItemType Directory -Force "$stage/Assets" | Out-Null
+            Expand-Archive "windows-artifacts/dualcommander-windows-$arch.zip" -DestinationPath $stage
+            python scripts/windows-store.py "$stage/AppxManifest.xml" $arch
+            if ($LASTEXITCODE -ne 0) { throw 'Store manifest generation failed' }
+            $source = [System.Drawing.Image]::FromFile("$pwd/assets/dualcommander.png")
+            try {
+              foreach ($asset in @{ StoreLogo = 50; Logo = 150; SmallLogo = 44 }.GetEnumerator()) {
+                $bitmap = [System.Drawing.Bitmap]::new($source, [int]$asset.Value, [int]$asset.Value)
+                try { $bitmap.Save("$pwd/$stage/Assets/$($asset.Key).png", [System.Drawing.Imaging.ImageFormat]::Png) }
+                finally { $bitmap.Dispose() }
+              }
+            } finally { $source.Dispose() }
+            & $makeappx pack /d $stage /p "store-packages/dualcommander-$arch.msix" /o
+            if ($LASTEXITCODE -ne 0) { throw "MSIX packaging failed: $arch" }
+          }
+          & $makeappx bundle /d store-packages /p store-output/dualcommander.msixbundle /o
+          if ($LASTEXITCODE -ne 0) { throw 'MSIX bundling failed' }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dualcommander-windows-store
+          path: store-output/*.msixbundle
+          if-no-files-found: error
+      - name: Install Microsoft Store CLI
+        uses: microsoft/microsoft-store-apppublisher@271384ce0e6e03162184c55b05392e8f4044aa78 # v1.2
+      - name: Publish Store submission
+        env:
+          WINDOWS_STORE_TENANT_ID: ${{ secrets.WINDOWS_STORE_TENANT_ID }}
+          WINDOWS_STORE_SELLER_ID: ${{ secrets.WINDOWS_STORE_SELLER_ID }}
+          WINDOWS_STORE_CLIENT_ID: ${{ secrets.WINDOWS_STORE_CLIENT_ID }}
+          WINDOWS_STORE_CLIENT_SECRET: ${{ secrets.WINDOWS_STORE_CLIENT_SECRET }}
+          WINDOWS_STORE_PRODUCT_ID: ${{ vars.WINDOWS_STORE_PRODUCT_ID }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          foreach ($key in @('WINDOWS_STORE_TENANT_ID', 'WINDOWS_STORE_SELLER_ID', 'WINDOWS_STORE_CLIENT_ID', 'WINDOWS_STORE_CLIENT_SECRET', 'WINDOWS_STORE_PRODUCT_ID')) {
+            if (-not [Environment]::GetEnvironmentVariable($key)) { throw "Missing $key" }
+          }
+          msstore reconfigure --tenantId $env:WINDOWS_STORE_TENANT_ID --sellerId $env:WINDOWS_STORE_SELLER_ID --clientId $env:WINDOWS_STORE_CLIENT_ID --clientSecret $env:WINDOWS_STORE_CLIENT_SECRET
+          if ($LASTEXITCODE -ne 0) { throw 'Store authentication failed' }
+          msstore publish store-output/dualcommander.msixbundle --appId $env:WINDOWS_STORE_PRODUCT_ID
+          if ($LASTEXITCODE -ne 0) { throw 'Store submission failed' }

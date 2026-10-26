@@ -1,5 +1,13 @@
 Password fixtures contain no private data. Tests do not need archive command-line tools.
 
+`sample.*` fixtures contain `readme.txt` with `hello\n` (repeated 1000 times
+in ZIPX to force compression). TAR/CPIO use `bsdtar` (CPIO: `--format=newc`);
+7Z/ZIPX use `7zz` (ZIPX: `-tzip -mm=LZMA`). BZ2/XZ/LZMA use Python's
+`bz2`/`lzma` modules (`FORMAT_ALONE` for LZMA). DEB wraps `debian-binary`
+(`2.0\n`) and `data.tar` in standard ar headers. RPM has a synthetic v3 lead,
+empty signature header, `cpio`/`gzip` payload tags, and gzipped `sample.cpio`.
+All sample fixtures are project-generated, with no third-party package contents.
+
 - `password.zip`: generated with `zip -P secret`, member `secret.txt` contains `secret contents`.
 - `password.7z`, `password-headers.7z`: generated with `7zz a -psecret`, respectively `-mhe=off` and `-mhe=on`, same member/content.
 - `rar*.rar`: from https://github.com/markokr/rarfile/tree/master/test/files (ISC license), password `password`.

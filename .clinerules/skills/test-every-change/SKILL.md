@@ -1,14 +1,21 @@
 ---
 name: test-every-change
-description: Mandatory test-driven development for ANY code change in dualcommander (Go/Fyne file manager). Write or adapt tests first, observe expected failure, implement minimum fix, and run scripts/check.sh.
+description: Test-driven application changes in dualcommander (Go/Fyne file manager). Validate scripts with native tools, not standalone script tests. Run scripts/check.sh for every code change.
 ---
 
 # Test every change
 
 ## Rules
 1. After each edit batch to `*.go`, `go.mod`, or `testdata/`: run `sh scripts/check.sh`. Expected failures in the red phase below permit proceeding only to the matching implementation. Unrelated failures must be investigated; never finish with failing checks.
-2. Every new behavior gets a test written or adapted BEFORE implementation. No exceptions for fixes or "visual" work.
+2. Every new application behavior gets a test written or adapted BEFORE implementation. No exceptions for application fixes or "visual" work. Script and CI changes follow the native-validation policy below.
 3. Never weaken or delete a test to make it pass. If the test exposed a real bug, fix the app.
+
+## Scripts and CI
+- Do not add `scripts/*_test.sh` or `scripts/*_test.py`, mocked command harnesses, or tests that assert workflow text. Do not relocate these tests to another directory or framework.
+- Keep Go application tests and the existing development-profile self-check. Standalone packaging, signing, installer, and workflow test scripts are intentionally omitted.
+- Validate shell syntax, Python syntax, and workflow syntax with available native tools. Exercise packaging and signing with actual platform tools when available; preserve production validation and error handling.
+- Run `sh scripts/check.sh` after changes. Report platform/credential-dependent checks not run; do not claim application checks validate release artifacts.
+- Removing explicitly unwanted test scaffolding adds no behavior and needs no replacement test or artificial red phase. Application behavior changes still require the red–green workflow below.
 
 ## Required red–green workflow
 1. Identify observable behavior and existing tests before changing production code.

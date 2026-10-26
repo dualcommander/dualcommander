@@ -14,7 +14,7 @@ Run from the repository root:
 make run       # launch the app
 make build     # build into dist/
 make fmt       # format Go code
-make check     # check formatting, vet, helper scripts, and uncached race tests
+make check     # check formatting, vet, development profile, and uncached race tests
 ```
 
 Use `make fmt-check`, `make vet`, or `make test` for individual checks.
@@ -41,5 +41,84 @@ git push origin v1.2.3
 
 After all platform builds pass, CI publishes packages as GitHub Release assets.
 Tagged builds use the tag version; development builds include the commit hash.
-Signing defaults off. Release tags can opt into Apple signing/notarization and
-SignPath Windows signing; see [release signing setup](docs/release-signing.md).
+Signing and Microsoft Store submission default off; setup follows below.
+
+### Release signing
+
+Only pushed `v*` tags sign. Before enabling signing, create GitHub environment
+`release-signing` with required reviewers and `v*`-only deployment rules. Protect
+tag creation and review tagged workflows before approval. Keep signing secrets
+only in this environment, never repository-wide; `unsigned-build` gets none.
+Set repository Actions variables `MACOS_SIGNING_ENABLED=true` and/or
+`WINDOWS_SIGNING_ENABLED=true` only after setup. Signing failure blocks release;
+there is no unsigned fallback. Branches, pull requests, and manual runs never sign.
+
+Configure these in `release-signing`:
+
+| Platform | Environment secrets | Environment variables |
+| --- | --- | --- |
+| macOS | `APPLE_CERTIFICATE_BASE64`, `APPLE_CERTIFICATE_PASSWORD`, `APPLE_API_KEY_BASE64` | `APPLE_SIGNING_IDENTITY`, `APPLE_API_KEY_ID`, `APPLE_API_ISSUER_ID` |
+| Windows | `SIGNPATH_API_TOKEN` | `SIGNPATH_ORGANIZATION_ID`, `SIGNPATH_PROJECT_SLUG`, `SIGNPATH_SIGNING_POLICY_SLUG`, `WINDOWS_SIGNER_SUBJECT` |
+
+macOS requires Apple Developer membership, a Developer ID Application certificate
+with private key exported as password-protected PKCS#12 (base64), and an authorized
+App Store Connect `.p8` API key (base64). `APPLE_SIGNING_IDENTITY` is the full
+`Developer ID Application: … (TEAMID)` identity. CI signs, notarizes, and staples
+app and DMG; temporary credentials and keychain are removed on exit.
+
+Windows requires SignPath enrollment and a project/artifact configuration for
+`DualCommander.exe`, with a timestamped production signing policy. Restrict its
+GitHub integration to this repository's release workflow, not arbitrary uploads.
+`WINDOWS_SIGNER_SUBJECT` must match the certificate subject exactly. CI checks
+signature, signer, and timestamp before archiving. SignPath approval may be needed;
+SmartScreen reputation warnings can still occur.
+
+Enable one platform at a time. Verify downloaded releases with native macOS/Windows
+tools; `make check` does not exercise credential-dependent signing or notarization.
+
+### Microsoft Store
+
+After GitHub Release publication, CI submits one x64/arm64 MSIX bundle for stable
+`vMAJOR.MINOR.PATCH` tags only. Prereleases/build metadata stay GitHub-only.
+MSIX version is `MAJOR.MINOR.PATCH.0`: components must be at most 65535, version
+nonzero, and each update newer. Package structure lives in
+[`cmd/dualcommander/AppxManifest.xml`](cmd/dualcommander/AppxManifest.xml);
+CI substitutes escaped release version, architecture, and Store identity.
+
+1. Reserve an **MSIX** app in Partner Center. Complete its first submission
+   manually, including listing, privacy policy, ratings, pricing, markets, and
+   `runFullTrust` approval; the CLI cannot create a first loose-MSIX submission.
+2. [Configure Microsoft Entra/Partner Center submission access](https://learn.microsoft.com/en-us/windows/uwp/monetize/create-and-manage-submissions-using-windows-store-services)
+   and create a client secret.
+3. Create GitHub environment `windows-store` with required reviewers and `v*`-only
+   deployments. Add environment secrets `WINDOWS_STORE_TENANT_ID`,
+   `WINDOWS_STORE_SELLER_ID`, `WINDOWS_STORE_CLIENT_ID`, `WINDOWS_STORE_CLIENT_SECRET`.
+4. Add environment variables `WINDOWS_STORE_PRODUCT_ID`,
+   `WINDOWS_STORE_IDENTITY_NAME`, `WINDOWS_STORE_PUBLISHER`, and
+   `WINDOWS_STORE_PUBLISHER_DISPLAY_NAME`, matching Partner Center Product identity
+   exactly, not the Fyne app ID. Set **repository variable**
+   `WINDOWS_STORE_ENABLED=true` last; environment-only flags cannot gate this job.
+5. Push a new stable tag and approve deployment. Release one version at a time:
+   Store jobs serialize, but GitHub can replace older pending jobs. Do not edit
+   pending Partner Center submissions while CI publishes.
+
+Store signs MSIX; SignPath is independent and optional. Actions artifact
+`dualcommander-windows-store` is unsigned, not sideload-ready. Certification and
+rollout still control availability. Store failures leave GitHub releases intact;
+check submission state before rerunning failed jobs. Validate packaging with Windows
+SDK MakeAppx and submission in Partner Center; local application checks cover neither.
+
+## Snap installation
+
+With `snapd` installed, download the `.snap` matching your architecture from
+[GitHub Releases](https://github.com/dualcommander/dualcommander/releases).
+Classic confinement is **not a sandbox**: it allows normal desktop filesystem and
+external-app access. `--dangerous` accepts packages without Snap Store assertions;
+install only trusted downloads. These packages need manual updates.
+
+```sh
+sudo snap install --dangerous --classic ./dualcommander-linux-amd64.snap
+dualcommander
+```
+
+For arm64, use `dualcommander-linux-arm64.snap` instead.
