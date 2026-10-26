@@ -85,6 +85,38 @@ nonzero, and each update newer. Package structure lives in
 [`cmd/dualcommander/AppxManifest.xml`](cmd/dualcommander/AppxManifest.xml);
 CI substitutes escaped release version, architecture, and Store identity.
 
+#### Build first upload locally
+
+On Windows, install Windows SDK (including MakeAppx), PowerShell 7 (`pwsh`),
+Python 3 (`python`), and Make. No signing certificate or Store API credentials
+are needed. Download the amd64 and arm64 Windows ZIPs from the same GitHub
+Actions run or release into `dist/`. Extract GitHub's artifact download wrapper
+if present; keep the inner `dualcommander-windows-amd64.zip` and
+`dualcommander-windows-arm64.zip` intact.
+
+From Git Bash at the repository root, replace the example values with your
+Partner Center **Product identity** values and intended release version:
+
+```sh
+export RELEASE_TAG='v1.2.3'
+export WINDOWS_STORE_IDENTITY_NAME='YOUR_PACKAGE_IDENTITY_NAME'
+export WINDOWS_STORE_PUBLISHER='CN=YOUR_PUBLISHER_ID'
+export WINDOWS_STORE_PUBLISHER_DISPLAY_NAME='Your publisher display name'
+make package-msix
+```
+
+Use `make package-msix WINDOWS_STORE_INPUT=path/to/zips` for another input folder.
+Alternatively, from PowerShell with the same environment variables set, run
+`pwsh -NoProfile -File scripts/package-windows-store.ps1 -InputDirectory dist`.
+Output: `dist/windows-store/dualcommander.msixbundle`, containing x64 and ARM64
+packages. Upload this file to the first submission's **Packages** page in
+Partner Center. This command only packages; it never publishes or signs.
+Use matching source checkout and ZIPs, and a version newer than prior Store
+uploads. Keep package display name aligned with your reserved Store name.
+MakeAppx and first submission still require validation on Windows/Partner Center.
+
+#### Enable automatic updates
+
 1. Reserve an **MSIX** app in Partner Center. Complete its first submission
    manually, including listing, privacy policy, ratings, pricing, markets, and
    `runFullTrust` approval; the CLI cannot create a first loose-MSIX submission.

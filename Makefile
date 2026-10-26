@@ -1,4 +1,6 @@
-.PHONY: check fmt fmt-check vet test build run package-snap
+.PHONY: check fmt fmt-check vet test build run package-snap package-msix
+
+WINDOWS_STORE_INPUT ?= dist
 
 check: fmt-check vet test
 
@@ -26,3 +28,7 @@ run:
 # Requires Linux, Snapcraft, and the Fyne Linux tarball from the packaging build.
 package-snap:
 	SNAPCRAFT_ARGS="$(SNAPCRAFT_ARGS)" sh scripts/package-snap.sh
+
+# Requires Windows SDK, PowerShell 7, Python, Store identity, and both Windows ZIPs.
+package-msix:
+	pwsh -NoProfile -File scripts/package-windows-store.ps1 -InputDirectory "$(WINDOWS_STORE_INPUT)"
