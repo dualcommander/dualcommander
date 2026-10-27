@@ -133,10 +133,11 @@ func (p *pane) contextMenu() *fyne.Menu {
 		items = append(items, item(lang.L("Open With…"), native && (!e.dir || runtime.GOOS == "darwin"), launch("open-with")),
 			item(label, native, launch("properties")))
 	}
-	items = append(items, fyne.NewMenuItemSeparator(), item(revealLabel(), native, func() {
-		reveal, _ := desktop.Defaults(runtime.GOOS)
-		cmd, err := desktop.Command(reveal, path, p.path)
-		p.ui.startExternal(cmd, err)
-	}), item(lang.L("Copy Path"), native, func() { p.ui.win.Clipboard().SetContent(path) }))
+	items = append(items, item(lang.L("Rename…"), native, p.ui.rename),
+		fyne.NewMenuItemSeparator(), item(revealLabel(), native, func() {
+			reveal, _ := desktop.Defaults(runtime.GOOS)
+			cmd, err := desktop.Command(reveal, path, p.path)
+			p.ui.startExternal(cmd, err)
+		}), item(lang.L("Copy Path"), native, func() { p.ui.win.Clipboard().SetContent(path) }))
 	return fyne.NewMenu("", items...)
 }

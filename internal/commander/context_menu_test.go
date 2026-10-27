@@ -147,6 +147,71 @@ func TestApplicationPanelWorkflow(t *testing.T) {
 	}
 }
 
+func TestContextMenuRename(t *testing.T) {
+	for _, brief := range []bool{false, true} {
+		for _, right := range []bool{false, true} {
+			root := fixture(t)
+			u := newTestUI(t, test.NewTempApp(t), filepath.Join(root, "src"), filepath.Join(root, "src"))
+			p := u.left
+			if right {
+				p = u.right
+			}
+			p.setBrief(brief)
+			p.marked["song.mp3"] = true
+			for _, outcome := range []string{"escape", "close", "cancel", "submit"} {
+				u.activate(u.other())
+				r := newRowWidget(p, !brief)
+				r.id = slices.Index(names(p), "readme.md")
+				test.TapSecondary(r)
+				popup, ok := u.win.Canvas().Focused().(*widget.PopUpMenu)
+				if !ok {
+					t.Fatal("right click did not show context menu")
+				}
+				popup.Hide()
+				var rename *fyne.MenuItem
+				for _, item := range p.contextMenu().Items {
+					if item.Label == "Rename…" {
+						rename = item
+					}
+				}
+				if rename == nil || rename.Disabled {
+					t.Fatal("right-click menu missing enabled Rename… action")
+				}
+				rename.Action()
+				w := windowByTitle(t, u.app, "Rename")
+				e := w.Canvas().Focused().(*escEntry)
+				if e.Text != "readme.md" || u.passwordWindow == nil {
+					t.Fatal("rename must prefill clicked file and block parent")
+				}
+				e.SetText("renamed.md")
+				switch outcome {
+				case "escape":
+					e.TypedKey(&fyne.KeyEvent{Name: fyne.KeyEscape})
+				case "close":
+					u.inputWindow.Window.Close()
+				case "cancel":
+					tapDialogButton(t, u, "Cancel")
+				case "submit":
+					tapDialogButton(t, u, "Rename")
+				}
+				want := "readme.md"
+				if outcome == "submit" {
+					want = "renamed.md"
+				}
+				if exists(filepath.Join(p.path, "renamed.md")) != (outcome == "submit") || exists(filepath.Join(p.path, "readme.md")) != (outcome != "submit") {
+					t.Fatal("rename confirmation/cancellation changed wrong file")
+				}
+				if p.current().name != want || !p.marked["song.mp3"] || !exists(filepath.Join(p.path, "song.mp3")) {
+					t.Fatal("rename lost cursor or changed unrelated marked file")
+				}
+				if u.passwordWindow != nil || u.win.Canvas().Focused() != p.focusable() {
+					t.Fatal("rename did not unblock parent and restore pane focus")
+				}
+			}
+		}
+	}
+}
+
 func TestRowContextMenu(t *testing.T) {
 	for _, brief := range []bool{false, true} {
 		root := fixture(t)
