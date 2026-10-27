@@ -105,7 +105,7 @@ func newPane(u *ui, path string, brief bool, sortPref string) *pane {
 	p.mounts = fsops.Mounts
 	p.mountButton = widget.NewButtonWithIcon("/", theme.MenuDropDownIcon(), p.showMounts)
 	top := container.NewVBox(container.NewBorder(nil, nil, p.mountButton, nil, p.space), container.NewBorder(nil, nil, container.NewHBox(homeBtn, upBtn),
-		container.NewHBox(p.favourite, p.favourites, p.viewButton), p.pathBar))
+		container.NewGridWithRows(1, p.favourite, p.favourites, p.viewButton), p.pathBar))
 	p.box = container.NewBorder(top, container.NewVBox(widget.NewSeparator(), container.NewStack(p.status, p.statusRow)), nil, nil, p.body)
 	p.setBrief(brief)
 	if p.cd(path, "") != nil {

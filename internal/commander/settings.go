@@ -40,6 +40,7 @@ func settingsValues(p fyne.Preferences) map[string]any {
 		prefLeftBrief: p.Bool(prefLeftBrief), prefRightBrief: p.Bool(prefRightBrief),
 		prefLeftSort: p.String(prefLeftSort), prefRightSort: p.String(prefRightSort),
 		prefActive: p.StringWithFallback(prefActive, "left"),
+		prefSplit:  p.FloatWithFallback(prefSplit, 0.5),
 		prefTheme:  p.StringWithFallback(prefTheme, "system"),
 		"language": p.String("language"),
 		prefHidden: p.Bool(prefHidden), prefDensity: p.StringWithFallback(prefDensity, "standard"),
@@ -56,7 +57,7 @@ func settingsValues(p fyne.Preferences) map[string]any {
 
 func isStateKey(key string) bool {
 	switch key {
-	case prefLeft, prefRight, prefLeftSort, prefRightSort, prefActive, prefW, prefH:
+	case prefLeft, prefRight, prefLeftSort, prefRightSort, prefActive, prefW, prefH, prefSplit:
 		return true
 	}
 	return false
@@ -64,6 +65,7 @@ func isStateKey(key string) bool {
 
 var stateFields = map[string][]string{
 	prefActive: {"pane", "active"},
+	prefSplit:  {"pane", "split"},
 	prefLeft:   {"pane", "left", "path"}, prefLeftSort: {"pane", "left", "sort"},
 	prefRight: {"pane", "right", "path"}, prefRightSort: {"pane", "right", "sort"},
 	prefW: {"window", "width"}, prefH: {"window", "height"},
@@ -215,7 +217,10 @@ func openSettingsFile(p fyne.Preferences, path string, onError func(error)) (*se
 			if key == "language" && !slices.Contains(languageCodes, *target.(*string)) {
 				return nil, fmt.Errorf("unsupported language: %q", *target.(*string))
 			}
-			if v, ok := target.(*float64); ok && (*v <= 0 || *v > 100000) {
+			if key == prefSplit && (*target.(*float64) < 0 || *target.(*float64) > 1) {
+				return nil, fmt.Errorf("invalid pane split: expected ratio between 0 and 1")
+			}
+			if v, ok := target.(*float64); ok && key != prefSplit && (*v <= 0 || *v > 100000) {
 				return nil, fmt.Errorf("invalid setting %q: window size must be between 0 and 100000", key)
 			}
 			values[key] = target

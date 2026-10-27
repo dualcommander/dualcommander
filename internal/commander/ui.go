@@ -37,6 +37,7 @@ const (
 	prefCompareFilesCmd            = "compareFilesCmd"
 	prefCompareFoldersCmd          = "compareFoldersCmd"
 	prefW, prefH                   = "win.w", "win.h"
+	prefSplit                      = "pane.split"
 )
 
 type ui struct {
@@ -45,7 +46,7 @@ type ui struct {
 	win                                  fyne.Window
 	left, right                          *pane
 	active                               *pane
-	split                                *container.Split
+	split                                *paneSplit
 	jobs                                 *jobs
 	themeMode                            string
 	themeItems                           []*fyne.MenuItem
@@ -102,7 +103,10 @@ func newUI(a fyne.App) *ui {
 		u.win.Canvas().AddShortcut(&desktop.CustomShortcut{KeyName: fyne.KeyR, Modifier: fyne.KeyModifierControl},
 			func(fyne.Shortcut) { u.active.refresh() })
 	}
-	u.split = container.NewHSplit(u.left.box, u.right.box)
+	u.split = newPaneSplit(u.left.box, u.right.box)
+	if offset := pr.FloatWithFallback(prefSplit, 0.5); offset >= 0 && offset <= 1 {
+		u.split.SetOffset(offset)
+	}
 	u.win.SetContent(container.NewBorder(nil, container.NewVBox(u.jobs.box, u.fkeyBar()), nil, nil, u.split))
 	u.win.Resize(fyne.NewSize(float32(pr.FloatWithFallback(prefW, 1100)), float32(pr.FloatWithFallback(prefH, 700))))
 	u.win.SetCloseIntercept(u.quit)
@@ -598,6 +602,7 @@ func (u *ui) save() {
 		side = "right"
 	}
 	pr.SetString(prefActive, side)
+	pr.SetFloat(prefSplit, u.split.Offset)
 }
 
 // quit persists state incl. window size (only reliable at exit) and closes.

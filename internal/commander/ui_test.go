@@ -25,6 +25,127 @@ import (
 	"fyne.io/fyne/v2/widget"
 )
 
+func TestFavouriteButtonWidth(t *testing.T) {
+	root := fixture(t)
+	u := newTestUI(t, test.NewTempApp(t), root, root)
+	for _, density := range []string{"standard", "compact"} {
+		applyTheme(u.app, "system", density)
+		for _, starred := range []bool{false, true} {
+			if starred {
+				test.Tap(u.left.favourite)
+			}
+			for _, p := range []*pane{u.left, u.right} {
+				laidOutObjects(p.box)
+				for _, button := range []*widget.Button{p.favourites, p.viewButton} {
+					if p.favourite.Size().Width < button.Size().Width {
+						t.Errorf("%s starred=%v: favourite width %v smaller than neighboring width %v", density, starred, p.favourite.Size().Width, button.Size().Width)
+					}
+				}
+			}
+			if starred {
+				test.Tap(u.left.favourite)
+			}
+		}
+	}
+}
+
+func TestPaneDividerPercentagesAndReset(t *testing.T) {
+	root := fixture(t)
+	u := newTestUI(t, test.NewTempApp(t), root, root)
+	u.win.Resize(fyne.NewSize(1600, 700))
+	applyTheme(u.app, "dark", "standard")
+	assertNoPercentages := func() {
+		t.Helper()
+		for _, o := range laidOutObjects(u.win.Content()) {
+			if label, ok := o.(*widget.Label); ok && strings.HasSuffix(label.Text, "%") && label.Visible() {
+				t.Errorf("percentage remains in pane layout: %q", label.Text)
+			}
+		}
+		if len(u.win.Canvas().Overlays().List()) != 0 {
+			t.Error("percentage tooltips visible outside drag")
+		}
+	}
+	assertNoPercentages()
+	var divider fyne.Draggable
+	var target fyne.CanvasObject
+	for _, o := range test.WidgetRenderer(u.split).Objects() {
+		if d, ok := o.(*paneDivider); ok {
+			divider, target = d, o
+			break
+		}
+	}
+	if divider == nil {
+		t.Fatal("missing draggable divider")
+	}
+	assertMarker := func() {
+		t.Helper()
+		var marker *canvas.Rectangle
+		for _, o := range laidOutObjects(u.split) {
+			if rect, ok := o.(*canvas.Rectangle); ok && reflect.DeepEqual(rect.FillColor, theme.ForegroundColor()) {
+				marker = rect
+			}
+		}
+		if marker == nil || marker.Size().Width <= 0 || marker.Size().Height <= 0 {
+			t.Error("native divider foreground marker missing")
+		} else {
+			pos := u.app.Driver().AbsolutePositionForObject(marker)
+			left, right := u.left.box.Size().Width, u.right.box.Position().X
+			if pos.X < left || pos.X+marker.Size().Width > right {
+				t.Errorf("native marker outside divider: position=%v size=%v divider=%v..%v", pos, marker.Size(), left, right)
+			}
+		}
+	}
+	assertMarker()
+	for _, delta := range []float32{120, -240, 10000, -10000} {
+		divider.Dragged(&fyne.DragEvent{PointEvent: fyne.PointEvent{Position: fyne.NewPos(2+delta, 100)}, Dragged: fyne.NewDelta(delta, 0)})
+		left, right := u.left.box.Size().Width, u.right.box.Size().Width
+		percent := int(float64(left/(left+right))*100 + 0.5)
+		overlays := u.win.Canvas().Overlays().List()
+		if len(overlays) != 1 {
+			t.Fatalf("drag tooltip overlay: got %d, want 1", len(overlays))
+		}
+		assertUIText(t, overlays[0], fmt.Sprintf("%d%%", percent))
+		assertUIText(t, overlays[0], fmt.Sprintf("%d%%", 100-percent))
+		var labels []*widget.Label
+		for _, o := range laidOutObjects(overlays[0]) {
+			if l, ok := o.(*widget.Label); ok && strings.HasSuffix(l.Text, "%") {
+				labels = append(labels, l)
+			}
+		}
+		if len(labels) != 2 {
+			t.Fatalf("tooltip labels: got %d, want 2", len(labels))
+		}
+		for i, pane := range []*pane{u.left, u.right} {
+			label := labels[i]
+			pos := u.app.Driver().AbsolutePositionForObject(label)
+			panePos := u.app.Driver().AbsolutePositionForObject(pane.box)
+			if pos.X < panePos.X || pos.X+label.Size().Width > panePos.X+pane.box.Size().Width {
+				t.Errorf("pane %d tooltip outside pane: position=%v size=%v pane=%v size=%v", i, pos, label.Size(), panePos, pane.box.Size())
+			}
+		}
+		assertMarker()
+		if left < u.left.box.MinSize().Width-1 || right < u.right.box.MinSize().Width-1 {
+			t.Fatal("divider ignored pane minimum width")
+		}
+		// Repeated drag events must update existing tooltips, not accumulate overlays.
+		divider.Dragged(&fyne.DragEvent{PointEvent: fyne.PointEvent{Position: fyne.NewPos(2, 100)}})
+		if len(u.win.Canvas().Overlays().List()) != 1 {
+			t.Fatal("drag accumulated tooltip overlays")
+		}
+		divider.DragEnd()
+		assertNoPercentages()
+	}
+	doubleTap, ok := target.(fyne.DoubleTappable)
+	if !ok {
+		t.Fatal("divider does not handle double-click")
+	}
+	test.DoubleTap(doubleTap)
+	if u.split.Offset != 0.5 || u.left.box.Size().Width != u.right.box.Size().Width {
+		t.Fatalf("double-click did not center panes: offset=%v widths=%v/%v", u.split.Offset, u.left.box.Size().Width, u.right.box.Size().Width)
+	}
+	assertNoPercentages()
+}
+
 func TestNativeDeletionWording(t *testing.T) {
 	name := "Trash"
 	switch runtime.GOOS {

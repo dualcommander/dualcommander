@@ -11,8 +11,68 @@ import (
 	"testing"
 	"time"
 
+	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/test"
 )
+
+func TestPaneSplitStateRestart(t *testing.T) {
+	root := fixture(t)
+	path := filepath.Join(t.TempDir(), "settings.json")
+	a := test.NewTempApp(t)
+	u := newTestUI(t, a, root, root)
+	if u.split.Offset != 0.5 {
+		t.Fatal("missing split state must default to 50%")
+	}
+	u.split.SetOffset(0.65)
+	u.save()
+	s, err := openSettingsFile(a.Preferences(), path, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.close(); err != nil {
+		t.Fatal(err)
+	}
+	statePath := filepath.Join(filepath.Dir(path), "state.json")
+	data, err := os.ReadFile(statePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var state struct {
+		Pane struct {
+			Split float64 `json:"split"`
+		} `json:"pane"`
+	}
+	if err := json.Unmarshal(data, &state); err != nil || state.Pane.Split != 0.65 {
+		t.Errorf("split missing from state.json: %s (%v)", data, err)
+	}
+	b := test.NewTempApp(t)
+	restored, err := openSettingsFile(b.Preferences(), path, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	v := newTrackedUI(t, b)
+	if v.split.Offset != 0.65 {
+		t.Errorf("restart split = %v, want 0.65", v.split.Offset)
+	}
+	for _, o := range test.WidgetRenderer(v.split).Objects() {
+		if d, ok := o.(interface{ DoubleTapped(*fyne.PointEvent) }); ok {
+			test.DoubleTap(d)
+		}
+	}
+	v.save()
+	if err := restored.close(); err != nil {
+		t.Fatal(err)
+	}
+	c := test.NewTempApp(t)
+	reset, err := openSettingsFile(c.Preferences(), path, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer reset.close()
+	if w := newTrackedUI(t, c); w.split.Offset != 0.5 {
+		t.Errorf("reset split not persisted: %v", w.split.Offset)
+	}
+}
 
 func TestSettingsFileMigrationAndUI(t *testing.T) {
 	root := fixture(t)
@@ -562,7 +622,7 @@ func TestSettingsStateSeparation(t *testing.T) {
 	if b.String(prefLeft) != "/current" || b.String(prefLeftSort) != "name" || b.Float(prefW) != 1234 || b.Float(prefH) != 800 {
 		t.Fatal("nested state not restored")
 	}
-	for _, document := range []string{"{", "null", "[]", `{"left.path":true}`, `{"win.w":-1}`, `{"pane":null}`, `{"pane":{"left":[]}}`, `{"pane":{"active":"length"}}`, `{"pane":{"left":{"path":true}}}`, `{"window":false}`, `{"window":{"height":-1}}`, `{"window":{"width":null}}`} {
+	for _, document := range []string{"{", "null", "[]", `{"left.path":true}`, `{"win.w":-1}`, `{"pane":null}`, `{"pane":{"left":[]}}`, `{"pane":{"active":"length"}}`, `{"pane":{"left":{"path":true}}}`, `{"window":false}`, `{"window":{"height":-1}}`, `{"window":{"width":null}}`, `{"pane":{"split":-0.1}}`, `{"pane":{"split":1.1}}`, `{"pane":{"split":null}}`, `{"pane":{"split":"half"}}`} {
 		if err := os.WriteFile(filepath.Join(dir, "state.json"), []byte(document), 0o600); err != nil {
 			t.Fatal(err)
 		}
