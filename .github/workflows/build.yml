@@ -35,6 +35,9 @@ jobs:
             os: windows
             arch: arm64
     runs-on: ${{ matrix.runner }}
+    defaults:
+      run:
+        shell: bash
     # Configure release-signing with required reviewers and v* tag-only deployments.
     environment: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && ((matrix.os == 'darwin' && vars.MACOS_SIGNING_ENABLED == 'true') || (matrix.os == 'windows' && vars.WINDOWS_SIGNING_ENABLED == 'true')) && 'release-signing' || 'unsigned-build' }}
     permissions:
@@ -51,9 +54,7 @@ jobs:
           cache: true
       - name: Check formatting and development profile
         if: matrix.os == 'darwin' && matrix.arch == 'arm64'
-        run: |
-          make fmt-check
-          python3 .devcontainer/cline-profile.py --self-test
+        run: make fmt-check profile-check
       - name: Install Linux development libraries
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y gcc libgl1-mesa-dev xorg-dev libxkbcommon-dev libwayland-dev wayland-protocols rpm cpio desktop-file-utils xz-utils
@@ -79,43 +80,28 @@ jobs:
           } else {
             "$env:MSYS2_LOCATION\mingw64\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
           }
+      - name: Install Make on Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: choco install make --no-progress -y
       - name: Install packager
         shell: bash
-        run: sh scripts/install-packager.sh
+        run: make install-packager
       - name: Check native OS workflows
         shell: bash
         env:
           TARGET_OS: ${{ matrix.os }}
           TARGET_ARCH: ${{ matrix.arch }}
-        run: |
-          test "$(go env GOOS)" = "$TARGET_OS"
-          test "$(go env GOARCH)" = "$TARGET_ARCH"
-          go vet -tags ci ./...
-          # Go's race detector does not support windows/arm64.
-          if [ "$TARGET_OS/$TARGET_ARCH" = windows/arm64 ]; then
-            go test -tags ci -count=1 ./...
-          else
-            go test -tags ci -race -count=1 ./...
-          fi
+        run: make ci-check
       - name: Package native app
-        working-directory: cmd/dualcommander
         shell: bash
-        run: |
-          version=$(sh ../../scripts/version.sh)
-          native_version=${version%%[-+]*}
-          export GOFLAGS="-ldflags=-X=github.com/dualcommander/dualcommander/internal/commander.buildVersion=$version"
-          # Ubuntu predefines fortification; Fyne appends its own level 3 definition.
-          if [ "$(go env GOOS)" = linux ]; then export CGO_CFLAGS="${CGO_CFLAGS:--O2 -g} -U_FORTIFY_SOURCE"; fi
-          fyne package -os ${{ matrix.os }} -release -app-version "$native_version"
+        run: make package-native
       - name: Archive macOS app
         if: runner.os == 'macOS'
-        run: |
-          mkdir -p dist
-          ditto -c -k --sequesterRsrc --keepParent cmd/dualcommander/DualCommander.app dist/dualcommander-darwin-${{ matrix.arch }}.zip
+        run: make archive-macos
       - name: Build macOS DMG
         if: runner.os == 'macOS'
-        run: |
-          sh scripts/package-macos.sh
+        run: make package-macos
       - name: Sign and notarize macOS packages
         if: env.SIGN_MACOS == 'true'
         env:
@@ -125,16 +111,13 @@ jobs:
           APPLE_API_KEY_BASE64: ${{ secrets.APPLE_API_KEY_BASE64 }}
           APPLE_API_KEY_ID: ${{ vars.APPLE_API_KEY_ID }}
           APPLE_API_ISSUER_ID: ${{ vars.APPLE_API_ISSUER_ID }}
-        run: sh scripts/sign-macos.sh
+        run: make sign-macos
       - name: Archive Linux package
         if: runner.os == 'Linux'
-        run: |
-          mkdir -p dist
-          cp cmd/dualcommander/DualCommander.tar.xz dist/dualcommander-linux-${{ matrix.arch }}.tar.xz
+        run: make archive-linux
       - name: Build DEB and RPM packages
         if: runner.os == 'Linux'
-        run: |
-          sh scripts/package-linux.sh
+        run: make package-linux
       - name: Build classic Snap package
         if: runner.os == 'Linux'
         run: |
@@ -163,24 +146,12 @@ jobs:
           output-artifact-directory: signed-windows
       - name: Verify signed Windows app
         if: env.SIGN_WINDOWS == 'true'
-        shell: pwsh
         env:
           EXPECTED_SIGNER: ${{ vars.WINDOWS_SIGNER_SUBJECT }}
-        run: |
-          $ErrorActionPreference = 'Stop'
-          if (-not $env:EXPECTED_SIGNER) { throw 'Missing WINDOWS_SIGNER_SUBJECT' }
-          $exe = 'signed-windows/DualCommander.exe'
-          $signature = Get-AuthenticodeSignature $exe
-          if ($signature.Status -ne 'Valid') { throw "Invalid signature: $($signature.Status)" }
-          if ($signature.SignerCertificate.Subject -ne $env:EXPECTED_SIGNER) { throw 'Unexpected signing identity' }
-          if (-not $signature.TimeStamperCertificate) { throw 'Missing Authenticode timestamp' }
-          Copy-Item $exe cmd/dualcommander/DualCommander.exe -Force
+        run: make verify-windows
       - name: Archive Windows app
         if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Force dist
-          Compress-Archive -Path cmd/dualcommander/DualCommander.exe -DestinationPath dist/dualcommander-windows-${{ matrix.arch }}.zip
+        run: make archive-windows
       - uses: actions/upload-artifact@v4
         with:
           name: dualcommander-${{ matrix.os }}-${{ matrix.arch }}
@@ -194,6 +165,7 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
           pattern: dualcommander-*
@@ -204,9 +176,49 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           RELEASE_TAG: ${{ github.ref_name }}
-        run: |
-          gh release view "$RELEASE_TAG" >/dev/null 2>&1 || gh release create "$RELEASE_TAG" --verify-tag --generate-notes
-          gh release upload "$RELEASE_TAG" dist/* --clobber
+        run: make publish-release
+
+  apple-store:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && !contains(github.ref_name, '-') && !contains(github.ref_name, '+') && vars.APPLE_STORE_ENABLED == 'true'
+    needs: release
+    runs-on: macos-14
+    environment: apple-store
+    concurrency:
+      group: apple-store
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: dualcommander-darwin-*
+          path: macos-artifacts
+          merge-multiple: true
+      - name: Build signed universal Store package
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+          APPLE_STORE_CERTIFICATE_BASE64: ${{ secrets.APPLE_STORE_CERTIFICATE_BASE64 }}
+          APPLE_STORE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_STORE_CERTIFICATE_PASSWORD }}
+          APPLE_STORE_PROFILE_BASE64: ${{ secrets.APPLE_STORE_PROFILE_BASE64 }}
+          APPLE_STORE_APPLICATION_IDENTITY: ${{ vars.APPLE_STORE_APPLICATION_IDENTITY }}
+          APPLE_STORE_INSTALLER_IDENTITY: ${{ vars.APPLE_STORE_INSTALLER_IDENTITY }}
+          APPLE_STORE_BUNDLE_ID: ${{ vars.APPLE_STORE_BUNDLE_ID }}
+          APPLE_STORE_TEAM_ID: ${{ vars.APPLE_STORE_TEAM_ID }}
+        run: make package-apple-store APPLE_STORE_INPUT=macos-artifacts
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dualcommander-apple-store
+          path: dist/apple-store/*.pkg
+          if-no-files-found: error
+      - name: Validate and upload Store build
+        env:
+          APPLE_API_KEY_BASE64: ${{ secrets.APPLE_API_KEY_BASE64 }}
+          APPLE_API_KEY_ID: ${{ vars.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER_ID: ${{ vars.APPLE_API_ISSUER_ID }}
+          APPLE_STORE_APP_ID: ${{ vars.APPLE_STORE_APP_ID }}
+          APPLE_STORE_PROVIDER_ID: ${{ vars.APPLE_STORE_PROVIDER_ID }}
+          APPLE_STORE_BUNDLE_ID: ${{ vars.APPLE_STORE_BUNDLE_ID }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: make publish-apple-store
 
   windows-store:
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && !contains(github.ref_name, '-') && !contains(github.ref_name, '+') && vars.WINDOWS_STORE_ENABLED == 'true'
@@ -218,9 +230,12 @@ jobs:
       cancel-in-progress: false
     defaults:
       run:
-        shell: pwsh
+        shell: bash
     steps:
       - uses: actions/checkout@v4
+      - name: Install Make on Windows
+        shell: pwsh
+        run: choco install make --no-progress -y
       - uses: actions/setup-python@v5
         with:
           python-version: '3.x'
@@ -235,7 +250,7 @@ jobs:
           WINDOWS_STORE_IDENTITY_NAME: ${{ vars.WINDOWS_STORE_IDENTITY_NAME }}
           WINDOWS_STORE_PUBLISHER: ${{ vars.WINDOWS_STORE_PUBLISHER }}
           WINDOWS_STORE_PUBLISHER_DISPLAY_NAME: ${{ vars.WINDOWS_STORE_PUBLISHER_DISPLAY_NAME }}
-        run: ./scripts/package-windows-store.ps1 -InputDirectory windows-artifacts
+        run: make package-msix WINDOWS_STORE_INPUT=windows-artifacts
       - uses: actions/upload-artifact@v4
         with:
           name: dualcommander-windows-store
@@ -250,12 +265,4 @@ jobs:
           WINDOWS_STORE_CLIENT_ID: ${{ secrets.WINDOWS_STORE_CLIENT_ID }}
           WINDOWS_STORE_CLIENT_SECRET: ${{ secrets.WINDOWS_STORE_CLIENT_SECRET }}
           WINDOWS_STORE_PRODUCT_ID: ${{ vars.WINDOWS_STORE_PRODUCT_ID }}
-        run: |
-          $ErrorActionPreference = 'Stop'
-          foreach ($key in @('WINDOWS_STORE_TENANT_ID', 'WINDOWS_STORE_SELLER_ID', 'WINDOWS_STORE_CLIENT_ID', 'WINDOWS_STORE_CLIENT_SECRET', 'WINDOWS_STORE_PRODUCT_ID')) {
-            if (-not [Environment]::GetEnvironmentVariable($key)) { throw "Missing $key" }
-          }
-          msstore reconfigure --tenantId $env:WINDOWS_STORE_TENANT_ID --sellerId $env:WINDOWS_STORE_SELLER_ID --clientId $env:WINDOWS_STORE_CLIENT_ID --clientSecret $env:WINDOWS_STORE_CLIENT_SECRET
-          if ($LASTEXITCODE -ne 0) { throw 'Store authentication failed' }
-          msstore publish dist/windows-store/dualcommander.msixbundle --appId $env:WINDOWS_STORE_PRODUCT_ID
-          if ($LASTEXITCODE -ne 0) { throw 'Store submission failed' }
+        run: make publish-windows-store

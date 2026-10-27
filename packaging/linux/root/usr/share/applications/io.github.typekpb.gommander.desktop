@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=DualCommander
+Exec=dualcommander
+Icon=io.github.typekpb.gommander
+Categories=System;FileTools;FileManager;
+Keywords=fyne;

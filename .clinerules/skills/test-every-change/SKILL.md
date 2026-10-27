@@ -11,6 +11,11 @@ description: Test-driven application changes in dualcommander (Go/Fyne file mana
 3. Never weaken or delete a test to make it pass. If the test exposed a real bug, fix the app.
 
 ## Scripts and CI
+- Use Make targets as the shared entry points for local and CI checks, builds, packaging, signing, and publishing. Reuse existing targets; add small targets where needed instead of inline workflow scripts.
+- Keep workflows focused on runners, dependencies, gates, environments, secrets, and artifacts. Put reusable multi-step logic in scripts called by Make; keep short commands in Make recipes. Never pass secrets as Make command-line arguments or echo them in recipes.
+- Prefer checked-in native package descriptors (manifests, plists, entitlements, specs, control files, desktop entries, Snapcraft YAML) over constructing them in code or heredocs. Keep stable metadata and permissions visible in Git reviews; scripts only validate and substitute release-specific version, architecture, or signing identity into staged copies. Reuse upstream packager output rather than duplicating its descriptors without need. Validate with native tools where available.
+- Keep fixed package directory layouts and text assets in versioned staging trees; copy those trees instead of rebuilding their structure in shell. Stage binaries, icons, and licenses from existing sources without duplicating them in Git. Let native package tools create their working directories; do not add empty-directory marker files to packages.
+- Validate changed targets with `make -n` and run safe targets with real tools. Prefer `make check` for full validation; `sh scripts/check.sh` remains the compatibility entry point and must still pass.
 - Do not add `scripts/*_test.sh` or `scripts/*_test.py`, mocked command harnesses, or tests that assert workflow text. Do not relocate these tests to another directory or framework.
 - Keep Go application tests and the existing development-profile self-check. Standalone packaging, signing, installer, and workflow test scripts are intentionally omitted.
 - Validate shell syntax, Python syntax, and workflow syntax with available native tools. Exercise packaging and signing with actual platform tools when available; preserve production validation and error handling.

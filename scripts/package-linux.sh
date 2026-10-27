@@ -20,20 +20,21 @@ case "$suffix" in
 esac
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
-mkdir -p "$tmp/source" "$tmp/root/usr/bin" "$tmp/root/usr/share" dist
+mkdir -p "$tmp/source" dist
+cp -R packaging/linux/root "$tmp/root"
 tar -xJf cmd/dualcommander/DualCommander.tar.xz -C "$tmp/source" --strip-components=1
 prefix="$tmp/source/usr/local"
 [ -d "$prefix" ] || prefix="$tmp/source/usr"
-install -m 755 "$prefix/bin/dualcommander" "$tmp/root/usr/bin/dualcommander"
-cp -R "$prefix/share/applications" "$prefix/share/pixmaps" "$tmp/root/usr/share/"
+install -D -m 755 "$prefix/bin/dualcommander" "$tmp/root/usr/bin/dualcommander"
+install -D -m 644 "$prefix/share/pixmaps/io.github.typekpb.gommander.png" \
+    "$tmp/root/usr/share/pixmaps/io.github.typekpb.gommander.png"
 install -D -m 644 LICENSE "$tmp/root/usr/share/licenses/dualcommander/LICENSE"
-mkdir "$tmp/root/DEBIAN"
 sed -e "s/@VERSION@/$native_version/g" -e "s/@RELEASE@/$release/g" \
     -e "s/@ARCH@/$arch/g" -e "s/@GLIBC_VERSION@/$glibc_version/g" \
-    packaging/linux/control.in > "$tmp/root/DEBIAN/control"
+    packaging/linux/root/DEBIAN/control > "$tmp/root/DEBIAN/control"
+desktop-file-validate "$tmp/root/usr/share/applications/io.github.typekpb.gommander.desktop"
 dpkg-deb --root-owner-group --build "$tmp/root" "dist/dualcommander-linux-$arch.deb"
 rm -r "$tmp/root/DEBIAN"
-mkdir -p "$tmp/rpm/BUILD" "$tmp/rpm/RPMS" "$tmp/rpm/SOURCES" "$tmp/rpm/SPECS" "$tmp/rpm/SRPMS"
 rpmbuild --define "_topdir $tmp/rpm" --define "package_version $native_version" \
     --define "package_release $release" --define "package_arch $rpm_arch" \
     --define "glibc_version $glibc_version" --define "payload_root $tmp/root" \

@@ -4,9 +4,44 @@ For downloads and usage, see [README.md](README.md).
 
 ## Development
 
-Install Go (see [go.mod](go.mod)), Make, a POSIX shell, and a C compiler.
-Follow [Fyne's setup guide](https://docs.fyne.io/started/) for platform libraries.
-On Windows, use Git Bash with Make installed.
+Requires Go (see [go.mod](go.mod)), Make, Python 3, Git, and a C compiler.
+
+### macOS
+
+With [Homebrew](https://brew.sh/) installed:
+
+```sh
+xcode-select --install  # skip if Command Line Tools or Xcode already installed
+brew install go python git
+```
+
+macOS supplies Make. Store packaging also requires full Xcode.
+
+### Windows (x64)
+
+In PowerShell:
+
+```powershell
+winget install --exact --id GoLang.Go
+winget install --exact --id MSYS2.MSYS2
+winget install --exact --id Microsoft.PowerShell
+```
+
+Open **MSYS2 MINGW64**, then:
+
+```sh
+pacman -Syu  # reopen MINGW64 and repeat if prompted
+pacman -S --needed make git python mingw-w64-x86_64-gcc
+export PATH="/c/Program Files/Go/bin:/c/Program Files/PowerShell/7:$PATH"
+```
+
+Run project commands in MINGW64. Store packaging additionally needs Windows SDK.
+
+### Linux
+
+Install development tools and libraries from [Fyne's setup guide](https://docs.fyne.io/started/).
+
+### Commands
 
 Run from the repository root:
 
@@ -31,6 +66,12 @@ manual dispatch. It vets, tests, and packages Linux, Windows, and macOS apps for
 amd64 and arm64. Race detection runs except on Windows arm64, where Go does not
 support it. Successful builds upload artifacts.
 
+Local and CI commands share Make targets: `make ci-check` checks native builds
+with `TARGET_OS` and `TARGET_ARCH` set; `make package-native` runs Fyne packaging.
+Use `make archive-macos package-macos`, `make archive-linux package-linux`, or
+`make archive-windows` on the matching OS. `make install-packager` installs the
+pinned Fyne tool. Workflows keep runner setup and release gates, not build logic.
+
 Maintainers publish releases by tagging the intended commit with a semantic
 version such as `v1.2.3` and pushing that tag:
 
@@ -41,7 +82,7 @@ git push origin v1.2.3
 
 After all platform builds pass, CI publishes packages as GitHub Release assets.
 Tagged builds use the tag version; development builds include the commit hash.
-Signing and Microsoft Store submission default off; setup follows below.
+Signing and Microsoft/Mac App Store submission default off; setup follows below.
 
 ### Release signing
 
@@ -85,60 +126,75 @@ nonzero, and each update newer. Package structure lives in
 [`cmd/dualcommander/AppxManifest.xml`](cmd/dualcommander/AppxManifest.xml);
 CI substitutes escaped release version, architecture, and Store identity.
 
-#### Build first upload locally
-
-On Windows, install Windows SDK (including MakeAppx), PowerShell 7 (`pwsh`),
-Python 3 (`python`), and Make. No signing certificate or Store API credentials
-are needed. Download the amd64 and arm64 Windows ZIPs from the same GitHub
-Actions run or release into `dist/`. Extract GitHub's artifact download wrapper
-if present; keep the inner `dualcommander-windows-amd64.zip` and
-`dualcommander-windows-arm64.zip` intact.
-
-From Git Bash at the repository root, replace the example values with your
-Partner Center **Product identity** values and intended release version:
-
-```sh
-export RELEASE_TAG='v1.2.3'
-export WINDOWS_STORE_IDENTITY_NAME='YOUR_PACKAGE_IDENTITY_NAME'
-export WINDOWS_STORE_PUBLISHER='CN=YOUR_PUBLISHER_ID'
-export WINDOWS_STORE_PUBLISHER_DISPLAY_NAME='Your publisher display name'
-make package-msix
-```
-
-Use `make package-msix WINDOWS_STORE_INPUT=path/to/zips` for another input folder.
-Alternatively, from PowerShell with the same environment variables set, run
-`pwsh -NoProfile -File scripts/package-windows-store.ps1 -InputDirectory dist`.
-Output: `dist/windows-store/dualcommander.msixbundle`, containing x64 and ARM64
-packages. Upload this file to the first submission's **Packages** page in
-Partner Center. This command only packages; it never publishes or signs.
-Use matching source checkout and ZIPs, and a version newer than prior Store
-uploads. Keep package display name aligned with your reserved Store name.
-MakeAppx and first submission still require validation on Windows/Partner Center.
-
-#### Enable automatic updates
-
-1. Reserve an **MSIX** app in Partner Center. Complete its first submission
-   manually, including listing, privacy policy, ratings, pricing, markets, and
-   `runFullTrust` approval; the CLI cannot create a first loose-MSIX submission.
-2. [Configure Microsoft Entra/Partner Center submission access](https://learn.microsoft.com/en-us/windows/uwp/monetize/create-and-manage-submissions-using-windows-store-services)
-   and create a client secret.
-3. Create GitHub environment `windows-store` with required reviewers and `v*`-only
-   deployments. Add environment secrets `WINDOWS_STORE_TENANT_ID`,
-   `WINDOWS_STORE_SELLER_ID`, `WINDOWS_STORE_CLIENT_ID`, `WINDOWS_STORE_CLIENT_SECRET`.
-4. Add environment variables `WINDOWS_STORE_PRODUCT_ID`,
-   `WINDOWS_STORE_IDENTITY_NAME`, `WINDOWS_STORE_PUBLISHER`, and
-   `WINDOWS_STORE_PUBLISHER_DISPLAY_NAME`, matching Partner Center Product identity
-   exactly, not the Fyne app ID. Set **repository variable**
-   `WINDOWS_STORE_ENABLED=true` last; environment-only flags cannot gate this job.
-5. Push a new stable tag and approve deployment. Release one version at a time:
-   Store jobs serialize, but GitHub can replace older pending jobs. Do not edit
-   pending Partner Center submissions while CI publishes.
-
 Store signs MSIX; SignPath is independent and optional. Actions artifact
 `dualcommander-windows-store` is unsigned, not sideload-ready. Certification and
 rollout still control availability. Store failures leave GitHub releases intact;
 check submission state before rerunning failed jobs. Validate packaging with Windows
 SDK MakeAppx and submission in Partner Center; local application checks cover neither.
+
+### Mac App Store uploads (opt-in)
+
+Repository variable `APPLE_STORE_ENABLED=true` enables a protected `apple-store`
+job after GitHub Release publication, for stable `vMAJOR.MINOR.PATCH` tag pushes
+only. Pull requests, branches, manual runs, and prerelease tags never upload.
+Jobs serialize without cancelling active uploads; release one version at a time
+because GitHub can replace older pending jobs. Store failure leaves GitHub
+releases intact. Developer ID signing (`MACOS_SIGNING_ENABLED`) is independent.
+
+**Keep this flag off until sandbox compatibility is verified.** Mac App Store
+requires App Sandbox. Store packages enable sandbox and user-selected read/write
+access, not unrestricted filesystem access. Current folder navigation, persisted
+paths, external tools, and Trash workflows are not yet Store-qualified. An
+entitlement alone does not grant access: native file/folder authorization and
+security-scoped bookmark persistence may need application work before release.
+Do not bypass sandbox restrictions with broad temporary exception entitlements.
+
+1. Enroll in Apple Developer, register the existing bundle ID
+   `io.github.typekpb.gommander`, and create its macOS app in App Store Connect.
+   Complete agreements, listing, privacy policy, ratings, pricing, and availability.
+2. Create a Mac App Store distribution provisioning profile for that explicit
+   bundle ID. Export Store application and installer certificates **with private
+   keys together** as password-protected PKCS#12. Developer ID certificates used
+   for direct downloads cannot replace these Store certificates.
+3. Create GitHub environment `apple-store` with required reviewers and `v*`-only
+   deployment rules. Protect tag creation and review tagged workflows before
+   approval. Keep credentials only in this environment, never repository-wide.
+4. Add environment secrets `APPLE_STORE_CERTIFICATE_BASE64` (PKCS#12),
+   `APPLE_STORE_CERTIFICATE_PASSWORD`, `APPLE_STORE_PROFILE_BASE64` (distribution
+   `.provisionprofile`), and `APPLE_API_KEY_BASE64` (App Store Connect `.p8` key
+   authorized to upload builds).
+5. Add environment variables `APPLE_STORE_APPLICATION_IDENTITY` (full Store
+   application certificate identity, e.g. `Apple Distribution: … (TEAMID)`),
+   `APPLE_STORE_INSTALLER_IDENTITY` (`3rd Party Mac Developer Installer: … (TEAMID)`),
+   `APPLE_STORE_BUNDLE_ID`, `APPLE_STORE_TEAM_ID`, `APPLE_STORE_APP_ID` (numeric app
+   ID), `APPLE_STORE_PROVIDER_ID` (provider public ID from `xcrun altool
+   --list-providers`), `APPLE_API_KEY_ID`, and `APPLE_API_ISSUER_ID`.
+6. Validate sandboxed workflows on macOS and complete App Review requirements.
+   Set **repository variable** `APPLE_STORE_ENABLED=true` last; environment-only
+   flags cannot gate this job. Push a new stable tag and approve deployment.
+
+CI merges both native macOS ZIP executables into one universal app, checks bundle
+metadata and distribution profile, embeds the profile, signs app and installer,
+then validates and uploads PKG through `altool`. No notarization is used for Store
+distribution. Artifact `dualcommander-apple-store` holds the signed PKG.
+Temporary credentials and keychain are removed on exit. Build number uses
+`GITHUB_RUN_NUMBER.GITHUB_RUN_ATTEMPT` (Apple limits: 9999 runs, 99 attempts).
+Check App Store Connect processing state before rerunning failed uploads.
+
+With the environment above configured, `make package-apple-store
+APPLE_STORE_INPUT=macos-artifacts` packages existing macOS ZIPs without uploading.
+`make publish-apple-store` validates and uploads that PKG. `make package-msix`
+and `make publish-windows-store` likewise keep Windows packaging and publishing
+separate. `make sign-macos`, `make verify-windows`, and `make publish-release`
+expose the same signing verification and GitHub release steps used by CI.
+Publishing targets perform real uploads; supply credentials through environment
+variables, never Make command-line arguments.
+
+Upload does **not** submit for App Review or automatically release the app.
+Select the processed build and submit/release in App Store Connect, including
+first submission. Real certificate/profile signing, Apple server validation,
+sandbox behavior, and App Review need separate verification; local application
+checks do not validate Store readiness.
 
 ## Snap installation
 
