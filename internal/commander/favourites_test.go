@@ -122,8 +122,24 @@ func TestDiskSpaceText(t *testing.T) {
 	p := u.left
 	waitUntil(t, func() bool { return p.space.Text != "Disk usage unavailable" })
 	p.setSpace(256*1024, 1024*1024, nil)
+	if p.space.Text != "768.0 KB free / 1.0 MB total" {
+		t.Fatal("wrong free/total usage", p.space.Text)
+	}
+	u.app.Preferences().SetBool("showFreeSpace", false)
+	p.setSpace(256*1024, 1024*1024, nil)
 	if p.space.Text != "256.0 KB used / 1.0 MB total" {
-		t.Fatal("wrong occupied/total usage")
+		t.Fatal("wrong used/total usage", p.space.Text)
+	}
+	for _, used := range []uint64{0, 1024 * 1024} {
+		u.app.Preferences().SetBool("showFreeSpace", true)
+		p.setSpace(used, 1024*1024, nil)
+		if want := fmt.Sprintf("%s free / 1.0 MB total", humanSize(int64(1024*1024-used))); p.space.Text != want {
+			t.Fatalf("boundary usage: got %q, want %q", p.space.Text, want)
+		}
+	}
+	p.setSpace(2, 1, nil)
+	if p.space.Text != "Disk usage unavailable" {
+		t.Fatal("invalid usage presented as free space")
 	}
 	p.setSpace(0, 0, fmt.Errorf("unavailable"))
 	if p.space.Text != "Disk usage unavailable" {
@@ -193,7 +209,7 @@ func TestFavouritesUIContent(t *testing.T) {
 		if u.left.pathBar.Text != src || !strings.HasSuffix(pathLabel, string(filepath.Separator)+"src") {
 			t.Fatal("favourite path lost full value or current folder label")
 		}
-		assertUIText(t, u.win.Content(), pathLabel, "★", "256.0 GB used / 1.0 TB total")
+		assertUIText(t, u.win.Content(), pathLabel, "★", "768.0 GB free / 1.0 TB total")
 		assertPaneRows(t, u.left)
 		test.Tap(u.left.favourites)
 		assertUIText(t, u.win.Canvas().Overlays().Top(), "src", src, "dst", dst, "★")

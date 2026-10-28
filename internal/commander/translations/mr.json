@@ -1,4 +1,12 @@
 {
+  "Browse supported archives like folders (read-only). When unchecked, archives open in the default application.": "समर्थित संग्रह फोल्डरप्रमाणे ब्राउझ करा (केवळ वाचण्यासाठी). पर्याय बंद असल्यास संग्रह डीफॉल्ट ॲपमध्ये उघडतात.",
+  "When unchecked, used disk space is shown instead.": "निवड रद्द केल्यास, वापरलेली डिस्क जागा दाखवली जाते.",
+  "When unchecked, files bypass the trash and are permanently deleted.": "निवड रद्द केल्यास, फायली कचरापेटीत न पाठवता कायमच्या हटवल्या जातात.",
+  "Move deleted files to Bin": "हटवलेल्या फाइल्स कचरापेटी वर हलवा",
+  "Move deleted files to Recycle Bin": "हटवलेल्या फाइल्स कचरापेटी वर हलवा",
+  "Move deleted files to Trash": "हटवलेल्या फाइल्स कचरापेटी वर हलवा",
+  "%s free / %s total": "%s मोकळे / %s एकूण",
+  "Show free disk space": "मोकळी डिस्क जागा दाखवा",
   "\n\nThis cannot be undone.": "\n\nहे पूर्ववत केले जाऊ शकत नाही.",
   " Overwrite merges folders; conflicting children are checked individually.": " ओव्हरराइट केल्याने फोल्डर एकत्र होतात; आतील फाइल आणि उपफोल्डरमधील संघर्ष स्वतंत्रपणे तपासले जातात.",
   " · %d files": " · %d फाइल्स",

@@ -13,6 +13,7 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 	"github.com/dualcommander/dualcommander/pkg/desktop"
 	"github.com/dualcommander/dualcommander/pkg/fsops"
@@ -278,16 +279,44 @@ func (u *ui) settings() {
 		}
 	}
 	hidden.ExtendBaseWidget(hidden)
+	freeSpace := &dialogCheck{close: w.Close}
+	freeSpace.Text = lang.L("Show free disk space")
+	freeSpace.Checked = pr.BoolWithFallback(prefShowFreeSpace, true)
+	freeSpace.OnChanged = func(b bool) {
+		pr.SetBool(prefShowFreeSpace, b)
+		u.left.updateSpace()
+		u.right.updateSpace()
+	}
+	freeSpace.ExtendBaseWidget(freeSpace)
+	checkHint := func(c *dialogCheck, text string) {
+		label := widget.NewLabel(text)
+		label.Wrapping = fyne.TextWrapWord
+		icon := container.New(layout.NewCustomPaddedLayout(0, 0, 0, 8), newDialogInfoIcon())
+		guidance := container.NewBorder(nil, nil, icon, nil, label)
+		card := widget.NewCard("", "", container.NewGridWrap(fyne.NewSize(400, guidance.MinSize().Height*2), guidance))
+		c.hint = container.New(searchHintLayout{c}, card)
+		c.hint.Hide()
+	}
+	checkHint(freeSpace, lang.L("When unchecked, used disk space is shown instead."))
 	c := &dialogCheck{close: w.Close}
-	c.Text = lang.L("Move deleted files to {{.Trash}}", map[string]any{"Trash": trashName()})
+	switch runtime.GOOS {
+	case "darwin":
+		c.Text = lang.L("Move deleted files to Bin")
+	case "windows":
+		c.Text = lang.L("Move deleted files to Recycle Bin")
+	default:
+		c.Text = lang.L("Move deleted files to Trash")
+	}
 	c.OnChanged = func(b bool) { pr.SetBool(prefTrash, b) }
 	c.ExtendBaseWidget(c)
 	c.Checked = pr.BoolWithFallback(prefTrash, true)
+	checkHint(c, lang.L("When unchecked, files bypass the trash and are permanently deleted."))
 	browse := &dialogCheck{close: w.Close}
 	browse.Text = lang.L("Browse archives in DualCommander")
 	browse.OnChanged = func(b bool) { pr.SetBool(prefBrowseArchives, b) }
 	browse.ExtendBaseWidget(browse)
 	browse.Checked = pr.BoolWithFallback(prefBrowseArchives, true)
+	checkHint(browse, lang.L("Browse supported archives like folders (read-only). When unchecked, archives open in the default application."))
 	reveal, terminal := desktop.Defaults(runtime.GOOS)
 	commandEntry := func(key, fallback string) *escEntry {
 		e := newEscEntry()
@@ -337,6 +366,7 @@ func (u *ui) settings() {
 		heading(lang.L("File views")),
 		views,
 		hidden,
+		freeSpace,
 		widget.NewSeparator(),
 		heading(lang.L("File deletion")),
 		c,
@@ -348,7 +378,7 @@ func (u *ui) settings() {
 		hint(lang.L("Custom commands use JSON argument lists, without a shell.\nLeave a field blank for the OS default; comparison has no default and stays disabled.")),
 		widget.NewForm(revealItem, terminalItem, editorItem, filesItem, foldersItem),
 	)).(*container.ThemeOverride)
-	w.SetContent(container.NewVScroll(content))
+	w.SetContent(container.NewStack(container.NewVScroll(content), freeSpace.hint, c.hint, browse.hint))
 	w.Resize(fyne.NewSize(700, min(700, content.MinSize().Height)))
 	w.Show()
 }

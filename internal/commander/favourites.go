@@ -157,7 +157,11 @@ func currentMount(path string, mounts []string) string {
 func (p *pane) setSpace(used, total uint64, err error) {
 	text := lang.L("Disk usage unavailable")
 	if err == nil && total > 0 && used <= total {
-		text = fmt.Sprintf(lang.L("%s used / %s total"), humanSize(int64(used)), humanSize(int64(total)))
+		format, size := lang.L("%s used / %s total"), used
+		if p.ui.app.Preferences().BoolWithFallback(prefShowFreeSpace, true) {
+			format, size = lang.L("%s free / %s total"), total-used
+		}
+		text = fmt.Sprintf(format, humanSize(int64(size)), humanSize(int64(total)))
 	}
 	p.space.SetText(text)
 }

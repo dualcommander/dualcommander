@@ -1,4 +1,12 @@
 {
+  "Browse supported archives like folders (read-only). When unchecked, archives open in the default application.": "A támogatott archívumok böngészése mappaként (csak olvasható). Kikapcsolva az archívumok az alapértelmezett alkalmazásban nyílnak meg.",
+  "When unchecked, used disk space is shown instead.": "Kikapcsolva a foglalt lemezterület jelenik meg.",
+  "When unchecked, files bypass the trash and are permanently deleted.": "Kikapcsolva a fájlok a kuka kihagyásával véglegesen törlődnek.",
+  "Move deleted files to Bin": "Helyezze át a törölt fájlokat a Lomtár mappába",
+  "Move deleted files to Recycle Bin": "Helyezze át a törölt fájlokat a Lomtár mappába",
+  "Move deleted files to Trash": "Helyezze át a törölt fájlokat a Lomtár mappába",
+  "%s free / %s total": "%s szabad / %s összesen",
+  "Show free disk space": "Szabad lemezterület megjelenítése",
   "\n\nThis cannot be undone.": "\n\nEzt nem lehet visszavonni.",
   " Overwrite merges folders; conflicting children are checked individually.": " A felülírás egyesíti a mappákat; a bennük lévő fájlok és almappák ütközéseit külön ellenőrzi.",
   " · %d files": " · %d fájlok",

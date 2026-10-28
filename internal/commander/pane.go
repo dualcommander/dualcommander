@@ -591,6 +591,9 @@ func (p *pane) selection() []string {
 
 func (p *pane) updateStatus() {
 	p.ui.updateCompareMenu()
+	if p.ui.active == p {
+		p.ui.updateFunctionButtons()
+	}
 	p.statusRow.Hide()
 	p.status.Show()
 	if p.searchPrefix != "" {

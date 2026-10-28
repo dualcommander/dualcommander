@@ -301,12 +301,40 @@ func (b *dialogButton) TypedKey(e *fyne.KeyEvent) {
 type dialogCheck struct {
 	widget.Check
 	close func()
+	hint  *fyne.Container
 }
 
 type dialogSelect struct {
 	widget.Select
 	close func()
 }
+
+// ponytail: in-content hover hints reuse search layout, avoiding input-blocking popups.
+func (c *dialogCheck) MouseIn(e *desktop.MouseEvent) {
+	c.Check.MouseIn(e)
+	if c.hint != nil {
+		c.hint.Show()
+		c.hint.Refresh()
+	}
+}
+
+func (c *dialogCheck) hideHint() {
+	if c.hint != nil {
+		c.hint.Hide()
+	}
+}
+
+func (c *dialogCheck) MouseOut() { c.Check.MouseOut(); c.hideHint() }
+func (c *dialogCheck) FocusGained() {
+	c.Check.FocusGained()
+	if c.hint != nil {
+		c.hint.Show()
+		c.hint.Refresh()
+	}
+}
+func (c *dialogCheck) FocusLost()                { c.Check.FocusLost(); c.hideHint() }
+func (c *dialogCheck) Tapped(e *fyne.PointEvent) { c.Check.Tapped(e); c.hideHint() }
+func (c *dialogCheck) TypedRune(r rune)          { c.Check.TypedRune(r); c.hideHint() }
 
 // ponytail: retain Fyne's select rendering; replace its animated, duplicate-value popup only.
 func (s *dialogSelect) Tapped(*fyne.PointEvent) {

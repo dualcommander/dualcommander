@@ -1,4 +1,12 @@
 {
+  "Browse supported archives like folders (read-only). When unchecked, archives open in the default application.": "ஆதரிக்கப்படும் காப்பகங்களை கோப்புறைகள் போல உலாவவும் (படிக்க மட்டும்). தேர்வை நீக்கினால், காப்பகங்கள் இயல்புநிலை பயன்பாட்டில் திறக்கும்.",
+  "When unchecked, used disk space is shown instead.": "தேர்வை நீக்கினால், பயன்படுத்திய வட்டு இடம் காட்டப்படும்.",
+  "When unchecked, files bypass the trash and are permanently deleted.": "தேர்வை நீக்கினால், கோப்புகள் குப்பைக்குச் செல்லாமல் நிரந்தரமாக நீக்கப்படும்.",
+  "Move deleted files to Bin": "நீக்கப்பட்ட கோப்புகளை குப்பைத்தொட்டி க்கு நகர்த்தவும்",
+  "Move deleted files to Recycle Bin": "நீக்கப்பட்ட கோப்புகளை குப்பைத்தொட்டி க்கு நகர்த்தவும்",
+  "Move deleted files to Trash": "நீக்கப்பட்ட கோப்புகளை குப்பைத்தொட்டி க்கு நகர்த்தவும்",
+  "%s free / %s total": "%s காலி / %s மொத்தம்",
+  "Show free disk space": "காலி வட்டு இடத்தைக் காட்டு",
   "\n\nThis cannot be undone.": "\n\nஇதை செயல்தவிர்க்க முடியாது.",
   " Overwrite merges folders; conflicting children are checked individually.": " மேலெழுதும்போது கோப்புறைகள் ஒன்றிணைக்கப்படும்; உள்ளிருக்கும் கோப்புகள் மற்றும் துணைக்கோப்புறைகளின் முரண்பாடுகள் தனித்தனியாகச் சரிபார்க்கப்படும்.",
   " · %d files": " · %d கோப்புகள்",

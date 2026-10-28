@@ -1,4 +1,12 @@
 {
+  "Browse supported archives like folders (read-only). When unchecked, archives open in the default application.": "Browse supported archives like folders (read-only). When unchecked, archives open in the default application.",
+  "When unchecked, used disk space is shown instead.": "When unchecked, used disk space is shown instead.",
+  "When unchecked, files bypass the trash and are permanently deleted.": "When unchecked, files bypass the trash and are permanently deleted.",
+  "Move deleted files to Bin": "Move deleted files to Bin",
+  "Move deleted files to Recycle Bin": "Move deleted files to Recycle Bin",
+  "Move deleted files to Trash": "Move deleted files to Trash",
+  "%s free / %s total": "%s free / %s total",
+  "Show free disk space": "Show free disk space",
   "\n\nThis cannot be undone.": "\n\nThis cannot be undone.",
   " Overwrite merges folders; conflicting children are checked individually.": " Overwrite merges folders; conflicting children are checked individually.",
   " · %d files": " · %d files",

@@ -1,4 +1,12 @@
 {
+  "Browse supported archives like folders (read-only). When unchecked, archives open in the default application.": "Navegar pelos arquivos compactados compatíveis como pastas (somente leitura). Quando esta opção está desmarcada, eles abrem no aplicativo padrão.",
+  "When unchecked, used disk space is shown instead.": "Se desmarcado, o espaço usado em disco é exibido.",
+  "When unchecked, files bypass the trash and are permanently deleted.": "Se desmarcado, os arquivos são excluídos permanentemente sem passar pela lixeira.",
+  "Move deleted files to Bin": "Mover arquivos excluídos para Lixeira",
+  "Move deleted files to Recycle Bin": "Mover arquivos excluídos para Lixeira",
+  "Move deleted files to Trash": "Mover arquivos excluídos para Lixeira",
+  "%s free / %s total": "%s livre / %s total",
+  "Show free disk space": "Mostrar espaço livre em disco",
   "\n\nThis cannot be undone.": "\n\nEsta ação não pode ser desfeita.",
   " Overwrite merges folders; conflicting children are checked individually.": " Sobrescrever mescla pastas; os itens em conflito são verificados individualmente.",
   " · %d files": " · %d arquivos",

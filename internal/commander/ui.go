@@ -30,6 +30,7 @@ const (
 	prefActive, prefTheme          = "active", "theme"
 	prefHidden, prefDensity        = "hidden", "density"
 	prefFontSize                   = "fontSize"
+	prefShowFreeSpace              = "showFreeSpace"
 	prefTrash                      = "trash"
 	prefBrowseArchives             = "browseArchives"
 	prefRevealCmd, prefTerminalCmd = "revealCmd", "terminalCmd"
@@ -47,6 +48,8 @@ type ui struct {
 	left, right                          *pane
 	active                               *pane
 	split                                *paneSplit
+	functionBar                          *fyne.Container
+	functionItems                        map[int]*fyne.MenuItem
 	jobs                                 *jobs
 	themeMode                            string
 	themeItems                           []*fyne.MenuItem
@@ -151,7 +154,9 @@ func (u *ui) mainMenu() *fyne.MainMenu {
 					text.TypedShortcut(it.Shortcut)
 					return
 				}
-				f()
+				if !it.Disabled {
+					f()
+				}
 			}
 			u.win.Canvas().AddShortcut(it.Shortcut, func(fyne.Shortcut) { it.Action() })
 		}
@@ -203,20 +208,26 @@ func (u *ui) mainMenu() *fyne.MainMenu {
 	if runtime.GOOS == "darwin" {
 		aboutLabel = lang.L("About") // Fyne moves this to the app menu and replaces the default About panel.
 	}
+	u.functionItems = map[int]*fyne.MenuItem{
+		0: item(lang.L("Edit"), fyne.KeyF4, 0, u.edit),
+		1: item(lang.L("Copy…"), fyne.KeyF5, 0, func() { u.copyOrMove(false) }),
+		2: item(lang.L("Move…"), fyne.KeyF6, 0, func() { u.copyOrMove(true) }),
+		4: item(lang.L("Delete…"), fyne.KeyF8, 0, u.delete),
+	}
 
 	return fyne.NewMainMenu(
 		fyne.NewMenu(lang.L("File"),
 			item(lang.L("Open"), fyne.KeyO, mod, func() { u.active.open() }),
-			item(lang.L("Edit"), fyne.KeyF4, 0, u.edit),
+			u.functionItems[0],
 			item(revealLabel(), fyne.KeyR, mod|fyne.KeyModifierShift, func() { u.openExternal(false) }),
 			item(lang.L("Open in Terminal"), fyne.KeyF9, 0, func() { u.openExternal(true) }),
 			sep(),
 			item(lang.L("New Folder"), fyne.KeyF7, 0, u.mkdir),
 			item(lang.L("Find Files…"), fyne.KeyF, mod, func() { u.search() }),
-			item(lang.L("Copy…"), fyne.KeyF5, 0, func() { u.copyOrMove(false) }),
-			item(lang.L("Move…"), fyne.KeyF6, 0, func() { u.copyOrMove(true) }),
+			u.functionItems[1],
+			u.functionItems[2],
 			item(lang.L("Rename…"), fyne.KeyF6, fyne.KeyModifierShift, u.rename),
-			item(lang.L("Delete…"), fyne.KeyF8, 0, u.delete),
+			u.functionItems[4],
 			sep(), u.compareFilesItem, u.compareFoldersItem,
 			sep(),
 			item(lang.L("Settings…"), fyne.KeyComma, mod, u.settings), // macOS: Fyne moves it to app menu
@@ -434,7 +445,7 @@ func (u *ui) swap() {
 
 func (u *ui) fkeyBar() fyne.CanvasObject {
 	b := func(l string, f func()) fyne.CanvasObject { return widget.NewButton(l, f) }
-	return container.NewGridWithColumns(7,
+	u.functionBar = container.NewGridWithColumns(7,
 		b(lang.L("F4 Edit"), u.edit),
 		b(lang.L("F5 Copy"), func() { u.copyOrMove(false) }),
 		b(lang.L("F6 Move"), func() { u.copyOrMove(true) }),
@@ -442,6 +453,35 @@ func (u *ui) fkeyBar() fyne.CanvasObject {
 		b(lang.L("F8 Delete"), u.delete),
 		b(lang.L("F9 Terminal"), func() { u.openExternal(true) }),
 		b(lang.L("F10 Quit"), u.quit))
+	u.updateFunctionButtons()
+	return u.functionBar
+}
+
+func (u *ui) updateFunctionButtons() {
+	if u.functionBar == nil || u.active == nil {
+		return
+	}
+	e := u.active.current()
+	menuChanged := false
+	for _, i := range []int{0, 1, 2, 4} {
+		disabled := e.name == "" || e.name == ".." || (i == 0 && e.dir)
+		if item := u.functionItems[i]; item != nil && item.Disabled != disabled {
+			item.Disabled = disabled
+			menuChanged = true
+		}
+		b := u.functionBar.Objects[i].(*widget.Button)
+		if b.Disabled() == disabled {
+			continue
+		}
+		if disabled {
+			b.Disable()
+		} else {
+			b.Enable()
+		}
+	}
+	if menuChanged && u.win.MainMenu() != nil {
+		u.win.MainMenu().Refresh()
+	}
 }
 
 // key handles commander keys for pane p; page = entries per PgUp/PgDn.
@@ -453,13 +493,29 @@ func (u *ui) key(p *pane, e *fyne.KeyEvent, page int) {
 	if p.brief {
 		page = p.grid.rows * p.grid.cols
 	}
+	move := func(target int) {
+		target = max(0, min(target, len(p.entries)-1))
+		if driver, ok := u.app.Driver().(interface{ CurrentKeyModifiers() fyne.KeyModifier }); ok && driver.CurrentKeyModifiers()&fyne.KeyModifierShift != 0 {
+			step := 1
+			if target < p.cursor {
+				step = -1
+			}
+			if target == p.cursor {
+				p.flip(p.cursor)
+			}
+			for i := p.cursor; i != target; i += step {
+				p.flip(i)
+			}
+		}
+		p.moveTo(target)
+	}
 	switch e.Name {
 	case desktop.KeyMenu:
 		p.keyboardContextMenu()
 	case fyne.KeyUp:
-		p.moveTo(p.cursor - 1)
+		move(p.cursor - 1)
 	case fyne.KeyDown:
-		p.moveTo(p.cursor + 1)
+		move(p.cursor + 1)
 	case fyne.KeyLeft:
 		if p.brief {
 			p.moveTo(p.cursor - p.grid.rows)
@@ -512,13 +568,13 @@ func (u *ui) key(p *pane, e *fyne.KeyEvent, page int) {
 	case fyne.KeyInsert:
 		p.toggleMark()
 	case fyne.KeyHome:
-		p.moveTo(0)
+		move(0)
 	case fyne.KeyEnd:
-		p.moveTo(len(p.entries) - 1)
+		move(len(p.entries) - 1)
 	case fyne.KeyPageUp:
-		p.moveTo(p.cursor - page)
+		move(p.cursor - page)
 	case fyne.KeyPageDown:
-		p.moveTo(p.cursor + page)
+		move(p.cursor + page)
 	case fyne.KeyF5:
 		u.copyOrMove(false)
 	case fyne.KeyF6:
@@ -547,6 +603,7 @@ func (u *ui) other() *pane {
 
 func (u *ui) activate(p *pane) {
 	u.active = p
+	u.updateFunctionButtons()
 	u.updateViewMenu()
 	for _, q := range []*pane{u.left, u.right} {
 		if len(q.entries) > 0 {

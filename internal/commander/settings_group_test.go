@@ -4,10 +4,82 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
+	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/test"
 )
+
+func TestDiskSpaceSetting(t *testing.T) {
+	root := fixture(t)
+	a := test.NewTempApp(t)
+	u := newTestUI(t, a, root, root)
+	path := filepath.Join(t.TempDir(), "settings.json")
+	store, err := openSettingsFile(a.Preferences(), path, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = store.close() })
+	for _, free := range []bool{true, false, true} {
+		u.settings()
+		w := windowByTitle(t, a, "Settings")
+		var toggle *dialogCheck
+		for _, object := range test.LaidOutObjects(w.Content()) {
+			if c, ok := object.(*dialogCheck); ok && c.Text == "Show free disk space" {
+				toggle = c
+			}
+		}
+		if toggle == nil || toggle.Checked != free {
+			t.Fatalf("free-space setting missing or not restored: want %v", free)
+		}
+		for _, p := range []*pane{u.left, u.right} {
+			suffix := " free / "
+			if !free {
+				suffix = " used / "
+			}
+			waitUntil(t, func() bool { return strings.Contains(p.space.Text, suffix) })
+		}
+		test.Tap(toggle)
+		if a.Preferences().Bool("showFreeSpace") != !free {
+			t.Fatal("disk space choice not saved immediately")
+		}
+		w.Canvas().Focus(toggle)
+		toggle.TypedKey(&fyne.KeyEvent{Name: fyne.KeyEscape})
+		if hasWindow(a, "Settings") {
+			t.Fatal("Escape left Settings open")
+		}
+		if err := store.save(); err != nil {
+			t.Fatal(err)
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var document struct {
+			Views struct {
+				ShowFreeSpace *bool `json:"showFreeSpace"`
+			} `json:"views"`
+		}
+		if err := json.Unmarshal(data, &document); err != nil {
+			t.Fatal(err)
+		}
+		if document.Views.ShowFreeSpace == nil || *document.Views.ShowFreeSpace != !free {
+			t.Fatal("views.showFreeSpace not persisted", string(data))
+		}
+		prefs := test.NewTempApp(t).Preferences()
+		restored, err := openSettingsFile(prefs, path, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := restored.close(); err != nil {
+			t.Fatal(err)
+		}
+		if prefs.BoolWithFallback("showFreeSpace", true) != !free {
+			t.Fatal("disk space choice not restored from JSON")
+		}
+	}
+}
 
 func TestGroupedSettingsPrecedenceAndRestart(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "settings.json")

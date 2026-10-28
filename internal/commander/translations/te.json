@@ -1,4 +1,12 @@
 {
+  "Browse supported archives like folders (read-only). When unchecked, archives open in the default application.": "మద్దతు ఉన్న ఆర్కైవ్‌లను ఫోల్డర్‌ల వలె బ్రౌజ్ చేయండి (చదవడానికి మాత్రమే). ఎంపిక తీసివేస్తే, ఆర్కైవ్‌లు డిఫాల్ట్ యాప్‌లో తెరుచుకుంటాయి.",
+  "When unchecked, used disk space is shown instead.": "ఎంపిక తీసివేస్తే, ఉపయోగించిన డిస్క్ స్థలం చూపబడుతుంది.",
+  "When unchecked, files bypass the trash and are permanently deleted.": "ఎంపిక తీసివేస్తే, ఫైళ్లు చెత్తబుట్టకు పంపకుండా శాశ్వతంగా తొలగించబడతాయి.",
+  "Move deleted files to Bin": "తొలగించిన ఫైల్‌లను చెత్తబుట్టకి తరలించండి",
+  "Move deleted files to Recycle Bin": "తొలగించిన ఫైల్‌లను చెత్తబుట్టకి తరలించండి",
+  "Move deleted files to Trash": "తొలగించిన ఫైల్‌లను చెత్తబుట్టకి తరలించండి",
+  "%s free / %s total": "%s ఖాళీ / %s మొత్తం",
+  "Show free disk space": "ఖాళీ డిస్క్ స్థలాన్ని చూపు",
   "\n\nThis cannot be undone.": "\n\nఇది రద్దు చేయబడదు.",
   " Overwrite merges folders; conflicting children are checked individually.": " ఓవర్‌రైట్ చేస్తే ఫోల్డర్‌లు విలీనమవుతాయి; లోపలి ఫైల్‌లు, ఉపఫోల్డర్‌ల వైరుధ్యాలు విడివిడిగా తనిఖీ చేయబడతాయి.",
   " · %d files": " · %d ఫైళ్లు",

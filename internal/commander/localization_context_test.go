@@ -2,8 +2,46 @@ package commander
 
 import (
 	"encoding/json"
+	"fmt"
+	"strings"
 	"testing"
 )
+
+func TestDiskSpaceTranslationOrder(t *testing.T) {
+	files, err := translations.ReadDir("translations")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, file := range files {
+		data, err := translations.ReadFile("translations/" + file.Name())
+		if err != nil {
+			t.Fatal(err)
+		}
+		var messages map[string]string
+		if err := json.Unmarshal(data, &messages); err != nil {
+			t.Fatal(err)
+		}
+		var total string
+		for _, key := range []string{"%s free / %s total", "%s used / %s total"} {
+			text := fmt.Sprintf(messages[key], "256 GB", "1 TB")
+			parts := strings.Split(text, " / ")
+			if len(parts) != 2 || !strings.HasPrefix(parts[0], "256 GB ") || !strings.HasPrefix(parts[1], "1 TB ") {
+				t.Errorf("%s: disk sizes must precede labels: %q", file.Name(), text)
+				continue
+			}
+			if total != "" && parts[1] != total {
+				t.Errorf("%s: inconsistent total labels: %q, %q", file.Name(), total, parts[1])
+			}
+			total = parts[1]
+		}
+	}
+	translate := languageTranslator("sk")
+	for _, trash := range []string{"Bin", "Recycle Bin", "Trash"} {
+		if got := translate("Move deleted files to " + trash); got != "Presúvať odstránené súbory do Koša" {
+			t.Errorf("Slovak trash setting: %q", got)
+		}
+	}
+}
 
 // Regression examples for ambiguous English words: commands are actions, folders
 // are directories, and archive passwords unlock packages rather than archive text.

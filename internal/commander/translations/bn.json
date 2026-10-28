@@ -1,4 +1,12 @@
 {
+  "Browse supported archives like folders (read-only). When unchecked, archives open in the default application.": "সমর্থিত আর্কাইভ ফোল্ডারের মতো দেখুন (শুধু পড়ার জন্য)। টিক সরালে আর্কাইভ ডিফল্ট অ্যাপে খুলবে।",
+  "When unchecked, used disk space is shown instead.": "টিক সরিয়ে দিলে ব্যবহৃত ডিস্ক স্থান দেখানো হয়।",
+  "When unchecked, files bypass the trash and are permanently deleted.": "টিক সরিয়ে দিলে ফাইল ট্র্যাশে না পাঠিয়ে স্থায়ীভাবে মুছে ফেলা হয়।",
+  "Move deleted files to Bin": "মুছে ফেলা ফাইল আবর্জনা এ সরান",
+  "Move deleted files to Recycle Bin": "মুছে ফেলা ফাইল আবর্জনা এ সরান",
+  "Move deleted files to Trash": "মুছে ফেলা ফাইল আবর্জনা এ সরান",
+  "%s free / %s total": "%s খালি / %s মোট",
+  "Show free disk space": "খালি ডিস্ক স্থান দেখান",
   "\n\nThis cannot be undone.": "\n\nএটি পূর্বাবস্থায় ফেরানো যাবে না।",
   " Overwrite merges folders; conflicting children are checked individually.": " ওভাররাইট করলে ফোল্ডারগুলো একত্রিত হয়; ভেতরের ফাইল ও সাবফোল্ডারের নামের সংঘাত আলাদাভাবে পরীক্ষা করা হয়।",
   " · %d files": " · %d ফাইল",

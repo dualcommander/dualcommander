@@ -1,4 +1,12 @@
 {
+  "Browse supported archives like folders (read-only). When unchecked, archives open in the default application.": "Unterstützte Archive wie Ordner durchsuchen (schreibgeschützt). Wenn deaktiviert, werden Archive in der Standardanwendung geöffnet.",
+  "When unchecked, used disk space is shown instead.": "Wenn deaktiviert, wird stattdessen der belegte Speicherplatz angezeigt.",
+  "When unchecked, files bypass the trash and are permanently deleted.": "Wenn deaktiviert, werden Dateien ohne Papierkorb dauerhaft gelöscht.",
+  "Move deleted files to Bin": "Gelöschte Dateien in Papierkorb verschieben",
+  "Move deleted files to Recycle Bin": "Gelöschte Dateien in Papierkorb verschieben",
+  "Move deleted files to Trash": "Gelöschte Dateien in Papierkorb verschieben",
+  "%s free / %s total": "%s frei / %s gesamt",
+  "Show free disk space": "Freien Speicherplatz anzeigen",
   "\n\nThis cannot be undone.": "\n\nDies kann nicht rückgängig gemacht werden.",
   " Overwrite merges folders; conflicting children are checked individually.": " Überschreiben führt Ordner zusammen; Konflikte werden einzeln geprüft.",
   " · %d files": " · %d Dateien",

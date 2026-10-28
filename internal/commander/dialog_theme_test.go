@@ -44,7 +44,7 @@ func TestSettingsInfoIconThemeSwitches(t *testing.T) {
 					choice = s
 				}
 			}
-			if len(icons) != 2 || choice == nil {
+			if len(icons) != 5 || choice == nil {
 				t.Fatal("missing settings guidance")
 			}
 			for _, mode := range []string{"light", "dark", "system", "dark", "light", "system"} {

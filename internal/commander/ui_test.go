@@ -25,6 +25,101 @@ import (
 	"fyne.io/fyne/v2/widget"
 )
 
+func TestShiftArrowMarksAndMoves(t *testing.T) {
+	for _, brief := range []bool{false, true} {
+		for _, right := range []bool{false, true} {
+			t.Run(fmt.Sprintf("brief=%v/right=%v", brief, right), func(t *testing.T) {
+				root := fixture(t)
+				u := newTestUI(t, shiftApp{test.NewTempApp(t)}, filepath.Join(root, "src"), filepath.Join(root, "src"))
+				p := u.left
+				if right {
+					p = u.right
+				}
+				p.setBrief(brief)
+				u.activate(p)
+				key := func(k fyne.KeyName) { u.win.Canvas().Focused().TypedKey(&fyne.KeyEvent{Name: k}) }
+				check := func(from string, k fyne.KeyName, to string, marked bool) {
+					t.Helper()
+					cursorTo(t, p, from)
+					key(k)
+					if p.current().name != to || p.marked[from] != marked {
+						t.Fatalf("%s %s: cursor=%q marked=%v; want cursor=%q marked=%v", from, k, p.current().name, p.marked[from], to, marked)
+					}
+				}
+				check("docs", fyne.KeyDown, "photos", true)
+				check("photos", fyne.KeyDown, "app.zip", true)
+				check("app.zip", fyne.KeyUp, "photos", true)
+				check("photos", fyne.KeyUp, "docs", false)
+				check("docs", fyne.KeyUp, "..", false)
+				check("..", fyne.KeyUp, "..", false)
+				check("..", fyne.KeyDown, "docs", false)
+				check("song.mp3", fyne.KeyDown, "song.mp3", true)
+				if len(p.marked) != 2 || len(u.other().marked) != 0 {
+					t.Fatalf("unexpected marks: active=%v other=%v", p.marked, u.other().marked)
+				}
+				// Releasing Shift restores navigation without changing marks.
+				u.app = u.app.(shiftApp).App
+				check("readme.md", fyne.KeyUp, "app.zip", false)
+				check("app.zip", fyne.KeyDown, "readme.md", true)
+				assertPaneRows(t, p)
+			})
+		}
+	}
+}
+
+func TestShiftPageAndBoundaryMarks(t *testing.T) {
+	for _, brief := range []bool{false, true} {
+		for _, right := range []bool{false, true} {
+			for _, key := range []fyne.KeyName{fyne.KeyPageUp, fyne.KeyPageDown, fyne.KeyHome, fyne.KeyEnd} {
+				t.Run(fmt.Sprintf("brief=%v/right=%v/%s", brief, right, key), func(t *testing.T) {
+					root := fixture(t)
+					u := newTestUI(t, shiftApp{test.NewTempApp(t)}, filepath.Join(root, "src"), filepath.Join(root, "src"))
+					p := u.left
+					if right {
+						p = u.right
+					}
+					p.setBrief(brief)
+					u.activate(p)
+					cursorTo(t, p, "app.zip")
+					start, page := p.cursor, 2
+					if brief {
+						page = p.grid.rows * p.grid.cols
+					}
+					target := map[fyne.KeyName]int{
+						fyne.KeyPageUp: max(0, start-page), fyne.KeyPageDown: min(len(p.entries)-1, start+page),
+						fyne.KeyHome: 0, fyne.KeyEnd: len(p.entries) - 1,
+					}[key]
+					want := map[string]bool{}
+					step := 1
+					if target < start {
+						step = -1
+					}
+					for i := start; i != target; i += step {
+						if p.entries[i].name != ".." {
+							want[p.entries[i].name] = true
+						}
+					}
+					for repeat := 0; repeat < 2; repeat++ {
+						p.moveTo(start)
+						u.key(p, &fyne.KeyEvent{Name: key}, 2)
+						if p.cursor != target || !reflect.DeepEqual(p.marked, want) || len(u.other().marked) != 0 {
+							t.Fatalf("cursor=%d marks=%v; want cursor=%d marks=%v", p.cursor, p.marked, target, want)
+						}
+						want = map[string]bool{}
+					}
+					// Plain navigation moves without marking.
+					u.app = u.app.(shiftApp).App
+					p.moveTo(start)
+					u.key(p, &fyne.KeyEvent{Name: key}, 2)
+					if p.cursor != target || len(p.marked) != 0 {
+						t.Fatalf("plain navigation: cursor=%d marks=%v", p.cursor, p.marked)
+					}
+				})
+			}
+		}
+	}
+}
+
 func TestFavouriteButtonWidth(t *testing.T) {
 	root := fixture(t)
 	u := newTestUI(t, test.NewTempApp(t), root, root)
@@ -255,7 +350,7 @@ func TestExternalCommandsSettings(t *testing.T) {
 					t.Fatalf("section heading not bold: %s", l.Text)
 				}
 			default:
-				if strings.Contains(l.Text, "Changes are saved automatically") || strings.Contains(l.Text, "deleted files cannot be restored") || strings.Contains(l.Text, "Custom commands use") || strings.Contains(l.Text, "Enter or double-click") {
+				if strings.Contains(l.Text, "Changes are saved automatically") || strings.Contains(l.Text, "When unchecked,") || strings.Contains(l.Text, "deleted files cannot be restored") || strings.Contains(l.Text, "Custom commands use") || strings.Contains(l.Text, "Enter or double-click") {
 					if l.Importance != widget.MediumImportance || l.Wrapping != fyne.TextWrapWord {
 						t.Fatalf("guidance must be readable and wrap: %s", l.Text)
 					}
@@ -281,7 +376,7 @@ func TestExternalCommandsSettings(t *testing.T) {
 			t.Fatalf("missing settings label: %s", label)
 		}
 	}
-	if separators != 5 || infoIcons != 2 {
+	if separators != 5 || infoIcons != 5 {
 		t.Fatalf("settings grouping/hints: %d separators, %d info icons", separators, infoIcons)
 	}
 	if !strings.Contains(text, "Changes are saved automatically") || !strings.Contains(text, "Leave a field blank") {
@@ -440,6 +535,97 @@ func TestSettingsTogglesWithoutTooltips(t *testing.T) {
 	}
 }
 
+func TestSettingsHoverHints(t *testing.T) {
+	root := fixture(t)
+	u := newTestUI(t, test.NewTempApp(t), root, root)
+	for _, closeWithEscape := range []bool{false, true} {
+		u.settings()
+		w := windowByTitle(t, u.app, "Settings")
+		for _, tc := range []struct{ label, hint string }{
+			{"Show free disk space", "When unchecked, used disk space is shown instead."},
+			{"Browse archives in DualCommander", "Browse supported archives like folders (read-only). When unchecked, archives open in the default application."},
+			{"Move deleted files to " + trashName(), "When unchecked, files bypass the trash and are permanently deleted."},
+		} {
+			var toggle *dialogCheck
+			for _, object := range test.LaidOutObjects(w.Content()) {
+				if c, ok := object.(*dialogCheck); ok && c.Text == tc.label {
+					toggle = c
+				}
+			}
+			if toggle == nil {
+				t.Fatalf("missing checkbox %q", tc.label)
+			}
+			hintVisible := func() bool {
+				if toggle.hint != nil && !toggle.hint.Visible() {
+					return false
+				}
+				for _, object := range test.LaidOutObjects(w.Content()) {
+					if l, ok := object.(*widget.Label); ok && l.Text == tc.hint {
+						return true
+					}
+				}
+				return false
+			}
+			if hintVisible() {
+				t.Fatal("hint visible before hover")
+			}
+			toggle.MouseIn(&desktop.MouseEvent{})
+			if !hintVisible() || w.Canvas().Overlays().Top() != nil {
+				t.Fatal("hover hint missing or intercepts checkbox input")
+			}
+			icons := 0
+			var icon *dialogInfoIcon
+			var text *widget.Label
+			for _, object := range test.LaidOutObjects(toggle.hint) {
+				if i, ok := object.(*dialogInfoIcon); ok {
+					icons++
+					icon = i
+				}
+				if l, ok := object.(*widget.Label); ok && l.Text == tc.hint {
+					text = l
+				}
+			}
+			if icons != 1 {
+				t.Fatal("tooltip must contain same Info icon as dialog guidance")
+			}
+			driver := u.app.Driver()
+			gap := driver.AbsolutePositionForObject(text).X - driver.AbsolutePositionForObject(icon).X - icon.Size().Width
+			if gap < 8 {
+				t.Fatalf("tooltip icon/text gap = %g, want at least 8", gap)
+			}
+			toggle.MouseOut()
+			if hintVisible() {
+				t.Fatal("hint remained after mouse exit")
+			}
+			w.Canvas().Focus(toggle)
+			if !hintVisible() {
+				t.Fatal("hint unavailable to keyboard users")
+			}
+			before := toggle.Checked
+			toggle.TypedRune(' ')
+			if toggle.Checked == before || hintVisible() {
+				t.Fatal("hint blocks toggle or remains after toggling")
+			}
+			w.Canvas().Unfocus()
+			toggle.MouseIn(&desktop.MouseEvent{})
+			before = toggle.Checked
+			test.Tap(toggle)
+			if toggle.Checked == before || hintVisible() {
+				t.Fatal("hint blocks mouse toggle or remains after tapping")
+			}
+			w.Canvas().Unfocus()
+		}
+		if closeWithEscape {
+			w.Canvas().OnTypedKey()(&fyne.KeyEvent{Name: fyne.KeyEscape})
+		} else {
+			w.Close()
+		}
+		if hasWindow(u.app, "Settings") {
+			t.Fatal("Settings did not close")
+		}
+	}
+}
+
 func TestAppearanceSettings(t *testing.T) {
 	root := fixture(t)
 	a := test.NewTempApp(t)
@@ -483,7 +669,7 @@ func TestAppearanceSettings(t *testing.T) {
 					t.Fatal("View menu out of sync")
 				}
 			}
-			content := w.Content().(*container.Scroll).Content.(*container.ThemeOverride)
+			content := w.Content().(*fyne.Container).Objects[0].(*container.Scroll).Content.(*container.ThemeOverride)
 			if content.Theme.(dialogTheme).Theme != a.Settings().Theme() {
 				t.Fatal("settings theme not updated live")
 			}
@@ -963,6 +1149,7 @@ func TestPaneDetailsAndSelectionTotals(t *testing.T) {
 func TestFunctionKeyBar(t *testing.T) {
 	root := fixture(t)
 	u := newTestUI(t, test.NewTempApp(t), filepath.Join(root, "src"), root)
+	cursorTo(t, u.active, "readme.md")
 	bar := u.fkeyBar().(*fyne.Container)
 	var labels []string
 	for _, object := range bar.Objects {
@@ -980,6 +1167,77 @@ func TestFunctionKeyBar(t *testing.T) {
 		if button.Disabled() || button.OnTapped == nil || button.Size().Width <= 0 {
 			t.Errorf("function button %q unavailable", button.Text)
 		}
+	}
+}
+
+func TestFunctionButtonsFollowActiveCursor(t *testing.T) {
+	for _, brief := range []bool{false, true} {
+		t.Run(fmt.Sprintf("brief=%v", brief), func(t *testing.T) {
+			root := fixture(t)
+			u := newTestUI(t, test.NewTempApp(t), filepath.Join(root, "src"), filepath.Join(root, "src"))
+			buttons := map[string]*widget.Button{}
+			menuItems := map[string]*fyne.MenuItem{}
+			for _, item := range u.win.MainMenu().Items[0].Items {
+				menuItems[item.Label] = item
+			}
+			for _, o := range laidOutObjects(u.win.Content()) {
+				if b, ok := o.(*widget.Button); ok && strings.HasPrefix(b.Text, "F") {
+					buttons[b.Text] = b
+				}
+			}
+			check := func(edit, operations bool) {
+				t.Helper()
+				for label, enabled := range map[string]bool{"Edit": edit, "Copy…": operations, "Move…": operations, "Delete…": operations} {
+					item := menuItems[label]
+					if item == nil || item.Disabled == enabled {
+						t.Errorf("menu %s: want enabled=%v, got %v", label, enabled, item)
+					}
+				}
+				for label, enabled := range map[string]bool{
+					"F4 Edit": edit, "F5 Copy": operations, "F6 Move": operations,
+					"F8 Delete": operations, "F7 MkDir": true, "F9 Terminal": true, "F10 Quit": true,
+				} {
+					b := buttons[label]
+					if b == nil || b.Disabled() == enabled {
+						t.Errorf("%s: want enabled=%v, got %v", label, enabled, b)
+					}
+				}
+			}
+			cursorTo(t, u.active, "..")
+			check(false, false)
+			for _, p := range []*pane{u.left, u.right} {
+				p.setBrief(brief)
+				u.activate(p)
+				cursorTo(t, p, "readme.md")
+				check(true, true)
+				cursorTo(t, u.other(), "..")
+				check(true, true)
+				cursorTo(t, p, "docs")
+				check(false, true)
+				p.markAll(true)
+				cursorTo(t, p, "..")
+				check(false, false)
+				input := u.inputWindow
+				windows := len(u.app.Driver().AllWindows())
+				overlay := u.win.Canvas().Overlays().Top()
+				for _, label := range []string{"Copy…", "Move…", "Delete…"} {
+					menuItems[label].Action()
+					if u.inputWindow != input || len(u.app.Driver().AllWindows()) != windows || u.win.Canvas().Overlays().Top() != overlay {
+						t.Fatalf("disabled menu %s opened dialog", label)
+					}
+				}
+				press(u, fyne.KeyDown)
+				check(false, true)
+				u.activate(u.other())
+				check(false, false)
+				u.activate(p)
+				check(false, true)
+				if err := p.cd(filepath.Join(root, "dst"), ""); err != nil {
+					t.Fatal(err)
+				}
+				check(false, false)
+			}
+		})
 	}
 }
 

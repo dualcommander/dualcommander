@@ -116,7 +116,7 @@ func (b *searchOption) MouseIn(e *desktop.MouseEvent) {
 
 func (b *searchOption) MouseOut() { b.Button.MouseOut(); b.hint.Hide() }
 
-type searchHintLayout struct{ anchor *searchOption }
+type searchHintLayout struct{ anchor fyne.CanvasObject }
 
 func (l searchHintLayout) MinSize([]fyne.CanvasObject) fyne.Size { return fyne.Size{} }
 func (l searchHintLayout) Layout(objects []fyne.CanvasObject, size fyne.Size) {

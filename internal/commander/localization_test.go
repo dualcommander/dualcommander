@@ -95,6 +95,10 @@ func TestTranslationCatalogs(t *testing.T) {
 			if catalog["Settings"] == "Settings" {
 				t.Error("untranslated settings")
 			}
+			archiveHint := "Browse supported archives like folders (read-only). When unchecked, archives open in the default application."
+			if catalog[archiveHint] == archiveHint {
+				t.Error("untranslated archive browsing tooltip")
+			}
 			translate := languageTranslator(code)
 			if got := translate("Settings"); got != catalog["Settings"] {
 				t.Fatalf("selected locale ignored: %q", got)

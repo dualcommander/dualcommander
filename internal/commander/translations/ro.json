@@ -1,4 +1,12 @@
 {
+  "Browse supported archives like folders (read-only). When unchecked, archives open in the default application.": "Răsfoiți arhivele acceptate ca dosare (numai citire). Dacă opțiunea este debifată, arhivele se deschid în aplicația implicită.",
+  "When unchecked, used disk space is shown instead.": "Dacă este debifat, se afișează spațiul utilizat pe disc.",
+  "When unchecked, files bypass the trash and are permanently deleted.": "Dacă este debifat, fișierele sunt șterse definitiv fără a trece prin coș.",
+  "Move deleted files to Bin": "Mutați fișierele șterse în Coș de gunoi",
+  "Move deleted files to Recycle Bin": "Mutați fișierele șterse în Coș de gunoi",
+  "Move deleted files to Trash": "Mutați fișierele șterse în Coș de gunoi",
+  "%s free / %s total": "%s liber / %s total",
+  "Show free disk space": "Afișează spațiul liber pe disc",
   "\n\nThis cannot be undone.": "\n\nAcest lucru nu poate fi anulat.",
   " Overwrite merges folders; conflicting children are checked individually.": " Suprascrierea îmbină dosarele; conflictele dintre fișiere și subdosare sunt verificate individual.",
   " · %d files": " · Fișiere %d",

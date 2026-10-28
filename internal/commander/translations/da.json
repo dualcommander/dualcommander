@@ -1,4 +1,12 @@
 {
+  "Browse supported archives like folders (read-only). When unchecked, archives open in the default application.": "Gennemse understøttede arkiver som mapper (skrivebeskyttet). Når indstillingen er fravalgt, åbnes arkiver i standardprogrammet.",
+  "When unchecked, used disk space is shown instead.": "Når feltet ikke er markeret, vises brugt diskplads i stedet.",
+  "When unchecked, files bypass the trash and are permanently deleted.": "Når feltet ikke er markeret, slettes filer permanent uden at blive flyttet til papirkurven.",
+  "Move deleted files to Bin": "Flyt slettede filer til Papirkurv",
+  "Move deleted files to Recycle Bin": "Flyt slettede filer til Papirkurv",
+  "Move deleted files to Trash": "Flyt slettede filer til Papirkurv",
+  "%s free / %s total": "%s ledig / %s i alt",
+  "Show free disk space": "Vis ledig diskplads",
   "\n\nThis cannot be undone.": "\n\nDette kan ikke fortrydes.",
   " Overwrite merges folders; conflicting children are checked individually.": " Overskrivning fletter mapper; konflikter mellem filer og undermapper kontrolleres enkeltvis.",
   " · %d files": " · %d filer",
