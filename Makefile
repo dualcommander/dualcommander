@@ -2,6 +2,8 @@
 
 WINDOWS_STORE_INPUT ?= dist
 APPLE_STORE_INPUT ?= dist
+# Headless Fyne race tests can exceed Go's 10-minute default on CI runners.
+TEST_TIMEOUT ?= 15m
 
 check: fmt-check vet test
 
@@ -19,7 +21,7 @@ profile-check:
 	python3 .devcontainer/cline-profile.py --self-test
 
 test: profile-check
-	go test -race -count=1 ./...
+	go test -race -timeout=$(TEST_TIMEOUT) -count=1 ./...
 
 ci-check:
 	test "$$(go env GOOS)" = "$$TARGET_OS"
@@ -28,7 +30,7 @@ ci-check:
 	# Go's race detector does not support windows/arm64.
 	@flags=-race; \
 	if [ "$$TARGET_OS/$$TARGET_ARCH" = windows/arm64 ]; then flags=; fi; \
-	go test -tags ci $$flags -count=1 ./...
+	go test -tags ci $$flags -timeout=$(TEST_TIMEOUT) -count=1 ./...
 
 build:
 	mkdir -p dist
