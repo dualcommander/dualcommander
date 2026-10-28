@@ -7,4 +7,4 @@ export GOFLAGS="-ldflags=-X=github.com/dualcommander/dualcommander/internal/comm
 # Ubuntu predefines fortification; Fyne appends its own level 3 definition.
 if [ "$(go env GOOS)" = linux ]; then export CGO_CFLAGS="${CGO_CFLAGS:--O2 -g} -U_FORTIFY_SOURCE"; fi
 cd cmd/dualcommander
-fyne package -os "$(go env GOOS)" -release -app-version "$native_version"
+fyne package -os "$(go env GOOS)" -release -app-version "$native_version" --use-raw-icon
