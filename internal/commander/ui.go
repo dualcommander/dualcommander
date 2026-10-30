@@ -324,7 +324,7 @@ func (u *ui) about() {
 		widget.NewLabelWithStyle(lang.L("Keyboard shortcuts"), fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
 		container.New(layout.NewCustomPaddedLayout(0, 8, 20, 20), shortcuts),
 	)
-	if licenses := windowsLicenses(runtime.GOOS); licenses != nil {
+	if licenses := windowsLicenses(runtime.GOOS, w); licenses != nil {
 		content.Add(widget.NewSeparator())
 		content.Add(licenses)
 	}
