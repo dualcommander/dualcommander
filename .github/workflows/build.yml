@@ -243,9 +243,9 @@ jobs:
         env:
           # Development/prerelease packages use a fixed sideload-only version.
           RELEASE_TAG: ${{ github.ref_type == 'tag' && startsWith(github.ref_name, 'v') && !contains(github.ref_name, '-') && !contains(github.ref_name, '+') && github.ref_name || 'v0.0.1' }}
-          WINDOWS_STORE_IDENTITY_NAME: ${{ vars.WINDOWS_STORE_IDENTITY_NAME }}
-          WINDOWS_STORE_PUBLISHER: ${{ vars.WINDOWS_STORE_PUBLISHER }}
-          WINDOWS_STORE_PUBLISHER_DISPLAY_NAME: ${{ vars.WINDOWS_STORE_PUBLISHER_DISPLAY_NAME }}
+          WINDOWS_STORE_IDENTITY_NAME: 'PeterButkovic.DualCommander'
+          WINDOWS_STORE_PUBLISHER: 'CN=1FB8D7A3-27B9-46F3-8458-4BAF7098A1BD'
+          WINDOWS_STORE_PUBLISHER_DISPLAY_NAME: 'Peter Butkovic'
         run: make package-msix WINDOWS_STORE_INPUT=windows-artifacts
       - uses: actions/upload-artifact@v4
         with:
