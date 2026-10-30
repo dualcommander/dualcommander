@@ -69,6 +69,7 @@ type ui struct {
 	passwordGate                         chan struct{}
 	passwordWindow                       fyne.Window
 	fileClipboard                        *fileClipboard
+	startFileDrag                        func(fyne.Window, []string) bool
 }
 
 func newUI(a fyne.App) *ui {
@@ -112,6 +113,7 @@ func newUI(a fyne.App) *ui {
 		u.split.SetOffset(offset)
 	}
 	u.win.SetContent(container.NewBorder(nil, container.NewVBox(u.jobs.box, u.fkeyBar()), nil, nil, u.split))
+	u.win.SetOnDropped(u.dropURIs)
 	u.win.Resize(fyne.NewSize(float32(pr.FloatWithFallback(prefW, 1100)), float32(pr.FloatWithFallback(prefH, 700))))
 	u.win.SetCloseIntercept(u.quit)
 	u.win.Canvas().SetOnTypedKey(func(e *fyne.KeyEvent) { u.key(u.active, e, u.active.cols()*10) }) // no widget focused (after header/dialog click): keys still drive active pane

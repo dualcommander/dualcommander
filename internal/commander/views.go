@@ -7,14 +7,20 @@ import (
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
+	"path/filepath"
+
+	platform "github.com/dualcommander/dualcommander/pkg/desktop"
 )
 
 // row wraps a rendered item: click moves cursor (Mod/Shift = mark), double-click opens.
 type row struct {
 	widget.BaseWidget
-	p       *pane
-	id      int
-	content fyne.CanvasObject
+	p            *pane
+	id           int
+	content      fyne.CanvasObject
+	dragPaths    []string
+	dragPosition fyne.Position
+	nativeDrag   bool
 }
 
 func newRowWidget(p *pane, detailed bool) *row {
@@ -35,7 +41,44 @@ func (r *row) MouseDown(e *desktop.MouseEvent) {
 	// Select before activation: restoring the old cursor can scroll and recycle this row.
 	r.p.ui.activate(r.p)
 }
-func (r *row) MouseUp(*desktop.MouseEvent)   {}
+func (r *row) MouseUp(*desktop.MouseEvent) {}
+
+func (r *row) Dragged(e *fyne.DragEvent) {
+	if r.nativeDrag {
+		return
+	}
+	if r.p.ui.passwordWindow != nil || r.p.inArchive() || r.id < 0 || r.id >= len(r.p.entries) || r.p.entries[r.id].name == ".." {
+		return
+	}
+	if r.dragPaths == nil {
+		r.dragPaths = r.p.selection()
+		if !r.p.marked[r.p.entries[r.id].name] {
+			r.dragPaths = []string{filepath.Join(r.p.path, r.p.entries[r.id].name)}
+		}
+	}
+	r.dragPosition = e.AbsolutePosition
+	size := r.p.ui.win.Canvas().Size()
+	if e.AbsolutePosition.X < 0 || e.AbsolutePosition.Y < 0 || e.AbsolutePosition.X >= size.Width || e.AbsolutePosition.Y >= size.Height {
+		start := r.p.ui.startFileDrag
+		if start == nil {
+			start = platform.StartFileDrag
+		}
+		r.nativeDrag = start(r.p.ui.win, r.dragPaths)
+	}
+}
+
+func (r *row) DragEnd() {
+	paths := r.dragPaths
+	r.dragPaths = nil
+	if r.nativeDrag {
+		r.nativeDrag = false
+		return
+	}
+	u := r.p.ui
+	if dst := u.dropPane(r.dragPosition); dst != nil && dst != r.p && len(paths) > 0 && u.passwordWindow == nil {
+		u.transferSelection(r.p, dst, paths, false)
+	}
+}
 func (r *row) Tapped(*fyne.PointEvent)       {} // absorbs tap so List doesn't reselect
 func (r *row) DoubleTapped(*fyne.PointEvent) { r.p.moveTo(r.id); r.p.open() }
 

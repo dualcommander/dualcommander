@@ -53,7 +53,7 @@ func latestUpdate[T any](dispatch func(func()), update func(T)) func(T) {
 	}
 }
 
-// ponytail: app-local file clipboard; native file-manager interchange needs OS clipboard formats.
+// ponytail: Cut stays app-local; macOS Copy also exports native file URLs.
 type fileClipboard struct {
 	paths     []string
 	cut, busy bool
@@ -68,6 +68,9 @@ func (u *ui) captureFiles(cut bool) {
 		return
 	}
 	u.fileClipboard = &fileClipboard{paths: u.active.selection(), cut: cut}
+	if !cut {
+		u.showErr(desktop.CopyFiles(u.fileClipboard.paths))
+	}
 }
 
 func (u *ui) pasteFiles() {
@@ -113,11 +116,14 @@ func (u *ui) pasteFiles() {
 
 func (u *ui) copyOrMove(move bool) {
 	src, dst := u.active, u.other()
+	u.transferSelection(src, dst, src.selection(), move)
+}
+
+func (u *ui) transferSelection(src, dst *pane, sel []string, move bool) {
 	if src.inArchive() || dst.inArchive() {
 		u.showErr(fmt.Errorf(lang.L("archive browsing is read-only; copy/move involving archive folders is not supported")))
 		return
 	}
-	sel := src.selection()
 	if len(sel) == 0 {
 		return
 	}
