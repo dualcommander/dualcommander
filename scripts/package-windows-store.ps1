@@ -29,6 +29,9 @@ try {
         New-Item -ItemType Directory "$stage/Assets" -Force | Out-Null
         Expand-Archive "$InputDirectory/dualcommander-windows-$arch.zip" -DestinationPath $stage
         if (-not (Test-Path "$stage/DualCommander.exe" -PathType Leaf)) { throw "Missing DualCommander.exe: $arch" }
+        if (-not (Test-Path "$stage/software/opengl32.dll" -PathType Leaf)) { throw "Missing bundled software OpenGL: $arch; rebuild Windows ZIP" }
+        if (-not (Test-Path "$stage/software/DualCommander.exe" -PathType Leaf)) { throw "Missing software renderer executable: $arch" }
+        if (-not (Test-Path "$stage/mesa-licenses/LLVM.txt" -PathType Leaf)) { throw "Missing Mesa dependency licenses: $arch" }
         python scripts/windows-store.py "$stage/AppxManifest.xml" $arch
         if ($LASTEXITCODE -ne 0) { throw 'Store manifest generation failed' }
         $source = [System.Drawing.Image]::FromFile("$pwd/assets/dualcommander.png")

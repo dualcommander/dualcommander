@@ -1,0 +1,4 @@
+{
+  "amd64": { "version": "26.2.6", "sha256": "1910245962e3d854589ed11a9a488e84841a01559142fba8b81395271981700b", "assetArchitecture": "x64" },
+  "arm64": { "version": "26.2.6", "sha256": "f238bfb90e2dfc5102cd4ff007ef00d9e8a8bb9dbc3e67556dce1291e752124e", "assetArchitecture": "arm64" }
+}

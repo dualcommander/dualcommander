@@ -10,5 +10,12 @@ import (
 
 func main() {
 	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, nil)).With("app", "DualCommander"))
+	if handled, err := graphicsStartup(); handled || err != nil {
+		if err != nil {
+			slog.Error("Graphics startup failed", "error", err)
+			os.Exit(1)
+		}
+		return
+	}
 	commander.Run()
 }

@@ -53,6 +53,7 @@ archive-linux:
 	mkdir -p dist
 	cp cmd/dualcommander/DualCommander.tar.xz "dist/dualcommander-linux-$$(go env GOARCH).tar.xz"
 
+# Requires 7-Zip and internet access for pinned software OpenGL runtime.
 archive-windows:
 	pwsh -NoProfile -File scripts/archive-windows.ps1
 

@@ -308,7 +308,7 @@ func (u *ui) about() {
 		shortcuts.Add(widget.NewLabelWithStyle(shortcut[0], fyne.TextAlignLeading, fyne.TextStyle{Bold: true}))
 		shortcuts.Add(widget.NewLabel(shortcut[1]))
 	}
-	w.SetContent(container.NewVScroll(u.dialogContent(container.NewVBox(
+	content := container.NewVBox(
 		container.NewCenter(icon),
 		widget.NewLabelWithStyle(appName, fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
 		widget.NewLabelWithStyle(version, fyne.TextAlignCenter, fyne.TextStyle{}),
@@ -323,7 +323,12 @@ func (u *ui) about() {
 		widget.NewSeparator(),
 		widget.NewLabelWithStyle(lang.L("Keyboard shortcuts"), fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
 		container.New(layout.NewCustomPaddedLayout(0, 8, 20, 20), shortcuts),
-	))))
+	)
+	if licenses := windowsLicenses(runtime.GOOS); licenses != nil {
+		content.Add(widget.NewSeparator())
+		content.Add(licenses)
+	}
+	w.SetContent(container.NewVScroll(u.dialogContent(content)))
 	w.Resize(fyne.NewSize(520, 740))
 	w.Show()
 }
