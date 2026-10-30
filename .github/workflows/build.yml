@@ -231,7 +231,7 @@ jobs:
       - name: Install Make on Windows
         shell: pwsh
         run: choco install make --no-progress -y
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.x'
       - uses: actions/download-artifact@v4
