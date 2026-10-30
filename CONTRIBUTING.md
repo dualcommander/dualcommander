@@ -25,6 +25,7 @@ In PowerShell:
 winget install --exact --id GoLang.Go
 winget install --exact --id MSYS2.MSYS2
 winget install --exact --id Microsoft.PowerShell
+winget install --exact --id 7zip.7zip --source winget
 ```
 
 Open **MSYS2 MINGW64**, then:
@@ -35,7 +36,124 @@ pacman -S --needed make git python mingw-w64-x86_64-gcc
 export PATH="/c/Program Files/Go/bin:/c/Program Files/PowerShell/7:$PATH"
 ```
 
-Run project commands in MINGW64. Store packaging additionally needs Windows SDK.
+Run project commands in MINGW64. For local/unreleased testing without signing:
+
+```sh
+make install-packager
+make package-native
+make archive-windows
+```
+
+Extract the entire `dist/dualcommander-windows-amd64.zip` and launch top-level
+`DualCommander.exe`. Keep `software/`: startup automatically selects system OpenGL
+or bundled Mesa CPU rendering for GPU-less VMs. Plain `make run`/`make build` do
+not bundle Mesa. Runtime versions/checksums live in `packaging/windows/runtime.json`;
+Mesa updates and license review are manual (Dependabot cannot update this manifest).
+
+For MSIX testing on EC2, use Windows with an interactive RDP desktop. Download an
+unreleased branch artifact `dualcommander-windows-store` from GitHub Actions, or
+run `make package-msix` with both architecture ZIPs and Store identity environment
+values. No release tag needed; `RELEASE_TAG=v0.0.1` supplies local package version.
+Install **Windows SDK 10.0.26100.9457**, selecting **Signing Tools for Desktop Apps**,
+**Windows SDK for UWP C++ Apps**, and **Windows App Certification Kit**. Tested tools
+reside in `C:\Program Files (x86)\Windows Kits\10\bin\10.0.26100.0\x64`.
+
+Extract the downloaded artifact ZIP into the directory below; do not unpack the
+`.msixbundle` itself. Close DualCommander and finish file operations first. Run
+this block in **administrator PowerShell under the same account used for testing**.
+Edit `$directory` if needed. It reads package identity, creates/reuses a local test
+certificate, signs a copy, verifies, installs, and requests Start-menu launch.
+
+**Use only on a disposable test machine. This adds machine-wide trust for the
+locally generated certificate. Never share its private key or trust an unknown
+certificate. Same-version replacement requires uninstalling the old package;
+the script asks first because uninstalling can delete settings/app-local data.
+Back up needed data before agreeing. Original artifact remains unchanged.**
+
+```powershell
+& {
+    $ErrorActionPreference = 'Stop'
+    $directory = 'C:\Users\Administrator\Documents\dualcommander-windows-store'
+    $source = Join-Path $directory 'dualcommander.msixbundle'
+    $package = Join-Path $directory 'dualcommander-test.msixbundle'
+    $tool = 'C:\Program Files (x86)\Windows Kits\10\bin\10.0.26100.0\x64\signtool.exe'
+    foreach ($path in @($source, $tool)) {
+        if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { throw "Missing: $path" }
+    }
+    if (Get-Process -Name DualCommander -ErrorAction SilentlyContinue) {
+        throw 'Close DualCommander before updating. Finish file operations first.'
+    }
+
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    $zip = [System.IO.Compression.ZipFile]::OpenRead($source)
+    try {
+        $entry = $zip.GetEntry('AppxMetadata/AppxBundleManifest.xml')
+        if (-not $entry) { throw 'Bundle manifest missing.' }
+        $reader = [System.IO.StreamReader]::new($entry.Open())
+        try { [xml]$manifest = $reader.ReadToEnd() } finally { $reader.Dispose() }
+    } finally { $zip.Dispose() }
+    $identity = $manifest.Bundle.Identity
+    if (-not $identity.Name -or -not $identity.Publisher -or -not $identity.Version) {
+        throw 'Invalid bundle identity.'
+    }
+
+    $cert = Get-ChildItem Cert:\CurrentUser\My -CodeSigningCert |
+        Where-Object {
+            $_.FriendlyName -eq 'DualCommander local test' -and
+            $_.Subject -eq $identity.Publisher -and $_.HasPrivateKey -and
+            $_.NotBefore -le (Get-Date) -and $_.NotAfter -gt (Get-Date)
+        } | Sort-Object NotAfter -Descending | Select-Object -First 1
+    if (-not $cert) {
+        $cert = New-SelfSignedCertificate -Type Custom `
+            -Subject $identity.Publisher -FriendlyName 'DualCommander local test' `
+            -CertStoreLocation 'Cert:\CurrentUser\My' -KeyUsage DigitalSignature `
+            -HashAlgorithm SHA256 -KeyAlgorithm RSA -KeyLength 2048 `
+            -NotAfter (Get-Date).AddMonths(3) `
+            -TextExtension @('2.5.29.37={text}1.3.6.1.5.5.7.3.3', '2.5.29.19={text}')
+    }
+    Copy-Item -LiteralPath $source -Destination $package -Force
+    & $tool sign /fd SHA256 /s My /sha1 $cert.Thumbprint $package
+    if ($LASTEXITCODE -ne 0) { throw 'Signing failed.' }
+    $publicCert = Join-Path $directory 'dualcommander-test.cer'
+    Export-Certificate -Cert $cert -FilePath $publicCert -Force | Out-Null
+    Import-Certificate -FilePath $publicCert `
+        -CertStoreLocation 'Cert:\LocalMachine\TrustedPeople' | Out-Null
+    Write-Host "Test certificate thumbprint (save for cleanup): $($cert.Thumbprint)"
+    & $tool verify /pa /v $package
+    if ($LASTEXITCODE -ne 0) { throw 'Verification failed.' }
+
+    $old = Get-AppxPackage -Name $identity.Name
+    if ($old -and [version]$old.Version -eq [version]$identity.Version) {
+        if ((Read-Host 'Same version installed. Uninstall deletes app-local data. Type REPLACE to continue') -cne 'REPLACE') {
+            throw 'Cancelled; installed app unchanged.'
+        }
+        $old | Remove-AppxPackage
+    }
+    Add-AppxPackage -Path $package
+    $installed = Get-AppxPackage -Name $identity.Name
+    if (-not $installed) { throw 'Installed package not found for this user.' }
+    $appManifest = Get-AppxPackageManifest -Package $installed.PackageFullName
+    $appId = @($appManifest.Package.Applications.Application)[0].Id
+    Start-Process explorer.exe -ArgumentList (
+        'shell:AppsFolder\{0}!{1}' -f $installed.PackageFamilyName, $appId
+    )
+    Write-Host 'Launch requested. Confirm visible window; otherwise launch from Start without elevation.'
+}
+```
+
+If Windows still reports `0x80073CFB`, another user may retain the old package;
+do not remove other users' installations automatically. Keep original artifact for
+Store submission. Confirm visible window and file operations, not merely a running
+process; also test Windows 11 and Certification Kit before submission.
+
+After testing, remove certificate trust and private test key in administrator
+PowerShell, replacing `SAVED_THUMBPRINT` with the value printed above. Removing
+trust prevents future installs using that certificate:
+
+```powershell
+Remove-Item 'Cert:\LocalMachine\TrustedPeople\SAVED_THUMBPRINT'
+Remove-Item 'Cert:\CurrentUser\My\SAVED_THUMBPRINT'
+```
 
 ### Linux
 
