@@ -1,4 +1,6 @@
 {
+  "Cut": "Вырезать",
+  "Paste": "Вставить",
   "Browse supported archives like folders (read-only). When unchecked, archives open in the default application.": "Просматривайте поддерживаемые архивы как папки (только для чтения). Если параметр отключён, архивы открываются в приложении по умолчанию.",
   "When unchecked, used disk space is shown instead.": "Если отключено, отображается занятое место на диске.",
   "When unchecked, files bypass the trash and are permanently deleted.": "Если отключено, файлы удаляются навсегда, минуя корзину.",

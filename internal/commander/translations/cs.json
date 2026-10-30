@@ -1,4 +1,6 @@
 {
+  "Cut": "Vyjmout",
+  "Paste": "Vložit",
   "Browse supported archives like folders (read-only). When unchecked, archives open in the default application.": "Podporované archivy můžete procházet jako složky (jen pro čtení). Pokud volba není zaškrtnutá, archivy se otevřou ve výchozí aplikaci.",
   "When unchecked, used disk space is shown instead.": "Pokud volba není zaškrtnutá, zobrazí se obsazené místo na disku.",
   "When unchecked, files bypass the trash and are permanently deleted.": "Pokud volba není zaškrtnutá, soubory se trvale odstraní bez přesunu do koše.",

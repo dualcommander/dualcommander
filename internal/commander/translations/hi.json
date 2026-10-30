@@ -1,4 +1,6 @@
 {
+  "Cut": "काटें",
+  "Paste": "चिपकाएँ",
   "Browse supported archives like folders (read-only). When unchecked, archives open in the default application.": "समर्थित संग्रहों को फ़ोल्डर की तरह ब्राउज़ करें (केवल पढ़ने के लिए)। विकल्प बंद होने पर संग्रह डिफ़ॉल्ट ऐप में खुलते हैं।",
   "When unchecked, used disk space is shown instead.": "अचयनित होने पर, उपयोग किया गया डिस्क स्थान दिखाया जाता है।",
   "When unchecked, files bypass the trash and are permanently deleted.": "अचयनित होने पर, फ़ाइलें कूड़ेदान में भेजे बिना स्थायी रूप से हटा दी जाती हैं।",

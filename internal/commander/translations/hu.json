@@ -1,4 +1,6 @@
 {
+  "Cut": "Kivágás",
+  "Paste": "Beillesztés",
   "Browse supported archives like folders (read-only). When unchecked, archives open in the default application.": "A támogatott archívumok böngészése mappaként (csak olvasható). Kikapcsolva az archívumok az alapértelmezett alkalmazásban nyílnak meg.",
   "When unchecked, used disk space is shown instead.": "Kikapcsolva a foglalt lemezterület jelenik meg.",
   "When unchecked, files bypass the trash and are permanently deleted.": "Kikapcsolva a fájlok a kuka kihagyásával véglegesen törlődnek.",

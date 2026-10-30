@@ -98,9 +98,12 @@ func (u *ui) blockParent(w fyne.Window) func() {
 	var disable func(*fyne.Menu)
 	disable = func(menu *fyne.Menu) {
 		for _, item := range menu.Items {
-			// Native menus must still dispatch text selection to the active dialog.
-			if _, ok := item.Shortcut.(*fyne.ShortcutSelectAll); ok && w != u.win {
-				continue
+			// Native editing menus must still dispatch to the active dialog's text field.
+			if w != u.win {
+				switch item.Shortcut.(type) {
+				case *fyne.ShortcutSelectAll, *fyne.ShortcutCopy, *fyne.ShortcutCut, *fyne.ShortcutPaste:
+					continue
+				}
 			}
 			if item.ChildMenu != nil {
 				disable(item.ChildMenu)

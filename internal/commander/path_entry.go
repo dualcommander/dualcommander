@@ -13,7 +13,9 @@ import (
 // pathEntry retains the full editable path behind a compact, unfocused label.
 type pathEntry struct {
 	widget.Entry
-	editing bool
+	editing        bool
+	onEscape       func()
+	onFocusChanged func()
 }
 
 func newPathEntry() *pathEntry {
@@ -23,8 +25,30 @@ func newPathEntry() *pathEntry {
 	return e
 }
 
-func (e *pathEntry) FocusGained() { e.editing = true; e.Entry.FocusGained() }
-func (e *pathEntry) FocusLost()   { e.editing = false; e.Entry.FocusLost(); e.Refresh() }
+func (e *pathEntry) FocusGained() {
+	e.editing = true
+	e.Entry.FocusGained()
+	if e.onFocusChanged != nil {
+		e.onFocusChanged()
+	}
+}
+
+func (e *pathEntry) FocusLost() {
+	e.editing = false
+	e.Entry.FocusLost()
+	e.Refresh()
+	if e.onFocusChanged != nil {
+		e.onFocusChanged()
+	}
+}
+
+func (e *pathEntry) TypedKey(event *fyne.KeyEvent) {
+	if event.Name == fyne.KeyEscape && e.onEscape != nil {
+		e.onEscape()
+		return
+	}
+	e.Entry.TypedKey(event)
+}
 
 func (e *pathEntry) CreateRenderer() fyne.WidgetRenderer {
 	label := widget.NewLabel("")

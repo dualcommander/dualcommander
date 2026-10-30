@@ -1,4 +1,6 @@
 {
+  "Cut": "Kata",
+  "Paste": "Bandika",
   "Browse supported archives like folders (read-only). When unchecked, archives open in the default application.": "Vinjari faili za kumbukumbu zinazotumika kama folda (kusoma tu). Chaguo hili lisipowekewa alama, faili za kumbukumbu hufunguliwa katika programu chaguomsingi.",
   "When unchecked, used disk space is shown instead.": "Isipowekwa alama, nafasi ya diski iliyotumika huonyeshwa badala yake.",
   "When unchecked, files bypass the trash and are permanently deleted.": "Isipowekwa alama, faili hufutwa kabisa bila kupelekwa kwenye taka.",

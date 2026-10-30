@@ -1,4 +1,6 @@
 {
+  "Cut": "Cắt",
+  "Paste": "Dán",
   "Browse supported archives like folders (read-only). When unchecked, archives open in the default application.": "Duyệt các tệp nén được hỗ trợ như thư mục (chỉ đọc). Khi bỏ chọn, tệp nén sẽ mở bằng ứng dụng mặc định.",
   "When unchecked, used disk space is shown instead.": "Khi bỏ chọn, dung lượng đĩa đã sử dụng sẽ được hiển thị.",
   "When unchecked, files bypass the trash and are permanently deleted.": "Khi bỏ chọn, tệp sẽ bị xóa vĩnh viễn mà không chuyển vào thùng rác.",

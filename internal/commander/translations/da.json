@@ -1,4 +1,6 @@
 {
+  "Cut": "Klip",
+  "Paste": "Sæt ind",
   "Browse supported archives like folders (read-only). When unchecked, archives open in the default application.": "Gennemse understøttede arkiver som mapper (skrivebeskyttet). Når indstillingen er fravalgt, åbnes arkiver i standardprogrammet.",
   "When unchecked, used disk space is shown instead.": "Når feltet ikke er markeret, vises brugt diskplads i stedet.",
   "When unchecked, files bypass the trash and are permanently deleted.": "Når feltet ikke er markeret, slettes filer permanent uden at blive flyttet til papirkurven.",

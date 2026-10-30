@@ -68,6 +68,7 @@ type ui struct {
 	filePreview                          func(string) []byte
 	passwordGate                         chan struct{}
 	passwordWindow                       fyne.Window
+	fileClipboard                        *fileClipboard
 }
 
 func newUI(a fyne.App) *ui {
@@ -129,6 +130,7 @@ func newUI(a fyne.App) *ui {
 // mainMenu builds menus; shortcuts use Cmd on macOS, Ctrl elsewhere, and are shown natively.
 func (u *ui) mainMenu() *fyne.MainMenu {
 	mod := fyne.KeyModifierShortcutDefault
+	clipboard := u.win.Clipboard()
 	item := func(label string, k fyne.KeyName, m fyne.KeyModifier, f func()) *fyne.MenuItem {
 		action := f
 		f = func() {
@@ -141,6 +143,16 @@ func (u *ui) mainMenu() *fyne.MainMenu {
 			it.Shortcut = &desktop.CustomShortcut{KeyName: k, Modifier: m}
 			if k == fyne.KeyA && m == mod {
 				it.Shortcut = &fyne.ShortcutSelectAll{}
+			}
+			if m == mod {
+				switch k {
+				case fyne.KeyC:
+					it.Shortcut = &fyne.ShortcutCopy{Clipboard: clipboard}
+				case fyne.KeyX:
+					it.Shortcut = &fyne.ShortcutCut{Clipboard: clipboard}
+				case fyne.KeyV:
+					it.Shortcut = &fyne.ShortcutPaste{Clipboard: clipboard}
+				}
 			}
 			it.Action = func() {
 				window := u.win
@@ -212,17 +224,21 @@ func (u *ui) mainMenu() *fyne.MainMenu {
 		0: item(lang.L("Edit"), fyne.KeyF4, 0, u.edit),
 		1: item(lang.L("Copy…"), fyne.KeyF5, 0, func() { u.copyOrMove(false) }),
 		2: item(lang.L("Move…"), fyne.KeyF6, 0, func() { u.copyOrMove(true) }),
+		3: item(lang.L("New Folder"), fyne.KeyF7, 0, u.mkdir),
 		4: item(lang.L("Delete…"), fyne.KeyF8, 0, u.delete),
+		5: item(lang.L("Open in Terminal"), fyne.KeyF9, 0, func() { u.openExternal(true) }),
+		6: item(lang.L("Quit"), fyne.KeyQ, mod, u.quit),
 	}
+	u.functionItems[6].IsQuit = true
 
 	return fyne.NewMainMenu(
 		fyne.NewMenu(lang.L("File"),
 			item(lang.L("Open"), fyne.KeyO, mod, func() { u.active.open() }),
 			u.functionItems[0],
 			item(revealLabel(), fyne.KeyR, mod|fyne.KeyModifierShift, func() { u.openExternal(false) }),
-			item(lang.L("Open in Terminal"), fyne.KeyF9, 0, func() { u.openExternal(true) }),
+			u.functionItems[5],
 			sep(),
-			item(lang.L("New Folder"), fyne.KeyF7, 0, u.mkdir),
+			u.functionItems[3],
 			item(lang.L("Find Files…"), fyne.KeyF, mod, func() { u.search() }),
 			u.functionItems[1],
 			u.functionItems[2],
@@ -231,10 +247,15 @@ func (u *ui) mainMenu() *fyne.MainMenu {
 			sep(), u.compareFilesItem, u.compareFoldersItem,
 			sep(),
 			item(lang.L("Settings…"), fyne.KeyComma, mod, u.settings), // macOS: Fyne moves it to app menu
-		), // Fyne adds Quit to File (Win/Linux) or app menu (macOS)
+			sep(), u.functionItems[6], // Fyne moves Quit to app menu on macOS.
+		),
 		fyne.NewMenu(lang.L("Edit"),
 			item(lang.L("Select All"), fyne.KeyA, mod, func() { u.active.markAll(true) }),
 			item(lang.L("Deselect All"), fyne.KeyA, mod|fyne.KeyModifierShift, func() { u.active.markAll(false) }),
+			sep(),
+			item(lang.L("Cut"), fyne.KeyX, mod, func() { u.captureFiles(true) }),
+			item(lang.L("Copy"), fyne.KeyC, mod, func() { u.captureFiles(false) }),
+			item(lang.L("Paste"), fyne.KeyV, mod, u.pasteFiles),
 		),
 		fyne.NewMenu(lang.L("View"),
 			u.briefItem, u.detailedItem,
@@ -462,9 +483,13 @@ func (u *ui) updateFunctionButtons() {
 		return
 	}
 	e := u.active.current()
+	editingPath := u.left.pathBar.editing || u.right.pathBar.editing
 	menuChanged := false
-	for _, i := range []int{0, 1, 2, 4} {
-		disabled := e.name == "" || e.name == ".." || (i == 0 && e.dir)
+	for i := range u.functionBar.Objects {
+		disabled := editingPath
+		if i != 3 && i != 5 && i != 6 {
+			disabled = e.name == "" || e.name == ".." || (i == 0 && e.dir)
+		}
 		if item := u.functionItems[i]; item != nil && item.Disabled != disabled {
 			item.Disabled = disabled
 			menuChanged = true

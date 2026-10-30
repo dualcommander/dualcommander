@@ -1,4 +1,6 @@
 {
+  "Cut": "ตัด",
+  "Paste": "วาง",
   "Browse supported archives like folders (read-only). When unchecked, archives open in the default application.": "เรียกดูไฟล์บีบอัดที่รองรับเหมือนโฟลเดอร์ (อ่านอย่างเดียว) เมื่อยกเลิกการเลือก ไฟล์บีบอัดจะเปิดด้วยแอปเริ่มต้น",
   "When unchecked, used disk space is shown instead.": "เมื่อไม่เลือก จะแสดงพื้นที่ดิสก์ที่ใช้แล้วแทน",
   "When unchecked, files bypass the trash and are permanently deleted.": "เมื่อไม่เลือก ไฟล์จะถูกลบอย่างถาวรโดยไม่ผ่านถังขยะ",

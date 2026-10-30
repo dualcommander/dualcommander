@@ -1,4 +1,6 @@
 {
+  "Cut": "Couper",
+  "Paste": "Coller",
   "Browse supported archives like folders (read-only). When unchecked, archives open in the default application.": "Parcourir les archives prises en charge comme des dossiers (lecture seule). Si cette option est décochée, les archives s’ouvrent dans l’application par défaut.",
   "When unchecked, used disk space is shown instead.": "Si cette option est décochée, l’espace disque utilisé est affiché.",
   "When unchecked, files bypass the trash and are permanently deleted.": "Si cette option est décochée, les fichiers sont supprimés définitivement sans passer par la corbeille.",

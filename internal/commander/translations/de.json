@@ -1,4 +1,6 @@
 {
+  "Cut": "Ausschneiden",
+  "Paste": "Einfügen",
   "Browse supported archives like folders (read-only). When unchecked, archives open in the default application.": "Unterstützte Archive wie Ordner durchsuchen (schreibgeschützt). Wenn deaktiviert, werden Archive in der Standardanwendung geöffnet.",
   "When unchecked, used disk space is shown instead.": "Wenn deaktiviert, wird stattdessen der belegte Speicherplatz angezeigt.",
   "When unchecked, files bypass the trash and are permanently deleted.": "Wenn deaktiviert, werden Dateien ohne Papierkorb dauerhaft gelöscht.",

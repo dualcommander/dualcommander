@@ -1,4 +1,6 @@
 {
+  "Cut": "Wytnij",
+  "Paste": "Wklej",
   "Browse supported archives like folders (read-only). When unchecked, archives open in the default application.": "Przeglądaj obsługiwane archiwa jak foldery (tylko do odczytu). Po wyłączeniu tej opcji archiwa otwierają się w domyślnej aplikacji.",
   "When unchecked, used disk space is shown instead.": "Po odznaczeniu wyświetlane jest zajęte miejsce na dysku.",
   "When unchecked, files bypass the trash and are permanently deleted.": "Po odznaczeniu pliki są trwale usuwane z pominięciem kosza.",

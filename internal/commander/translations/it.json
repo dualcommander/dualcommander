@@ -1,4 +1,6 @@
 {
+  "Cut": "Taglia",
+  "Paste": "Incolla",
   "Browse supported archives like folders (read-only). When unchecked, archives open in the default application.": "Esplora gli archivi supportati come cartelle (sola lettura). Se l’opzione è disattivata, gli archivi si aprono nell’applicazione predefinita.",
   "When unchecked, used disk space is shown instead.": "Se disattivato, viene mostrato lo spazio su disco utilizzato.",
   "When unchecked, files bypass the trash and are permanently deleted.": "Se disattivato, i file vengono eliminati definitivamente senza passare dal cestino.",

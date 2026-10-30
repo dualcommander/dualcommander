@@ -1,4 +1,6 @@
 {
+  "Cut": "Kes",
+  "Paste": "Yapıştır",
   "Browse supported archives like folders (read-only). When unchecked, archives open in the default application.": "Desteklenen arşivlere klasör gibi göz atın (salt okunur). İşaret kaldırıldığında arşivler varsayılan uygulamada açılır.",
   "When unchecked, used disk space is shown instead.": "İşaret kaldırıldığında kullanılan disk alanı gösterilir.",
   "When unchecked, files bypass the trash and are permanently deleted.": "İşaret kaldırıldığında dosyalar çöp kutusuna taşınmadan kalıcı olarak silinir.",

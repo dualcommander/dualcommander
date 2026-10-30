@@ -25,6 +25,140 @@ import (
 	"fyne.io/fyne/v2/widget"
 )
 
+func TestFileClipboardShortcuts(t *testing.T) {
+	for _, cut := range []bool{false, true} {
+		for _, selection := range []bool{false, true} {
+			t.Run(fmt.Sprintf("cut=%v/selection=%v", cut, selection), func(t *testing.T) {
+				root := fixture(t)
+				u := newTestUI(t, test.NewTempApp(t), filepath.Join(root, "src"), filepath.Join(root, "dst"))
+				canvas := reflect.ValueOf(u.win.Canvas()).Elem().FieldByName("WindowlessCanvas").Interface().(fyne.Shortcutable)
+				cursorTo(t, u.left, "readme.md")
+				want := []string{"readme.md"}
+				if selection {
+					u.left.marked["readme.md"], u.left.marked["photos"] = true, true
+					want = append(want, "photos/a.png")
+				}
+				if cut {
+					canvas.TypedShortcut(&fyne.ShortcutCut{Clipboard: u.win.Clipboard()})
+				} else {
+					canvas.TypedShortcut(&fyne.ShortcutCopy{Clipboard: u.win.Clipboard()})
+				}
+				if !exists(filepath.Join(root, "src/readme.md")) || exists(filepath.Join(root, "dst/readme.md")) {
+					t.Fatal("copy/cut changed disk before paste")
+				}
+				// Capture paths now, not the cursor/selection at paste time.
+				u.left.markAll(false)
+				cursorTo(t, u.left, "song.mp3")
+				u.activate(u.right)
+				canvas.TypedShortcut(&fyne.ShortcutPaste{Clipboard: u.win.Clipboard()})
+				waitJobs(t, u)
+				for _, name := range want {
+					data, err := os.ReadFile(filepath.Join(root, "dst", name))
+					if err != nil || len(data) == 0 {
+						t.Fatalf("paste missing %s: %v", name, err)
+					}
+					if exists(filepath.Join(root, "src", name)) == cut {
+						t.Fatalf("wrong source state after cut=%v: %s", cut, name)
+					}
+				}
+				if exists(filepath.Join(root, "dst/song.mp3")) || !slices.Contains(names(u.right), "readme.md") || u.active != u.right || u.win.Canvas().Focused() != u.right.focusable() {
+					t.Fatal("paste changed selection snapshot, pane state, or focus")
+				}
+				if err := u.right.cd(filepath.Join(root, "src/docs"), ""); err != nil {
+					t.Fatal(err)
+				}
+				canvas.TypedShortcut(&fyne.ShortcutPaste{Clipboard: u.win.Clipboard()})
+				waitJobs(t, u)
+				if exists(filepath.Join(root, "src/docs/readme.md")) == cut {
+					t.Fatal("copy must remain reusable; successful cut must be consumed")
+				}
+			})
+		}
+	}
+}
+
+func TestFileClipboardTextAndModal(t *testing.T) {
+	root := fixture(t)
+	u := newTestUI(t, test.NewTempApp(t), filepath.Join(root, "src"), filepath.Join(root, "dst"))
+	canvas := reflect.ValueOf(u.win.Canvas()).Elem().FieldByName("WindowlessCanvas").Interface().(fyne.Shortcutable)
+	clipboard := u.win.Clipboard()
+	canvas.TypedShortcut(&fyne.ShortcutPaste{Clipboard: clipboard}) // empty clipboard is harmless
+	cursorTo(t, u.left, "readme.md")
+	canvas.TypedShortcut(&fyne.ShortcutCopy{Clipboard: clipboard})
+	u.activate(u.right)
+	press(u, fyne.KeyF7)
+	w := windowByTitle(t, u.app, "New directory")
+	e := w.Canvas().Focused().(*escEntry)
+	e.SetText("text clipboard")
+	e.TypedShortcut(&fyne.ShortcutSelectAll{})
+	menu := u.win.MainMenu().Items[1]
+	for _, label := range []string{"Copy", "Cut", "Paste"} {
+		var action *fyne.MenuItem
+		for _, item := range menu.Items {
+			if item.Label == label {
+				action = item
+			}
+		}
+		if action == nil || action.Disabled {
+			t.Fatalf("text menu %s unavailable in dialog", label)
+		}
+		action.Action()
+	}
+	if e.Text != "text clipboard" || exists(filepath.Join(root, "dst/readme.md")) {
+		t.Fatal("clipboard menu interfered with dialog or pasted files behind modal")
+	}
+	w.Close()
+	canvas.TypedShortcut(&fyne.ShortcutPaste{Clipboard: clipboard})
+	waitJobs(t, u)
+	if !exists(filepath.Join(root, "dst/readme.md")) {
+		t.Fatal("dialog text editing lost pending file clipboard")
+	}
+}
+
+func TestFileClipboardCutConflict(t *testing.T) {
+	for _, choice := range []string{"Skip", "Cancel", "Escape", "Close", "Overwrite"} {
+		t.Run(choice, func(t *testing.T) {
+			root := fixture(t)
+			u := newTestUI(t, test.NewTempApp(t), filepath.Join(root, "src"), filepath.Join(root, "dst"))
+			if err := os.WriteFile(filepath.Join(root, "dst/readme.md"), []byte("existing"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			canvas := reflect.ValueOf(u.win.Canvas()).Elem().FieldByName("WindowlessCanvas").Interface().(fyne.Shortcutable)
+			cursorTo(t, u.left, "readme.md")
+			canvas.TypedShortcut(&fyne.ShortcutCut{Clipboard: u.win.Clipboard()})
+			u.activate(u.right)
+			canvas.TypedShortcut(&fyne.ShortcutPaste{Clipboard: u.win.Clipboard()})
+			waitUntil(t, func() bool { return hasWindow(u.app, "Target already exists") })
+			w := windowByTitle(t, u.app, "Target already exists")
+			switch choice {
+			case "Close":
+				w.Close()
+			case "Escape":
+				w.Canvas().Focused().TypedKey(&fyne.KeyEvent{Name: fyne.KeyEscape})
+			default:
+				tapDialogButton(t, u, choice)
+			}
+			waitJobs(t, u)
+			want := "existing"
+			if choice == "Overwrite" {
+				want = "hello"
+			}
+			data, err := os.ReadFile(filepath.Join(root, "dst/readme.md"))
+			if err != nil || string(data) != want || exists(filepath.Join(root, "src/readme.md")) != (choice != "Overwrite") {
+				t.Fatalf("%s: unexpected source/target state: %q, %v", choice, data, err)
+			}
+			if err := u.right.cd(filepath.Join(root, "src/docs"), ""); err != nil {
+				t.Fatal(err)
+			}
+			canvas.TypedShortcut(&fyne.ShortcutPaste{Clipboard: u.win.Clipboard()})
+			waitJobs(t, u)
+			if exists(filepath.Join(root, "src/docs/readme.md")) != (choice != "Overwrite") {
+				t.Fatal("skipped/cancelled cut must remain available; overwritten cut must be consumed")
+			}
+		})
+	}
+}
+
 func TestShiftArrowMarksAndMoves(t *testing.T) {
 	for _, brief := range []bool{false, true} {
 		for _, right := range []bool{false, true} {
@@ -1170,6 +1304,54 @@ func TestFunctionKeyBar(t *testing.T) {
 	}
 }
 
+func TestPathEditingDisablesFunctionActions(t *testing.T) {
+	for _, right := range []bool{false, true} {
+		for _, exit := range []string{"escape", "blur"} {
+			t.Run(fmt.Sprintf("right=%v/%s", right, exit), func(t *testing.T) {
+				root := fixture(t)
+				u := newTestUI(t, test.NewTempApp(t), filepath.Join(root, "src"), filepath.Join(root, "src"))
+				p := u.left
+				if right {
+					p = u.right
+				}
+				menus := map[string]*fyne.MenuItem{}
+				for _, item := range u.win.MainMenu().Items[0].Items {
+					menus[item.Label] = item
+				}
+				check := func(disabled bool) {
+					t.Helper()
+					for index, label := range map[int]string{3: "New Folder", 5: "Open in Terminal", 6: "Quit"} {
+						if u.functionBar.Objects[index].(*widget.Button).Disabled() != disabled {
+							t.Errorf("%s button: want disabled=%v", label, disabled)
+						}
+						if menus[label] == nil || menus[label].Disabled != disabled {
+							t.Errorf("%s menu: want disabled=%v", label, disabled)
+						}
+					}
+				}
+				u.win.Canvas().Focus(p.pathBar)
+				p.pathBar.SetText("unfinished path")
+				check(true)
+				if t.Failed() {
+					return
+				}
+				for _, label := range []string{"New Folder", "Open in Terminal", "Quit"} {
+					menus[label].Action()
+				}
+				if u.passwordWindow != nil || p.pathBar.Text != "unfinished path" || u.win.Canvas().Focused() != p.pathBar {
+					t.Fatal("disabled actions interrupted path editing")
+				}
+				if exit == "escape" {
+					p.pathBar.TypedKey(&fyne.KeyEvent{Name: fyne.KeyEscape})
+				} else {
+					u.activate(p)
+				}
+				check(false)
+			})
+		}
+	}
+}
+
 func TestFunctionButtonsFollowActiveCursor(t *testing.T) {
 	for _, brief := range []bool{false, true} {
 		t.Run(fmt.Sprintf("brief=%v", brief), func(t *testing.T) {
@@ -1371,6 +1553,38 @@ func TestBriefNavigationClampsAtEdges(t *testing.T) {
 					}
 				}
 			}
+		}
+	}
+}
+
+func TestPathEscapeDiscardsEdits(t *testing.T) {
+	for _, brief := range []bool{false, true} {
+		for _, right := range []bool{false, true} {
+			t.Run(fmt.Sprintf("brief=%v/right=%v", brief, right), func(t *testing.T) {
+				root := fixture(t)
+				u := newTestUI(t, test.NewTempApp(t), filepath.Join(root, "src"), filepath.Join(root, "src"))
+				p := u.left
+				if right {
+					p = u.right
+				}
+				p.setBrief(brief)
+				cursorTo(t, p, "readme.md")
+				p.marked["photos"] = true
+				before := names(p)
+				// Focusing either path field must return to its own file list.
+				u.win.Canvas().Focus(p.pathBar)
+				p.pathBar.SetText(filepath.Join(root, "dst"))
+				u.win.Canvas().Focused().TypedKey(&fyne.KeyEvent{Name: fyne.KeyEscape})
+				if p.pathBar.Text != p.path || p.path != filepath.Join(root, "src") || p.pathBar.editing {
+					t.Fatal("Escape did not discard path edits")
+				}
+				if u.active != p || u.win.Canvas().Focused() != p.focusable() {
+					t.Fatal("Escape did not return focus to owning pane")
+				}
+				if !slices.Equal(names(p), before) || p.current().name != "readme.md" || len(p.marked) != 1 || !p.marked["photos"] {
+					t.Fatal("Escape changed directory contents, cursor, or selection")
+				}
+			})
 		}
 	}
 }

@@ -53,6 +53,64 @@ func latestUpdate[T any](dispatch func(func()), update func(T)) func(T) {
 	}
 }
 
+// ponytail: app-local file clipboard; native file-manager interchange needs OS clipboard formats.
+type fileClipboard struct {
+	paths     []string
+	cut, busy bool
+}
+
+func (u *ui) captureFiles(cut bool) {
+	if u.passwordWindow != nil {
+		return
+	}
+	if u.active.inArchive() {
+		u.showErr(fmt.Errorf(lang.L("archive browsing is read-only")))
+		return
+	}
+	u.fileClipboard = &fileClipboard{paths: u.active.selection(), cut: cut}
+}
+
+func (u *ui) pasteFiles() {
+	clip := u.fileClipboard
+	if u.passwordWindow != nil || clip == nil || len(clip.paths) == 0 || clip.busy {
+		return
+	}
+	if u.active.inArchive() {
+		u.showErr(fmt.Errorf(lang.L("archive browsing is read-only")))
+		return
+	}
+	to := u.active.path
+	verb := lang.L("Copy")
+	if clip.cut {
+		verb = lang.L("Move/Rename")
+		clip.busy = true
+	}
+	title := fmt.Sprintf(lang.L("%s %d item(s) → %s"), verb, len(clip.paths), to)
+	u.jobs.runCounted(title, []*pane{u.left, u.right}, func(ctx context.Context, report func(fsops.CopyProgress)) error {
+		if !clip.cut {
+			return fsops.CopyWithConflicts(ctx, clip.paths, to, report, u.overwriteConflict)
+		}
+		err := fsops.MoveWithConflicts(ctx, clip.paths, to, func(done, total int64, file string) {
+			report(fsops.CopyProgress{Done: done, Total: total, Current: file, FilesTotal: -1})
+		}, u.overwriteConflict)
+		// Moves can finish only part of a selection; retain skipped/failed sources for retry.
+		var remaining []string
+		for _, path := range clip.paths {
+			if _, statErr := os.Lstat(path); !os.IsNotExist(statErr) {
+				remaining = append(remaining, path)
+			}
+		}
+		post(func() {
+			clip.busy = false
+			clip.paths = remaining
+			if len(remaining) == 0 && u.fileClipboard == clip {
+				u.fileClipboard = nil
+			}
+		})
+		return err
+	})
+}
+
 func (u *ui) copyOrMove(move bool) {
 	src, dst := u.active, u.other()
 	if src.inArchive() || dst.inArchive() {

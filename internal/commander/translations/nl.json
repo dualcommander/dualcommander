@@ -1,4 +1,6 @@
 {
+  "Cut": "Knippen",
+  "Paste": "Plakken",
   "Browse supported archives like folders (read-only). When unchecked, archives open in the default application.": "Ondersteunde archieven als mappen doorbladeren (alleen-lezen). Indien uitgeschakeld, openen archieven in de standaardtoepassing.",
   "When unchecked, used disk space is shown instead.": "Indien uitgevinkt, wordt gebruikte schijfruimte getoond.",
   "When unchecked, files bypass the trash and are permanently deleted.": "Indien uitgevinkt, worden bestanden permanent verwijderd zonder de prullenbak te gebruiken.",

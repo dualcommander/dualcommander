@@ -1,4 +1,6 @@
 {
+  "Cut": "剪切",
+  "Paste": "粘贴",
   "Browse supported archives like folders (read-only). When unchecked, archives open in the default application.": "像文件夹一样浏览支持的压缩包（只读）。取消勾选后，压缩包将使用默认应用程序打开。",
   "When unchecked, used disk space is shown instead.": "取消勾选时，显示已用磁盘空间。",
   "When unchecked, files bypass the trash and are permanently deleted.": "取消勾选时，文件将绕过回收站并被永久删除。",

@@ -1,4 +1,6 @@
 {
+  "Cut": "కత్తిరించు",
+  "Paste": "అతికించు",
   "Browse supported archives like folders (read-only). When unchecked, archives open in the default application.": "మద్దతు ఉన్న ఆర్కైవ్‌లను ఫోల్డర్‌ల వలె బ్రౌజ్ చేయండి (చదవడానికి మాత్రమే). ఎంపిక తీసివేస్తే, ఆర్కైవ్‌లు డిఫాల్ట్ యాప్‌లో తెరుచుకుంటాయి.",
   "When unchecked, used disk space is shown instead.": "ఎంపిక తీసివేస్తే, ఉపయోగించిన డిస్క్ స్థలం చూపబడుతుంది.",
   "When unchecked, files bypass the trash and are permanently deleted.": "ఎంపిక తీసివేస్తే, ఫైళ్లు చెత్తబుట్టకు పంపకుండా శాశ్వతంగా తొలగించబడతాయి.",

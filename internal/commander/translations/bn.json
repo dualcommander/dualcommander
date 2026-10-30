@@ -1,4 +1,6 @@
 {
+  "Cut": "কাট",
+  "Paste": "পেস্ট",
   "Browse supported archives like folders (read-only). When unchecked, archives open in the default application.": "সমর্থিত আর্কাইভ ফোল্ডারের মতো দেখুন (শুধু পড়ার জন্য)। টিক সরালে আর্কাইভ ডিফল্ট অ্যাপে খুলবে।",
   "When unchecked, used disk space is shown instead.": "টিক সরিয়ে দিলে ব্যবহৃত ডিস্ক স্থান দেখানো হয়।",
   "When unchecked, files bypass the trash and are permanently deleted.": "টিক সরিয়ে দিলে ফাইল ট্র্যাশে না পাঠিয়ে স্থায়ীভাবে মুছে ফেলা হয়।",

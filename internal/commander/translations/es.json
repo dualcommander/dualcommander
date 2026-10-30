@@ -1,4 +1,6 @@
 {
+  "Cut": "Cortar",
+  "Paste": "Pegar",
   "Browse supported archives like folders (read-only). When unchecked, archives open in the default application.": "Explorar archivos comprimidos compatibles como carpetas (solo lectura). Si se desmarca esta opción, se abren en la aplicación predeterminada.",
   "When unchecked, used disk space is shown instead.": "Si se desmarca, se muestra el espacio de disco utilizado.",
   "When unchecked, files bypass the trash and are permanently deleted.": "Si se desmarca, los archivos se eliminan permanentemente sin pasar por la papelera.",

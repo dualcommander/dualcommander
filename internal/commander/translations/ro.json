@@ -1,4 +1,6 @@
 {
+  "Cut": "Decupare",
+  "Paste": "Lipire",
   "Browse supported archives like folders (read-only). When unchecked, archives open in the default application.": "Răsfoiți arhivele acceptate ca dosare (numai citire). Dacă opțiunea este debifată, arhivele se deschid în aplicația implicită.",
   "When unchecked, used disk space is shown instead.": "Dacă este debifat, se afișează spațiul utilizat pe disc.",
   "When unchecked, files bypass the trash and are permanently deleted.": "Dacă este debifat, fișierele sunt șterse definitiv fără a trece prin coș.",

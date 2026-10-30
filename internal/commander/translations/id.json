@@ -1,4 +1,6 @@
 {
+  "Cut": "Potong",
+  "Paste": "Tempel",
   "Browse supported archives like folders (read-only). When unchecked, archives open in the default application.": "Jelajahi arsip yang didukung seperti folder (hanya baca). Jika tidak dicentang, arsip dibuka di aplikasi bawaan.",
   "When unchecked, used disk space is shown instead.": "Jika tidak dicentang, ruang disk terpakai ditampilkan.",
   "When unchecked, files bypass the trash and are permanently deleted.": "Jika tidak dicentang, berkas dihapus permanen tanpa melalui tempat sampah.",

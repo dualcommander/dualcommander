@@ -1,4 +1,6 @@
 {
+  "Cut": "잘라내기",
+  "Paste": "붙여넣기",
   "Browse supported archives like folders (read-only). When unchecked, archives open in the default application.": "지원되는 압축 파일을 폴더처럼 탐색합니다(읽기 전용). 선택을 해제하면 기본 앱에서 압축 파일을 엽니다.",
   "When unchecked, used disk space is shown instead.": "선택을 해제하면 사용 중인 디스크 공간이 표시됩니다.",
   "When unchecked, files bypass the trash and are permanently deleted.": "선택을 해제하면 휴지통을 거치지 않고 파일이 영구 삭제됩니다.",

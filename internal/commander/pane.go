@@ -85,7 +85,12 @@ func newPane(u *ui, path string, brief bool, sortPref string) *pane {
 	p.hdr = p.header()
 	p.setSortLabels()
 	p.pathBar = newPathEntry()
+	p.pathBar.onFocusChanged = u.updateFunctionButtons
 	p.pathBar.OnSubmitted = func(s string) { p.navigate(s, "") }
+	p.pathBar.onEscape = func() {
+		p.pathBar.SetText(p.path)
+		u.activate(p)
+	}
 	p.status = widget.NewLabel("")
 	p.status.Truncation = fyne.TextTruncateEllipsis
 	p.statusRow = newRowContent(true).(*fyne.Container)

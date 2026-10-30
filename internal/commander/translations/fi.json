@@ -1,4 +1,6 @@
 {
+  "Cut": "Leikkaa",
+  "Paste": "Liitä",
   "Browse supported archives like folders (read-only). When unchecked, archives open in the default application.": "Selaa tuettuja arkistoja kansioina (vain luku). Kun valinta poistetaan, arkistot avautuvat oletussovelluksessa.",
   "When unchecked, used disk space is shown instead.": "Kun valinta on pois käytöstä, näytetään käytetty levytila.",
   "When unchecked, files bypass the trash and are permanently deleted.": "Kun valinta on pois käytöstä, tiedostot poistetaan pysyvästi siirtämättä niitä roskakoriin.",

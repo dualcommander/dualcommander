@@ -1,4 +1,6 @@
 {
+  "Cut": "Klipp ut",
+  "Paste": "Klistra in",
   "Browse supported archives like folders (read-only). When unchecked, archives open in the default application.": "Bläddra i arkiv som stöds som i mappar (skrivskyddat). Om alternativet är avmarkerat öppnas arkiv i standardprogrammet.",
   "When unchecked, used disk space is shown instead.": "Om avmarkerat visas använt diskutrymme i stället.",
   "When unchecked, files bypass the trash and are permanently deleted.": "Om avmarkerat raderas filer permanent utan att flyttas till papperskorgen.",

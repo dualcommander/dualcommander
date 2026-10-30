@@ -1,4 +1,6 @@
 {
+  "Cut": "切り取り",
+  "Paste": "貼り付け",
   "Browse supported archives like folders (read-only). When unchecked, archives open in the default application.": "対応するアーカイブをフォルダーのように閲覧します（読み取り専用）。チェックを外すと、既定のアプリでアーカイブを開きます。",
   "When unchecked, used disk space is shown instead.": "チェックを外すと、使用済みのディスク容量を表示します。",
   "When unchecked, files bypass the trash and are permanently deleted.": "チェックを外すと、ファイルはゴミ箱に移動せず完全に削除されます。",
