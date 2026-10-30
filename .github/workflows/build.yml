@@ -160,7 +160,7 @@ jobs:
 
   release:
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-    needs: build
+    needs: [build, windows-msix]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -220,14 +220,9 @@ jobs:
           RELEASE_TAG: ${{ github.ref_name }}
         run: make publish-apple-store
 
-  windows-store:
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && !contains(github.ref_name, '-') && !contains(github.ref_name, '+') && vars.WINDOWS_STORE_ENABLED == 'true'
-    needs: release
+  windows-msix:
+    needs: build
     runs-on: windows-latest
-    environment: windows-store
-    concurrency:
-      group: windows-store
-      cancel-in-progress: false
     defaults:
       run:
         shell: bash
@@ -246,7 +241,8 @@ jobs:
           merge-multiple: true
       - name: Build Store MSIX bundle
         env:
-          RELEASE_TAG: ${{ github.ref_name }}
+          # Development/prerelease packages use a fixed sideload-only version.
+          RELEASE_TAG: ${{ github.ref_type == 'tag' && startsWith(github.ref_name, 'v') && !contains(github.ref_name, '-') && !contains(github.ref_name, '+') && github.ref_name || 'v0.0.1' }}
           WINDOWS_STORE_IDENTITY_NAME: ${{ vars.WINDOWS_STORE_IDENTITY_NAME }}
           WINDOWS_STORE_PUBLISHER: ${{ vars.WINDOWS_STORE_PUBLISHER }}
           WINDOWS_STORE_PUBLISHER_DISPLAY_NAME: ${{ vars.WINDOWS_STORE_PUBLISHER_DISPLAY_NAME }}
@@ -256,6 +252,24 @@ jobs:
           name: dualcommander-windows-store
           path: dist/windows-store/*.msixbundle
           if-no-files-found: error
+
+  windows-store:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && !contains(github.ref_name, '-') && !contains(github.ref_name, '+') && vars.WINDOWS_STORE_ENABLED == 'true'
+    needs: [release, windows-msix]
+    runs-on: windows-latest
+    environment: windows-store
+    concurrency:
+      group: windows-store
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Make on Windows
+        shell: pwsh
+        run: choco install make --no-progress -y
+      - uses: actions/download-artifact@v4
+        with:
+          name: dualcommander-windows-store
+          path: dist/windows-store
       - name: Install Microsoft Store CLI
         uses: microsoft/microsoft-store-apppublisher@271384ce0e6e03162184c55b05392e8f4044aa78 # v1.2
       - name: Publish Store submission
@@ -265,4 +279,5 @@ jobs:
           WINDOWS_STORE_CLIENT_ID: ${{ secrets.WINDOWS_STORE_CLIENT_ID }}
           WINDOWS_STORE_CLIENT_SECRET: ${{ secrets.WINDOWS_STORE_CLIENT_SECRET }}
           WINDOWS_STORE_PRODUCT_ID: ${{ vars.WINDOWS_STORE_PRODUCT_ID }}
+        shell: bash
         run: make publish-windows-store

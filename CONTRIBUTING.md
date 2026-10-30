@@ -119,6 +119,20 @@ tools; `make check` does not exercise credential-dependent signing or notarizati
 
 ### Microsoft Store
 
+Every successful CI build (branches, pull requests, manual runs, and tags) creates
+Actions artifact `dualcommander-windows-store`, containing `dualcommander.msixbundle`
+for x64/arm64. Tagged GitHub Releases also include this unsigned bundle.
+Packaging needs no Store credentials or publishing approval. Set
+`WINDOWS_STORE_IDENTITY_NAME`, `WINDOWS_STORE_PUBLISHER`, and
+`WINDOWS_STORE_PUBLISHER_DISPLAY_NAME` as **repository Actions variables**, not only
+environment variables, so the packaging job can read them. Fork pull requests may
+lack these variables and cannot package without them.
+
+Development and prerelease bundles use fixed MSIX version `0.0.1.0`; identify builds
+by workflow run and commit. Uninstall an existing package before testing an older
+version or a different signing certificate. Uninstalling can remove app data;
+use a disposable test VM. Bundles need local test signing before sideloading.
+
 After GitHub Release publication, CI submits one x64/arm64 MSIX bundle for stable
 `vMAJOR.MINOR.PATCH` tags only. Prereleases/build metadata stay GitHub-only.
 MSIX version is `MAJOR.MINOR.PATCH.0`: components must be at most 65535, version
