@@ -47,7 +47,7 @@ jobs:
       SIGN_MACOS: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && matrix.os == 'darwin' && vars.MACOS_SIGNING_ENABLED == 'true' }}
       SIGN_WINDOWS: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && matrix.os == 'windows' && vars.WINDOWS_SIGNING_ENABLED == 'true' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
@@ -165,7 +165,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/download-artifact@v4
         with:
           pattern: dualcommander-*
@@ -187,7 +187,7 @@ jobs:
       group: apple-store
       cancel-in-progress: false
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/download-artifact@v4
         with:
           pattern: dualcommander-darwin-*
@@ -227,7 +227,7 @@ jobs:
       run:
         shell: bash
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Install Make on Windows
         shell: pwsh
         run: choco install make --no-progress -y
@@ -262,7 +262,7 @@ jobs:
       group: windows-store
       cancel-in-progress: false
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Install Make on Windows
         shell: pwsh
         run: choco install make --no-progress -y
