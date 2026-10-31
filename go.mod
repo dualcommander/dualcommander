@@ -8,7 +8,7 @@ require (
 	github.com/bodgit/sevenzip v1.6.1
 	github.com/cavaliergopher/cpio v1.0.1
 	github.com/cavaliergopher/rpm v1.3.0
-	github.com/fsnotify/fsnotify v1.9.0
+	github.com/fsnotify/fsnotify v1.10.1
 	github.com/go-gl/glfw/v3.4/glfw v0.1.0-pre.2
 	github.com/klauspost/compress v1.18.0
 	github.com/mholt/archives v0.1.5
@@ -16,7 +16,7 @@ require (
 	github.com/nicksnyder/go-i18n/v2 v2.5.1
 	github.com/nwaples/rardecode/v2 v2.2.0
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.3
-	github.com/ulikunitz/xz v0.5.15
+	github.com/ulikunitz/xz v0.5.17
 	github.com/yeka/zip v0.0.0-20231116150916-03d6312748a9
 	golang.org/x/sys v0.30.0
 	golang.org/x/text v0.29.0
