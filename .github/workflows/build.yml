@@ -271,7 +271,7 @@ jobs:
           name: dualcommander-windows-store
           path: dist/windows-store
       - name: Install Microsoft Store CLI
-        uses: microsoft/microsoft-store-apppublisher@271384ce0e6e03162184c55b05392e8f4044aa78 # v1.2
+        uses: microsoft/microsoft-store-apppublisher@cc9910a8d59f2eb55cbb83df0a3800cf3b5300e0 # v1.4
       - name: Publish Store submission
         env:
           WINDOWS_STORE_TENANT_ID: ${{ secrets.WINDOWS_STORE_TENANT_ID }}
