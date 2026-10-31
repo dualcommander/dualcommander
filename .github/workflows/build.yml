@@ -221,6 +221,7 @@ jobs:
         run: make publish-apple-store
 
   windows-msix:
+    if: github.event_name != 'pull_request'
     needs: build
     runs-on: windows-latest
     defaults:
