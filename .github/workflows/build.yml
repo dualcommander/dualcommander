@@ -48,7 +48,7 @@ jobs:
       SIGN_WINDOWS: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && matrix.os == 'windows' && vars.WINDOWS_SIGNING_ENABLED == 'true' }}
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
           cache: true
