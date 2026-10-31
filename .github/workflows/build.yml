@@ -126,7 +126,7 @@ jobs:
       - name: Upload unsigned Windows app for SignPath
         if: env.SIGN_WINDOWS == 'true'
         id: unsigned-windows
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: unsigned-windows-${{ matrix.arch }}
           path: cmd/dualcommander/DualCommander.exe
@@ -152,7 +152,7 @@ jobs:
       - name: Archive Windows app
         if: runner.os == 'Windows'
         run: make archive-windows
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: dualcommander-${{ matrix.os }}-${{ matrix.arch }}
           path: dist/*
@@ -204,7 +204,7 @@ jobs:
           APPLE_STORE_BUNDLE_ID: ${{ vars.APPLE_STORE_BUNDLE_ID }}
           APPLE_STORE_TEAM_ID: ${{ vars.APPLE_STORE_TEAM_ID }}
         run: make package-apple-store APPLE_STORE_INPUT=macos-artifacts
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: dualcommander-apple-store
           path: dist/apple-store/*.pkg
@@ -247,7 +247,7 @@ jobs:
           WINDOWS_STORE_PUBLISHER: 'CN=1FB8D7A3-27B9-46F3-8458-4BAF7098A1BD'
           WINDOWS_STORE_PUBLISHER_DISPLAY_NAME: 'Peter Butkovic'
         run: make package-msix WINDOWS_STORE_INPUT=windows-artifacts
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: dualcommander-windows-store
           path: dist/windows-store/*.msixbundle
