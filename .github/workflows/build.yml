@@ -47,8 +47,8 @@ jobs:
       SIGN_MACOS: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && matrix.os == 'darwin' && vars.MACOS_SIGNING_ENABLED == 'true' }}
       SIGN_WINDOWS: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && matrix.os == 'windows' && vars.WINDOWS_SIGNING_ENABLED == 'true' }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
           cache: true
@@ -126,7 +126,7 @@ jobs:
       - name: Upload unsigned Windows app for SignPath
         if: env.SIGN_WINDOWS == 'true'
         id: unsigned-windows
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: unsigned-windows-${{ matrix.arch }}
           path: cmd/dualcommander/DualCommander.exe
@@ -152,7 +152,7 @@ jobs:
       - name: Archive Windows app
         if: runner.os == 'Windows'
         run: make archive-windows
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: dualcommander-${{ matrix.os }}-${{ matrix.arch }}
           path: dist/*
@@ -165,7 +165,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/download-artifact@v4
         with:
           pattern: dualcommander-*
@@ -187,7 +187,7 @@ jobs:
       group: apple-store
       cancel-in-progress: false
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/download-artifact@v4
         with:
           pattern: dualcommander-darwin-*
@@ -204,7 +204,7 @@ jobs:
           APPLE_STORE_BUNDLE_ID: ${{ vars.APPLE_STORE_BUNDLE_ID }}
           APPLE_STORE_TEAM_ID: ${{ vars.APPLE_STORE_TEAM_ID }}
         run: make package-apple-store APPLE_STORE_INPUT=macos-artifacts
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: dualcommander-apple-store
           path: dist/apple-store/*.pkg
@@ -227,11 +227,11 @@ jobs:
       run:
         shell: bash
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Install Make on Windows
         shell: pwsh
         run: choco install make --no-progress -y
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.x'
       - uses: actions/download-artifact@v4
@@ -247,7 +247,7 @@ jobs:
           WINDOWS_STORE_PUBLISHER: 'CN=1FB8D7A3-27B9-46F3-8458-4BAF7098A1BD'
           WINDOWS_STORE_PUBLISHER_DISPLAY_NAME: 'Peter Butkovic'
         run: make package-msix WINDOWS_STORE_INPUT=windows-artifacts
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: dualcommander-windows-store
           path: dist/windows-store/*.msixbundle
@@ -262,7 +262,7 @@ jobs:
       group: windows-store
       cancel-in-progress: false
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Install Make on Windows
         shell: pwsh
         run: choco install make --no-progress -y
@@ -271,7 +271,7 @@ jobs:
           name: dualcommander-windows-store
           path: dist/windows-store
       - name: Install Microsoft Store CLI
-        uses: microsoft/microsoft-store-apppublisher@271384ce0e6e03162184c55b05392e8f4044aa78 # v1.2
+        uses: microsoft/microsoft-store-apppublisher@cc9910a8d59f2eb55cbb83df0a3800cf3b5300e0 # v1.4
       - name: Publish Store submission
         env:
           WINDOWS_STORE_TENANT_ID: ${{ secrets.WINDOWS_STORE_TENANT_ID }}
