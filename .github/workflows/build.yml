@@ -33,7 +33,7 @@ jobs:
           - runner: ubuntu-22.04-arm
             os: linux
             arch: arm64
-          - runner: macos-14
+          - runner: macos-15
             os: darwin
             arch: arm64
           - runner: macos-15-intel
@@ -192,7 +192,7 @@ jobs:
   apple-store:
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && !contains(github.ref_name, '-') && !contains(github.ref_name, '+') && vars.APPLE_STORE_ENABLED == 'true'
     needs: release
-    runs-on: macos-14
+    runs-on: macos-15
     environment: apple-store
     concurrency:
       group: apple-store
