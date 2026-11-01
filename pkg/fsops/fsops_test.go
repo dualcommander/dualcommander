@@ -74,6 +74,10 @@ func TestSameFolderCopyCollisions(t *testing.T) {
 	if err := os.Mkdir(filepath.Join(root, "file copy 2.txt"), 0o755); err != nil {
 		t.Fatal(err)
 	}
+	marker := filepath.Join(root, "file copy 2.txt", "keep.txt")
+	if err := os.WriteFile(marker, []byte("keep directory"), 0o600); err != nil {
+		t.Fatal(err)
+	}
 	link := filepath.Join(root, "file copy 3.txt")
 	if err := os.Symlink("missing", link); err != nil {
 		t.Fatal(err)
@@ -96,6 +100,9 @@ func TestSameFolderCopyCollisions(t *testing.T) {
 	}
 	if data, err := os.ReadFile(filepath.Join(root, "file copy.txt")); err != nil || string(data) != "keep" {
 		t.Fatalf("existing copy changed: %q, %v", data, err)
+	}
+	if data, err := os.ReadFile(marker); err != nil || string(data) != "keep directory" {
+		t.Fatalf("existing directory changed: %q, %v", data, err)
 	}
 	if target, err := os.Readlink(link); err != nil || target != "missing" {
 		t.Fatalf("existing symlink changed: %q, %v", target, err)

@@ -237,6 +237,11 @@ func (c *copier) copyDuplicate(src, dir string) error {
 			continue
 		}
 		if err != nil {
+			// Windows may report a directory collision as an error other than ErrExist.
+			// Lstat also detects dangling symlinks without following them.
+			if _, statErr := os.Lstat(target); statErr == nil {
+				continue
+			}
 			return err
 		}
 		c.duplicateTarget = target
