@@ -186,7 +186,31 @@ On Linux, `make package-snap` packages the existing
 `cmd/dualcommander/DualCommander.tar.xz` using Snapcraft (classic confinement).
 CI builds it natively on amd64 and arm64; `.snap` files ship with other release assets.
 Add regression tests for changes; keep blocking work off the UI thread.
-See [development guidelines](.clinerules/skills/dualcommander-guidelines/SKILL.md).
+See [development guidelines](.agents/skills/dualcommander-guidelines/SKILL.md).
+
+### Coding agents
+
+[AGENTS.md](AGENTS.md) holds shared project rules and links to task-specific
+[Agent Skills](https://agentskills.io/) in `.agents/skills/`. Edit these sources,
+not agent-specific copies.
+
+- Codex and Cursor read `AGENTS.md` and discover `.agents/skills/`.
+- Cline reads `AGENTS.md` and discovers skills through `.claude/skills/`.
+  Its existing `.clinerules/hooks/PostToolUse` remains Cline-only.
+- Claude Code imports `AGENTS.md` through `CLAUDE.md` and discovers
+  `.claude/skills/`.
+- Gemini CLI imports `AGENTS.md` through `GEMINI.md` and discovers
+  `.agents/skills/`.
+- GitHub Copilot uses `.github/copilot-instructions.md` to find shared rules;
+  skill discovery depends on the Copilot surface and version.
+
+`.claude/skills` is a relative symlink to `.agents/skills`, not a second copy.
+On Windows, enable Git symlink checkout (`core.symlinks=true`) with Developer
+Mode or appropriate permissions before cloning. Without symlinks or native
+skill support, have the agent read `AGENTS.md` and its linked `SKILL.md` files
+directly. Hooks do not transfer between agents; every agent must still run
+the required checks. Agent discovery varies by version; verify the five
+project skills appear in your agent's skill list, or use the direct-read fallback.
 
 ## CI and tagging
 
