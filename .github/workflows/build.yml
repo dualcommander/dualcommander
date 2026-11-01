@@ -177,7 +177,7 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           pattern: dualcommander-*
           path: dist
@@ -199,7 +199,7 @@ jobs:
       cancel-in-progress: false
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           pattern: dualcommander-darwin-*
           path: macos-artifacts
@@ -246,7 +246,7 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: '3.x'
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           pattern: dualcommander-windows-*
           path: windows-artifacts
@@ -278,7 +278,7 @@ jobs:
       - name: Install Make on Windows
         shell: pwsh
         run: choco install make --no-progress -y
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: dualcommander-windows-store
           path: dist/windows-store
