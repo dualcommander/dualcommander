@@ -84,6 +84,7 @@
   "Enter password for {{.Name}}": "Введите пароль для {{.Name}}",
   "Error": "Ошибка",
   "External applications": "Внешние приложения",
+  "Extract Archive": "Распаковать архив",
   "F10 Quit": "F10 Выход",
   "F4 Edit": "F4 Правка",
   "F5 Copy": "F5 Копировать",

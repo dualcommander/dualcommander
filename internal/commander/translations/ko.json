@@ -84,6 +84,7 @@
   "Enter password for {{.Name}}": "{{.Name}}의 암호 입력",
   "Error": "오류",
   "External applications": "외부 프로그램",
+  "Extract Archive": "압축 풀기",
   "F10 Quit": "F10 종료",
   "F4 Edit": "F4 편집",
   "F5 Copy": "F5 복사",

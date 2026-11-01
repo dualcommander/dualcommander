@@ -84,6 +84,7 @@
   "Enter password for {{.Name}}": "ป้อนรหัสผ่านสำหรับ {{.Name}}",
   "Error": "ข้อผิดพลาด",
   "External applications": "แอปพลิเคชันภายนอก",
+  "Extract Archive": "แตกไฟล์เก็บถาวร",
   "F10 Quit": "F10 ออก",
   "F4 Edit": "F4 แก้ไข",
   "F5 Copy": "F5 คัดลอก",

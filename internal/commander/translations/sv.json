@@ -84,6 +84,7 @@
   "Enter password for {{.Name}}": "Ange lösenord för {{.Name}}",
   "Error": "Fel",
   "External applications": "Externa applikationer",
+  "Extract Archive": "Packa upp arkiv",
   "F10 Quit": "F10 Avsluta",
   "F4 Edit": "F4 Redigera",
   "F5 Copy": "F5 Kopiera",

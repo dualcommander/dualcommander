@@ -84,6 +84,7 @@
   "Enter password for {{.Name}}": "请输入 {{.Name}} 的密码",
   "Error": "错误",
   "External applications": "外部应用",
+  "Extract Archive": "解压归档",
   "F10 Quit": "F10 退出",
   "F4 Edit": "F4 编辑",
   "F5 Copy": "F5 复制",

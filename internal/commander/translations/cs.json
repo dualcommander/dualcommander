@@ -84,6 +84,7 @@
   "Enter password for {{.Name}}": "Zadejte heslo pro {{.Name}}",
   "Error": "Chyba",
   "External applications": "Externí aplikace",
+  "Extract Archive": "Rozbalit archiv",
   "F10 Quit": "F10 Ukončit",
   "F4 Edit": "F4 Upravit",
   "F5 Copy": "F5 Kopírovat",

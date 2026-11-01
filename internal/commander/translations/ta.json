@@ -84,6 +84,7 @@
   "Enter password for {{.Name}}": "{{.Name}} க்கான கடவுச்சொல்லை உள்ளிடவும்",
   "Error": "பிழை",
   "External applications": "வெளிப்புற பயன்பாடுகள்",
+  "Extract Archive": "காப்பகத்தைப் பிரித்தெடு",
   "F10 Quit": "F10 வெளியேறு",
   "F4 Edit": "F4 திருத்து",
   "F5 Copy": "F5 நகல்",

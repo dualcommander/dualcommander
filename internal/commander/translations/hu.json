@@ -84,6 +84,7 @@
   "Enter password for {{.Name}}": "Adja meg a {{.Name}} jelszavát",
   "Error": "Hiba",
   "External applications": "Külső alkalmazások",
+  "Extract Archive": "Archívum kibontása",
   "F10 Quit": "F10 Kilépés",
   "F4 Edit": "F4 Szerkesztés",
   "F5 Copy": "F5 Másolás",
