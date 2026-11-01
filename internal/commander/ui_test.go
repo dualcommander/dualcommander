@@ -77,6 +77,58 @@ func TestFileClipboardShortcuts(t *testing.T) {
 	}
 }
 
+func TestFileClipboardSameFolder(t *testing.T) {
+	for _, cut := range []bool{false, true} {
+		t.Run(fmt.Sprintf("cut=%v", cut), func(t *testing.T) {
+			root := fixture(t)
+			src := filepath.Join(root, "src")
+			u := newTestUI(t, test.NewTempApp(t), src, src)
+			windows := len(u.app.Driver().AllWindows())
+			canvas := reflect.ValueOf(u.win.Canvas()).Elem().FieldByName("WindowlessCanvas").Interface().(fyne.Shortcutable)
+			cursorTo(t, u.left, "readme.md")
+			u.left.marked["readme.md"], u.left.marked["photos"] = true, true
+			if cut {
+				canvas.TypedShortcut(&fyne.ShortcutCut{Clipboard: u.win.Clipboard()})
+			} else {
+				canvas.TypedShortcut(&fyne.ShortcutCopy{Clipboard: u.win.Clipboard()})
+			}
+			u.activate(u.right)
+			// Queue repeated pastes before earlier copies finish.
+			for range 3 {
+				canvas.TypedShortcut(&fyne.ShortcutPaste{Clipboard: u.win.Clipboard()})
+			}
+			waitJobs(t, u)
+			if len(u.app.Driver().AllWindows()) != windows {
+				t.Fatal("same-folder paste opened error or conflict dialog")
+			}
+			for _, suffix := range []string{" copy", " copy 2", " copy 3"} {
+				for name, body := range map[string]string{"readme" + suffix + ".md": "hello", "photos" + suffix + "/a.png": "png"} {
+					data, err := os.ReadFile(filepath.Join(src, name))
+					if cut {
+						if !os.IsNotExist(err) {
+							t.Fatalf("same-folder cut created %s", name)
+						}
+					} else if err != nil || string(data) != body || !slices.Contains(names(u.right), strings.Split(name, "/")[0]) {
+						t.Fatalf("paste missing disk or pane entry %s: %q, %v", name, data, err)
+					}
+				}
+			}
+			if u.fileClipboard == nil || u.fileClipboard.busy || u.active != u.right || u.win.Canvas().Focused() != u.right.focusable() {
+				t.Fatal("paste lost reusable clipboard or pane focus")
+			}
+			// Same-folder cut is a no-op, not a consumed move.
+			if err := u.right.cd(filepath.Join(root, "dst"), ""); err != nil {
+				t.Fatal(err)
+			}
+			canvas.TypedShortcut(&fyne.ShortcutPaste{Clipboard: u.win.Clipboard()})
+			waitJobs(t, u)
+			if !exists(filepath.Join(root, "dst/readme.md")) || exists(filepath.Join(src, "readme.md")) == cut {
+				t.Fatal("same-folder paste changed clipboard source or cut state")
+			}
+		})
+	}
+}
+
 func TestFileClipboardTextAndModal(t *testing.T) {
 	root := fixture(t)
 	u := newTestUI(t, test.NewTempApp(t), filepath.Join(root, "src"), filepath.Join(root, "dst"))

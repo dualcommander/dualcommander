@@ -117,6 +117,7 @@ type copier struct {
 	all                   ConflictAction
 	move                  bool
 	skipped               int
+	duplicateTarget       string
 }
 
 func (c *copier) notify(src string) {
@@ -160,6 +161,12 @@ func CopyWithConflicts(ctx context.Context, srcs []string, dst string, progress 
 	c := &copier{ctx: ctx, total: total, filesTotal: files, report: progress, conflict: conflict}
 	c.notify("")
 	for _, s := range srcs {
+		if sameDirectory(filepath.Dir(s), dst) {
+			if err := c.copyDuplicate(s, dst); err != nil {
+				return err
+			}
+			continue
+		}
 		t := Target(s, dst, len(srcs))
 		if err := checkNotInside(s, t); err != nil {
 			return err
@@ -174,6 +181,80 @@ func CopyWithConflicts(ctx context.Context, srcs []string, dst string, progress 
 	return nil
 }
 
+func sameDirectory(a, b string) bool {
+	ai, aerr := os.Stat(a)
+	bi, berr := os.Stat(b)
+	return aerr == nil && berr == nil && ai.IsDir() && bi.IsDir() && os.SameFile(ai, bi)
+}
+
+// Reserve names with exclusive creation, including against concurrent pastes.
+func (c *copier) copyDuplicate(src, dir string) error {
+	info, err := os.Lstat(src)
+	if err != nil {
+		return err
+	}
+	name, ext := filepath.Base(src), ""
+	if !info.IsDir() {
+		ext = filepath.Ext(name)
+		if ext == name { // A leading dot alone does not introduce an extension.
+			ext = ""
+		}
+		// ponytail: common compressed tar suffixes; extend when another format is needed.
+		for _, suffix := range []string{".tar.gz", ".tar.bz2", ".tar.xz", ".tar.zst", ".tar.lz4", ".tar.lz", ".tar.br", ".tar.sz", ".tar.zz"} {
+			if strings.HasSuffix(strings.ToLower(name), suffix) && len(name) > len(suffix) {
+				ext = name[len(name)-len(suffix):]
+				break
+			}
+		}
+	}
+	stem := strings.TrimSuffix(name, ext)
+	for i := 1; ; i++ {
+		if err := c.ctx.Err(); err != nil {
+			return err
+		}
+		suffix := " copy"
+		if i > 1 {
+			suffix = fmt.Sprintf(" copy %d", i)
+		}
+		target := filepath.Join(dir, stem+suffix+ext)
+		if err := checkNotInside(src, target); err != nil {
+			return err
+		}
+		if info.IsDir() {
+			err = os.Mkdir(target, 0o700)
+		} else {
+			var f *os.File
+			f, err = os.OpenFile(target, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+			if err == nil {
+				err = f.Close()
+				if err != nil {
+					os.Remove(target)
+					return err
+				}
+			}
+		}
+		if os.IsExist(err) {
+			continue
+		}
+		if err != nil {
+			return err
+		}
+		c.duplicateTarget = target
+		err = c.copyTree(src, target)
+		c.duplicateTarget = ""
+		if err == nil && info.IsDir() {
+			err = os.Chmod(target, info.Mode().Perm())
+		}
+		if err != nil {
+			if cleanup := os.RemoveAll(target); cleanup != nil {
+				return errors.Join(err, cleanup)
+			}
+			return err
+		}
+		return nil
+	}
+}
+
 // Move moves srcs to dst (see Target); uses rename, falls back to copy+delete across devices.
 func Move(ctx context.Context, srcs []string, dst string, progress Progress) error {
 	return MoveWithConflicts(ctx, srcs, dst, progress, nil)
@@ -183,6 +264,9 @@ func Move(ctx context.Context, srcs []string, dst string, progress Progress) err
 func MoveWithConflicts(ctx context.Context, srcs []string, dst string, progress Progress, conflict ConflictHandler) error {
 	c := &copier{ctx: ctx, progress: progress, conflict: conflict, move: true}
 	for _, s := range srcs {
+		if sameDirectory(filepath.Dir(s), dst) {
+			continue
+		}
 		t := Target(s, dst, len(srcs))
 		if err := checkNotInside(s, t); err != nil {
 			return err
@@ -237,7 +321,7 @@ func (c *copier) copyTree(src, dst string) error {
 	if err != nil && !os.IsNotExist(err) {
 		return err
 	}
-	if ti != nil {
+	if ti != nil && dst != c.duplicateTarget {
 		if os.SameFile(fi, ti) {
 			return fmt.Errorf("source and target are the same: %s", src)
 		}
