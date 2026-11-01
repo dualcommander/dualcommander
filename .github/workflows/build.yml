@@ -133,6 +133,9 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo snap install snapcraft --classic
+          # Snapcraft 9.2.1 cannot resolve stage packages with Ubuntu's amd64v3 APT variant.
+          printf 'APT::Architecture "%s";\n#clear APT::Architectures;\nAPT::Architectures { "%s"; };\n' "$(go env GOARCH)" "$(go env GOARCH)" | sudo tee /etc/apt/apt.conf.d/zz-snapcraft-architecture
+          sudo apt-get update
           sudo env "PATH=$PATH" make package-snap SNAPCRAFT_ARGS=--destructive-mode
       - name: Upload unsigned Windows app for SignPath
         if: env.SIGN_WINDOWS == 'true'
