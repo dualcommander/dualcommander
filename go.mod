@@ -1,6 +1,6 @@
 module github.com/dualcommander/dualcommander
 
-go 1.23
+go 1.26.0
 
 require (
 	fyne.io/fyne/v2 v2.8.2
@@ -18,7 +18,7 @@ require (
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.3
 	github.com/ulikunitz/xz v0.5.17
 	github.com/yeka/zip v0.0.0-20231116150916-03d6312748a9
-	golang.org/x/sys v0.30.0
+	golang.org/x/sys v0.49.0
 	golang.org/x/text v0.22.0
 )
 
