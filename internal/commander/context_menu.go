@@ -1,6 +1,7 @@
 package commander
 
 import (
+	"context"
 	"fyne.io/fyne/v2/lang"
 	"os/exec"
 	"path/filepath"
@@ -10,7 +11,9 @@ import (
 	"fyne.io/fyne/v2/driver"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
+	"github.com/dualcommander/dualcommander/pkg/archive"
 	"github.com/dualcommander/dualcommander/pkg/desktop"
+	"github.com/dualcommander/dualcommander/pkg/fsops"
 )
 
 func (p *pane) keyboardContextMenu() {
@@ -114,6 +117,16 @@ func (p *pane) contextMenu() *fyne.Menu {
 			}
 		}
 	})
+	if native && !e.dir && archive.Supported(path) {
+		open = item(lang.L("Extract Archive"), true, func() {
+			dir := filepath.Dir(path)
+			p.ui.jobs.run(lang.L("Extract Archive"), []*pane{p.ui.left, p.ui.right}, func(ctx context.Context, progress fsops.Progress) error {
+				return p.ui.archiveRetry(ctx, path, func(password string) error {
+					return archive.Unpack(ctx, path, dir, progress, password)
+				})
+			})
+		})
+	}
 	items := []*fyne.MenuItem{open}
 	if runtime.GOOS == "darwin" || runtime.GOOS == "windows" {
 		launch := func(action string) func() {

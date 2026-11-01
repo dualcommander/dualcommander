@@ -84,6 +84,7 @@
   "Enter password for {{.Name}}": "{{.Name}} şifresini girin",
   "Error": "Hata",
   "External applications": "Harici uygulamalar",
+  "Extract Archive": "Arşivi Çıkart",
   "F10 Quit": "F10 Çık",
   "F4 Edit": "F4 Düzenle",
   "F5 Copy": "F5 Kopyala",

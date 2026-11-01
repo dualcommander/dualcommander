@@ -11,27 +11,38 @@ permissions:
   contents: read
 
 jobs:
+  build-checks:
+    name: Build checks
+    if: always()
+    needs: build
+    runs-on: ubuntu-26.04
+    steps:
+      - name: Require every build to pass
+        env:
+          BUILD_RESULT: ${{ needs.build.result }}
+        run: test "$BUILD_RESULT" = success
+
   build:
     strategy:
       fail-fast: false
       matrix:
         include:
-          - runner: ubuntu-22.04
+          - runner: ubuntu-26.04
             os: linux
             arch: amd64
-          - runner: ubuntu-22.04-arm
+          - runner: ubuntu-26.04-arm
             os: linux
             arch: arm64
-          - runner: macos-14
+          - runner: macos-latest
             os: darwin
             arch: arm64
-          - runner: macos-15-intel
+          - runner: macos-26-intel
             os: darwin
             arch: amd64
           - runner: windows-latest
             os: windows
             arch: amd64
-          - runner: windows-11-arm
+          - runner: windows-11-vs2026-arm
             os: windows
             arch: arm64
     runs-on: ${{ matrix.runner }}
@@ -122,6 +133,9 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo snap install snapcraft --classic
+          # Snapcraft 9.2.1 cannot resolve stage packages with Ubuntu's amd64v3 APT variant.
+          printf 'APT::Architecture "%s";\n#clear APT::Architectures;\nAPT::Architectures { "%s"; };\n#clear APT::Architecture-Variants;\n' "$(go env GOARCH)" "$(go env GOARCH)" | sudo tee /etc/apt/apt.conf.d/zz-snapcraft-architecture
+          sudo apt-get update
           sudo env "PATH=$PATH" make package-snap SNAPCRAFT_ARGS=--destructive-mode
       - name: Upload unsigned Windows app for SignPath
         if: env.SIGN_WINDOWS == 'true'
@@ -161,12 +175,12 @@ jobs:
   release:
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     needs: [build, windows-msix]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           pattern: dualcommander-*
           path: dist
@@ -181,14 +195,14 @@ jobs:
   apple-store:
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && !contains(github.ref_name, '-') && !contains(github.ref_name, '+') && vars.APPLE_STORE_ENABLED == 'true'
     needs: release
-    runs-on: macos-14
+    runs-on: macos-latest
     environment: apple-store
     concurrency:
       group: apple-store
       cancel-in-progress: false
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           pattern: dualcommander-darwin-*
           path: macos-artifacts
@@ -221,6 +235,7 @@ jobs:
         run: make publish-apple-store
 
   windows-msix:
+    if: github.event_name != 'pull_request'
     needs: build
     runs-on: windows-latest
     defaults:
@@ -234,7 +249,7 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: '3.x'
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           pattern: dualcommander-windows-*
           path: windows-artifacts
@@ -266,7 +281,7 @@ jobs:
       - name: Install Make on Windows
         shell: pwsh
         run: choco install make --no-progress -y
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: dualcommander-windows-store
           path: dist/windows-store

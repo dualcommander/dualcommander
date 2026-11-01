@@ -84,6 +84,7 @@
   "Enter password for {{.Name}}": "Indtast adgangskoden til {{.Name}}",
   "Error": "Fejl",
   "External applications": "Eksterne applikationer",
+  "Extract Archive": "Udpak arkiv",
   "F10 Quit": "F10 Afslut",
   "F4 Edit": "F4 Rediger",
   "F5 Copy": "F5 Kopiér",

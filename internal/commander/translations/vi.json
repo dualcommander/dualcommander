@@ -84,6 +84,7 @@
   "Enter password for {{.Name}}": "Nhập mật khẩu cho {{.Name}}",
   "Error": "Lỗi",
   "External applications": "Ứng dụng bên ngoài",
+  "Extract Archive": "Giải nén tệp",
   "F10 Quit": "F10 Thoát",
   "F4 Edit": "F4 Chỉnh sửa",
   "F5 Copy": "F5 Sao chép",

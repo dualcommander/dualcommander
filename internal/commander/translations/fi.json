@@ -84,6 +84,7 @@
   "Enter password for {{.Name}}": "Anna salasana {{.Name}}:lle",
   "Error": "Virhe",
   "External applications": "Ulkoiset sovellukset",
+  "Extract Archive": "Pura arkisto",
   "F10 Quit": "F10 Lopeta",
   "F4 Edit": "F4 Muokkaa",
   "F5 Copy": "F5 Kopioi",

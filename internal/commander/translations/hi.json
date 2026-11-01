@@ -84,6 +84,7 @@
   "Enter password for {{.Name}}": "{{.Name}} का पासवर्ड लिखें",
   "Error": "त्रुटि",
   "External applications": "बाहरी अनुप्रयोग",
+  "Extract Archive": "संग्रह निकालें",
   "F10 Quit": "F10 बाहर निकलें",
   "F4 Edit": "F4 संपादित करें",
   "F5 Copy": "F5 कॉपी करें",
