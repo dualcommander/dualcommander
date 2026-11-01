@@ -11,6 +11,17 @@ permissions:
   contents: read
 
 jobs:
+  build-checks:
+    name: Build checks
+    if: always()
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every build to pass
+        env:
+          BUILD_RESULT: ${{ needs.build.result }}
+        run: test "$BUILD_RESULT" = success
+
   build:
     strategy:
       fail-fast: false

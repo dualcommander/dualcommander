@@ -2,6 +2,17 @@
 
 For downloads and usage, see [README.md](README.md).
 
+## Dependabot automation
+
+Enable **Allow auto-merge** and **Allow squash merging** in Settings > General.
+Protect `main`: require **Build checks** and **Require branches to be up to date
+before merging**, without workflow bypass. Without required checks, auto-merge
+can happen before CI finishes.
+
+Dependabot PRs auto-merge after all six builds pass and rebase on each `main` push.
+No extra secrets needed. Required reviews still need approval; merge queues are
+not supported by this setup.
+
 ## Development
 
 Requires Go (see [go.mod](go.mod)), Make, Python 3, Git, and a C compiler.
