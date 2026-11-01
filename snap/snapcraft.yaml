@@ -1,5 +1,6 @@
 name: dualcommander
-base: core22
+# Match the Ubuntu 26.04 runner used for the prebuilt binary and destructive build.
+base: core26
 version: '0.0.0'
 summary: Keyboard-friendly two-pane file manager
 description: |

@@ -7,6 +7,9 @@
 #include <string.h>
 
 void *filePreview(const char *path, size_t *length) {
+    // ponytail: headless callers use fallback icons; native lookups need AppKit.
+    *length = 0;
+    if (NSApp == nil) return NULL;
     @autoreleasepool {
         NSString *name = @(path);
         if (![[NSFileManager defaultManager] fileExistsAtPath:name]) return NULL;
@@ -47,6 +50,8 @@ void *filePreview(const char *path, size_t *length) {
 }
 
 void *fileIcon(const char *extension, int folder, size_t *length) {
+    *length = 0;
+    if (NSApp == nil) return NULL;
     @autoreleasepool {
         UTType *type = folder ? UTTypeFolder : [UTType typeWithFilenameExtension:@(extension)];
         NSImage *icon = [[NSWorkspace sharedWorkspace] iconForContentType:type ?: UTTypeData];
