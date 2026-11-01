@@ -84,6 +84,7 @@
   "Enter password for {{.Name}}": "{{.Name}} এর জন্য পাসওয়ার্ড লিখুন",
   "Error": "ত্রুটি",
   "External applications": "বাহ্যিক অ্যাপ্লিকেশন",
+  "Extract Archive": "আর্কাইভ নিষ্কাশন করুন",
   "F10 Quit": "F10 প্রস্থান করুন",
   "F4 Edit": "F4 সম্পাদনা করুন",
   "F5 Copy": "F5 কপি করুন",

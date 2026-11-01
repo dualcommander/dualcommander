@@ -84,6 +84,7 @@
   "Enter password for {{.Name}}": "Voer het wachtwoord in voor {{.Name}}",
   "Error": "Fout",
   "External applications": "Externe toepassingen",
+  "Extract Archive": "Archief uitpakken",
   "F10 Quit": "F10 Afsluiten",
   "F4 Edit": "F4 Bewerken",
   "F5 Copy": "F5 Kopiëren",

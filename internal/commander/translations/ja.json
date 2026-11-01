@@ -84,6 +84,7 @@
   "Enter password for {{.Name}}": "{{.Name}} のパスワードを入力",
   "Error": "エラー",
   "External applications": "外部アプリケーション",
+  "Extract Archive": "アーカイブを展開",
   "F10 Quit": "F10 終了",
   "F4 Edit": "F4 編集",
   "F5 Copy": "F5 コピー",

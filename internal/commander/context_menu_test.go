@@ -1,6 +1,7 @@
 package commander
 
 import (
+	"archive/zip"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -14,6 +15,154 @@ import (
 	"fyne.io/fyne/v2/test"
 	"fyne.io/fyne/v2/widget"
 )
+
+func extractContextArchive(t *testing.T, p *pane) {
+	t.Helper()
+	menu := p.contextMenu()
+	if menu.Items[0].Label != "Extract Archive" || menu.Items[0].Disabled {
+		t.Fatalf("archive context action: %q (disabled %v)", menu.Items[0].Label, menu.Items[0].Disabled)
+	}
+	menu.Items[0].Action()
+}
+
+func TestContextExtractArchive(t *testing.T) {
+	for _, brief := range []bool{false, true} {
+		root := fixture(t)
+		file := archiveFixture(t, root)
+		dir := filepath.Dir(file)
+		u := newTestUI(t, test.NewTempApp(t), dir, dir)
+		p := u.right
+		p.setBrief(brief)
+		p.marked["song.mp3"] = true
+		r := newRowWidget(p, !brief)
+		r.id = slices.Index(names(p), "browse.zip")
+		test.TapSecondary(r)
+		u.win.Canvas().Focused().(*widget.PopUpMenu).Hide()
+		for _, folder := range []string{"browse", "browse 1", "browse 2"} {
+			extractContextArchive(t, p)
+			waitJobs(t, u)
+			body, err := os.ReadFile(filepath.Join(dir, folder, "docs", "readme.txt"))
+			if err != nil || string(body) != "archive contents" {
+				t.Fatalf("extracted %s: %q %v", folder, body, err)
+			}
+			if p.path != dir || p.current().name != "browse.zip" || !p.marked["song.mp3"] || u.active != p {
+				t.Fatal("extraction changed navigation, cursor, marks, or active pane")
+			}
+			if !slices.Contains(names(u.left), folder) || !slices.Contains(names(u.right), folder) {
+				t.Fatal("extraction did not refresh both panes")
+			}
+		}
+		if !exists(file) || hasWindow(u.app, "Error") {
+			t.Fatal("extraction damaged source or showed error")
+		}
+	}
+}
+
+func TestContextExtractFormats(t *testing.T) {
+	for _, ext := range []string{"tar", "bz2", "xz", "lzma", "7z", "cpio", "deb", "rpm", "zipx"} {
+		t.Run(ext, func(t *testing.T) {
+			root := fixture(t)
+			file := protectedArchive(t, root, "sample."+ext)
+			u := newTestUI(t, test.NewTempApp(t), filepath.Dir(file), root)
+			u.app.Preferences().SetBool(prefBrowseArchives, false)
+			cursorTo(t, u.left, filepath.Base(file))
+			extractContextArchive(t, u.left)
+			waitJobs(t, u)
+			member := "readme.txt"
+			if ext == "bz2" || ext == "xz" || ext == "lzma" {
+				member = "sample"
+			}
+			body, err := os.ReadFile(filepath.Join(filepath.Dir(file), "sample", member))
+			if err != nil || len(body) == 0 || hasWindow(u.app, "Error") {
+				t.Fatalf("extraction: %q %v", body, err)
+			}
+		})
+	}
+}
+
+func TestContextExtractPassword(t *testing.T) {
+	for _, outcome := range []string{"Unlock", "Cancel", "Escape", "close", "job"} {
+		t.Run(outcome, func(t *testing.T) {
+			root := fixture(t)
+			file := protectedArchive(t, root, "password.zip")
+			dir := filepath.Dir(file)
+			u := newTestUI(t, test.NewTempApp(t), dir, root)
+			cursorTo(t, u.left, filepath.Base(file))
+			extractContextArchive(t, u.left)
+			waitUntil(t, func() bool { return hasWindow(u.app, "Archive password") })
+			w := windowByTitle(t, u.app, "Archive password")
+			entry := w.Canvas().Focused().(*escEntry)
+			switch outcome {
+			case "Unlock":
+				entry.SetText("wrong")
+				tapDialogButton(t, u, "Unlock")
+				waitUntil(t, func() bool { return hasWindow(u.app, "Archive password") })
+				w = windowByTitle(t, u.app, "Archive password")
+				w.Canvas().Focused().(*escEntry).SetText("secret")
+				tapDialogButton(t, u, "Unlock")
+			case "Cancel":
+				tapDialogButton(t, u, "Cancel")
+			case "Escape":
+				entry.TypedKey(&fyne.KeyEvent{Name: fyne.KeyEscape})
+			case "close":
+				w.Close()
+			case "job":
+				u.jobs.active[0].cancel()
+			}
+			waitJobs(t, u)
+			if outcome == "Unlock" {
+				body, err := os.ReadFile(filepath.Join(dir, "password", "secret.txt"))
+				if err != nil || string(body) != "secret contents" {
+					t.Fatalf("password extraction: %q %v", body, err)
+				}
+			} else if exists(filepath.Join(dir, "password")) {
+				t.Fatal("cancel retained partial extraction")
+			}
+			if hasWindow(u.app, "Error") || u.passwordWindow != nil || u.win.Canvas().Focused() != u.left.focusable() || exists(filepath.Join(dir, "password 1")) {
+				t.Fatal("password workflow did not finish cleanly")
+			}
+		})
+	}
+}
+
+func TestContextExtractUnsafeArchive(t *testing.T) {
+	for _, member := range []string{"../escape", "/absolute", `C:\escape`, "docs/../../escape", "link"} {
+		t.Run(member, func(t *testing.T) {
+			root := fixture(t)
+			name := filepath.Join(root, "src", "unsafe.zip")
+			f, err := os.Create(name)
+			if err != nil {
+				t.Fatal(err)
+			}
+			w := zip.NewWriter(f)
+			h := &zip.FileHeader{Name: member}
+			if member == "link" {
+				h.SetMode(os.ModeSymlink | 0o777)
+			}
+			out, err := w.CreateHeader(h)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := out.Write([]byte("../escape")); err != nil {
+				t.Fatal(err)
+			}
+			if err := w.Close(); err != nil {
+				t.Fatal(err)
+			}
+			if err := f.Close(); err != nil {
+				t.Fatal(err)
+			}
+			u := newTestUI(t, test.NewTempApp(t), filepath.Dir(name), root)
+			cursorTo(t, u.left, filepath.Base(name))
+			extractContextArchive(t, u.left)
+			waitJobs(t, u)
+			if !hasWindow(u.app, "Error") || exists(filepath.Join(root, "src", "unsafe")) || exists(filepath.Join(root, "src", "escape")) {
+				t.Fatal("unsafe archive accepted or partial output retained")
+			}
+			tapDialogButton(t, u, "OK")
+		})
+	}
+}
 
 func TestKeyboardContextMenu(t *testing.T) {
 	for _, brief := range []bool{false, true} {

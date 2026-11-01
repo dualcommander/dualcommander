@@ -84,6 +84,7 @@
   "Enter password for {{.Name}}": "{{.Name}} కోసం పాస్‌వర్డ్‌ను నమోదు చేయండి",
   "Error": "లోపం",
   "External applications": "బాహ్య అప్లికేషన్లు",
+  "Extract Archive": "ఆర్కైవ్‌ను సంగ్రహించు",
   "F10 Quit": "F10 నిష్క్రమించండి",
   "F4 Edit": "F4 సవరించు",
   "F5 Copy": "F5 కాపీ",

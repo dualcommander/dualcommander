@@ -84,6 +84,7 @@
   "Enter password for {{.Name}}": "Inserisci la password per {{.Name}}",
   "Error": "Errore",
   "External applications": "Applicazioni esterne",
+  "Extract Archive": "Estrai archivio",
   "F10 Quit": "F10 Esci",
   "F4 Edit": "F4 Modifica",
   "F5 Copy": "F5 Copia",

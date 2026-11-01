@@ -84,6 +84,7 @@
   "Enter password for {{.Name}}": "Introduceți parola pentru {{.Name}}",
   "Error": "Eroare",
   "External applications": "Aplicații externe",
+  "Extract Archive": "Extrage arhiva",
   "F10 Quit": "F10 Ieși",
   "F4 Edit": "F4 Editare",
   "F5 Copy": "F5 Copiază",

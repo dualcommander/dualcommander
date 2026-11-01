@@ -4,8 +4,6 @@ on:
   pull_request_target:
     types: [opened, reopened, synchronize, ready_for_review]
     branches: [main]
-  push:
-    branches: [main]
 
 permissions: {}
 
@@ -15,7 +13,7 @@ jobs:
       github.event_name == 'pull_request_target' &&
       github.event.pull_request.user.login == 'dependabot[bot]' &&
       github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     permissions:
       contents: write
       pull-requests: write
@@ -27,20 +25,3 @@ jobs:
           PR_URL: ${{ github.event.pull_request.html_url }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: gh pr merge --auto --squash --match-head-commit "$HEAD_SHA" "$PR_URL"
-
-  rebase:
-    if: github.event_name == 'push'
-    runs-on: ubuntu-latest
-    concurrency:
-      group: dependabot-rebase
-      cancel-in-progress: false
-    permissions:
-      pull-requests: write
-    steps:
-      - name: Reapply open dependency updates on latest main
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-        run: |
-          gh pr list --base main --author 'app/dependabot' --state open --limit 1000 --json url --jq '.[].url' > "$RUNNER_TEMP/dependabot-prs"
-          while IFS= read -r url; do gh pr comment "$url" --body '@dependabot rebase'; done < "$RUNNER_TEMP/dependabot-prs"

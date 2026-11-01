@@ -62,6 +62,17 @@ func TestBrowseFormats(t *testing.T) {
 			if !Supported(name) {
 				t.Fatal("format not recognized")
 			}
+			dst := t.TempDir()
+			if err := Unpack(context.Background(), name, dst, nil); err != nil {
+				t.Fatal(err)
+			}
+			extracted := member
+			if ext == "gz" {
+				extracted = "sample"
+			}
+			if body, err := os.ReadFile(filepath.Join(dst, "sample", extracted)); err != nil || string(body) != "hello" {
+				t.Fatalf("unpacked content: %q %v", body, err)
+			}
 			ctx, cancel := context.WithCancel(context.Background())
 			f, err := Open(ctx, name)
 			if err != nil {
