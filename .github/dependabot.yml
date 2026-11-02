@@ -3,10 +3,17 @@ updates:
   - package-ecosystem: gomod
     rebase-strategy: auto
     directory: /
+    allow:
+      - dependency-type: all
     schedule:
       interval: weekly
   - package-ecosystem: github-actions
     rebase-strategy: auto
     directory: /
+    schedule:
+      interval: weekly
+  - package-ecosystem: docker
+    rebase-strategy: auto
+    directory: /.devcontainer
     schedule:
       interval: weekly
