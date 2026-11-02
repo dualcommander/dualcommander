@@ -47,7 +47,7 @@
   },
   "customizations": {
     "vscode": {
-      "extensions": ["saoudrizwan.claude-dev"],
+      "extensions": ["saoudrizwan.claude-dev@4.1.26"],
       "settings": {
         "remote.extensionKind": {
           "saoudrizwan.claude-dev": ["workspace"]
