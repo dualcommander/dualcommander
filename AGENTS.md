@@ -6,6 +6,7 @@ before starting work. Resolve paths below from the repository root.
 
 - Any feature/UI/design work: follow skill `dualcommander-guidelines`.
 - Any modal dialog or dialog-driven workflow: follow skill `native-modal-dialogs`.
+- Any change affecting privacy disclosures: follow skill `privacy-policy` and update `PRIVACY.md` when behavior changes.
 - Every code change in this repo: follow skill `test-every-change` and run `sh scripts/check.sh` until it passes before finishing. Report its result in the final summary.
 - Tests must not depend on images or golden/screenshot comparisons. Assert UI structure, state, and behavior instead; image rendering is fragile and OS-dependent.
 
@@ -16,3 +17,4 @@ before starting work. Resolve paths below from the repository root.
 - [test-every-change](.agents/skills/test-every-change/SKILL.md): test-first changes and required validation.
 - [fast-git-diff](.agents/skills/fast-git-diff/SKILL.md): Git comparisons and patch review.
 - [minimal-readme](.agents/skills/minimal-readme/SKILL.md): README changes and documentation placement.
+- [privacy-policy](.agents/skills/privacy-policy/SKILL.md): keep privacy disclosures aligned with application behavior.
