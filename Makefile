@@ -40,7 +40,7 @@ run:
 	version=$$(sh scripts/version.sh) && go run -ldflags "-X github.com/dualcommander/dualcommander/internal/commander.buildVersion=$$version" ./cmd/dualcommander
 
 install-packager:
-	sh scripts/install-packager.sh
+	go install fyne.io/tools/cmd/fyne@v1.7.4
 
 package-native:
 	sh scripts/package-native.sh

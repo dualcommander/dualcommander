@@ -93,7 +93,6 @@ func Run() {
 	if code := a.Preferences().String("language"); code != "" {
 		lang.L = languageTranslator(code)
 	}
-	initIcons()
 	u := newUI(a)
 	u.filePreview = fileicon.Preview
 	u.left.list.Refresh()

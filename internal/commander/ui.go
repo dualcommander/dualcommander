@@ -2,6 +2,7 @@ package commander
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"fyne.io/fyne/v2/lang"
 	"log/slog"
@@ -78,6 +79,7 @@ func newUI(a fyne.App) *ui {
 	home, _ := os.UserHomeDir()
 	u := &ui{app: a, win: a.NewWindow(appName), density: pr.StringWithFallback(prefDensity, "standard"),
 		themeMode: pr.StringWithFallback(prefTheme, "system"), showHidden: pr.Bool(prefHidden)}
+	initIcons() // Native icon lookup needs AppKit initialized by NewWindow.
 	u.passwordGate = make(chan struct{}, 1)
 	if u.density != "compact" {
 		u.density = "standard" // migrate removed density modes to standard
@@ -349,7 +351,7 @@ func (u *ui) infoWindow(title string) fyne.Window {
 // edit opens the file under the cursor in the configured editor; dirs and ".." ignored.
 func (u *ui) edit() {
 	if u.active.inArchive() {
-		u.showErr(fmt.Errorf(lang.L("archive browsing is read-only")))
+		u.showErr(errors.New(lang.L("archive browsing is read-only")))
 		return
 	}
 	if e := u.active.current(); e.name != "" && e.name != ".." && !e.dir {
@@ -378,7 +380,7 @@ func revealLabel() string {
 
 func (u *ui) externalCommand(terminal bool) (*exec.Cmd, error) {
 	if u.active.inArchive() {
-		return nil, fmt.Errorf(lang.L("leave archive folder before using terminal or reveal"))
+		return nil, errors.New(lang.L("leave archive folder before using terminal or reveal"))
 	}
 	reveal, term := native.Defaults(runtime.GOOS)
 	key, fallback := prefRevealCmd, reveal

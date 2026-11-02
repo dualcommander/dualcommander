@@ -51,6 +51,10 @@ func (r passwordRar) Extract(ctx context.Context, input io.Reader, handle archiv
 		if hdr, ok := entry.Header.(*rardecode.FileHeader); ok && hdr.Encrypted {
 			open := entry.Open
 			entry.Open = func() (fs.File, error) {
+				// Empty members contain no plaintext to decrypt.
+				if hdr.UnPackedSize == 0 && !hdr.UnKnownSize {
+					return &passwordFile{ReadCloser: io.NopCloser(strings.NewReader("")), info: entry.FileInfo}, nil
+				}
 				file, err := open()
 				if err != nil {
 					return nil, passwordError(err)

@@ -129,7 +129,6 @@ func newTestUI(t *testing.T, a fyne.App, left, right string) *ui {
 	t.Helper()
 	a.Preferences().SetString(prefLeft, left)
 	a.Preferences().SetString(prefRight, right)
-	initIcons()
 	u := newTrackedUI(t, a)
 	u.win.Resize(fyne.NewSize(900, 500))
 	return u

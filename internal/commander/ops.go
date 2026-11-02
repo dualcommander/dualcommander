@@ -2,6 +2,7 @@ package commander
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"fyne.io/fyne/v2/lang"
 	"os"
@@ -64,7 +65,7 @@ func (u *ui) captureFiles(cut bool) {
 		return
 	}
 	if u.active.inArchive() {
-		u.showErr(fmt.Errorf(lang.L("archive browsing is read-only")))
+		u.showErr(errors.New(lang.L("archive browsing is read-only")))
 		return
 	}
 	u.fileClipboard = &fileClipboard{paths: u.active.selection(), cut: cut}
@@ -79,7 +80,7 @@ func (u *ui) pasteFiles() {
 		return
 	}
 	if u.active.inArchive() {
-		u.showErr(fmt.Errorf(lang.L("archive browsing is read-only")))
+		u.showErr(errors.New(lang.L("archive browsing is read-only")))
 		return
 	}
 	to := u.active.path
@@ -121,7 +122,7 @@ func (u *ui) copyOrMove(move bool) {
 
 func (u *ui) transferSelection(src, dst *pane, sel []string, move bool) {
 	if src.inArchive() || dst.inArchive() {
-		u.showErr(fmt.Errorf(lang.L("archive browsing is read-only; copy/move involving archive folders is not supported")))
+		u.showErr(errors.New(lang.L("archive browsing is read-only; copy/move involving archive folders is not supported")))
 		return
 	}
 	if len(sel) == 0 {
@@ -187,7 +188,7 @@ func inputDialog(u *ui, title, confirm, label string, e *escEntry, ok func()) {
 func (u *ui) rename() {
 	p := u.active
 	if p.inArchive() {
-		u.showErr(fmt.Errorf(lang.L("archive browsing is read-only")))
+		u.showErr(errors.New(lang.L("archive browsing is read-only")))
 		return
 	}
 	item := p.current()
@@ -200,11 +201,11 @@ func (u *ui) rename() {
 	name.SetText(item.name)
 	name.Validator = func(value string) error {
 		if strings.TrimSpace(value) == "" || value == "." || value == ".." || strings.ContainsAny(value, "/\\\x00") {
-			return fmt.Errorf(lang.L("Enter a file name without path separators"))
+			return errors.New(lang.L("Enter a file name without path separators"))
 		}
 		if value != item.name {
 			if _, err := os.Lstat(filepath.Join(dir, value)); !os.IsNotExist(err) {
-				return fmt.Errorf(lang.L("Destination exists or cannot be checked"))
+				return errors.New(lang.L("Destination exists or cannot be checked"))
 			}
 		}
 		return nil
@@ -234,7 +235,7 @@ var trash = fsops.Trash
 func (u *ui) delete() {
 	p := u.active
 	if p.inArchive() {
-		u.showErr(fmt.Errorf(lang.L("archive browsing is read-only")))
+		u.showErr(errors.New(lang.L("archive browsing is read-only")))
 		return
 	}
 	sel := p.selection()
@@ -398,7 +399,7 @@ func (u *ui) settings() {
 				return err
 			}
 			if err != nil {
-				return fmt.Errorf(lang.L("Use a JSON list with an executable and its arguments"))
+				return errors.New(lang.L("Use a JSON list with an executable and its arguments"))
 			}
 			return nil
 		}
@@ -453,17 +454,17 @@ func (u *ui) newFile() {
 	}
 	p := u.active
 	if p.inArchive() {
-		u.showErr(fmt.Errorf(lang.L("archive browsing is read-only")))
+		u.showErr(errors.New(lang.L("archive browsing is read-only")))
 		return
 	}
 	dir := p.path
 	name := newEscEntry()
 	name.Validator = func(value string) error {
 		if strings.TrimSpace(value) == "" || value == "." || value == ".." || strings.ContainsAny(value, "/\\:\x00") {
-			return fmt.Errorf(lang.L("Enter a file name without path separators"))
+			return errors.New(lang.L("Enter a file name without path separators"))
 		}
 		if _, err := os.Lstat(filepath.Join(dir, value)); !os.IsNotExist(err) {
-			return fmt.Errorf(lang.L("Destination exists or cannot be checked"))
+			return errors.New(lang.L("Destination exists or cannot be checked"))
 		}
 		return nil
 	}
@@ -484,7 +485,7 @@ func (u *ui) newFile() {
 func (u *ui) mkdir() {
 	p := u.active
 	if p.inArchive() {
-		u.showErr(fmt.Errorf(lang.L("archive browsing is read-only")))
+		u.showErr(errors.New(lang.L("archive browsing is read-only")))
 		return
 	}
 	name := newEscEntry()

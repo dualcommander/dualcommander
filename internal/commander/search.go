@@ -3,6 +3,7 @@ package commander
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"fyne.io/fyne/v2/lang"
 	"io/fs"
@@ -168,7 +169,7 @@ func (u *ui) search() *finder {
 	}
 	p := u.active
 	if p.inArchive() {
-		u.showErr(fmt.Errorf(lang.L("Find Files is not supported inside archives")))
+		u.showErr(errors.New(lang.L("Find Files is not supported inside archives")))
 		return nil
 	}
 	_, rgErr := exec.LookPath("rg")

@@ -1,4 +1,4 @@
-FROM golang:1.25-bookworm
+FROM golang:1.26-bookworm
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates git python3 make gcc libc6-dev pkg-config \

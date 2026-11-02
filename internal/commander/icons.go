@@ -15,7 +15,7 @@ var icUp, icDir, icFile, icImage, icAudio, icVideo, icText, icArchive, icApp fyn
 
 var extIcons = map[string]fyne.Resource{}
 
-// initIcons must run after the app is created (theme lookups need it).
+// initIcons must run after the first window initializes the native driver.
 func initIcons() {
 	icUp = theme.NewColoredResource(theme.MoveUpIcon(), theme.ColorNamePrimary)
 	icDir = theme.NewColoredResource(theme.FolderIcon(), theme.ColorNameWarning)
