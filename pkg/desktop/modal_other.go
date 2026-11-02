@@ -2,6 +2,5 @@
 
 package desktop
 
-// ponytail: other backends retain the input overlay; add native activation guards
-// when Fyne exposes a portable decorated-modal API (including Wayland).
+// Other backends retain the input overlay; Fyne has no portable decorated-modal API.
 func SetWindowBlocked(context any, blocked bool) {}

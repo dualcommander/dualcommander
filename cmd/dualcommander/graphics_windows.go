@@ -28,7 +28,7 @@ func graphicsStartup() (bool, error) {
 	}
 	softwareExe := filepath.Join(filepath.Dir(exe), "software", filepath.Base(exe))
 	if _, err := os.Stat(softwareExe); os.IsNotExist(err) {
-		// ponytail: unpackaged developer builds use system OpenGL; fallback ships in release packages.
+		// unpackaged developer builds use system OpenGL; fallback ships in release packages.
 		return false, nil
 	} else if err != nil {
 		return true, err

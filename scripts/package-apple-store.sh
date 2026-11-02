@@ -35,7 +35,7 @@ esac
 [ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$other/Contents/Info.plist")" = "$executable" ] || {
     echo 'Architecture bundles have different executable names.' >&2; exit 1;
 }
-# ponytail: Fyne bundles contain one executable; revisit if frameworks/helpers are added.
+# Fyne bundles contain one executable.
 xcrun lipo -verify_arch x86_64 "$app/Contents/MacOS/$executable"
 xcrun lipo -verify_arch arm64 "$other/Contents/MacOS/$executable"
 codesign --remove-signature "$app/Contents/MacOS/$executable"
@@ -61,7 +61,7 @@ if not re.fullmatch(r'v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)', tag):
     raise ValueError('Store releases require vMAJOR.MINOR.PATCH tags')
 version = tag[1:]
 build = os.environ['GITHUB_RUN_NUMBER'] + '.' + os.environ['GITHUB_RUN_ATTEMPT']
-# ponytail: Apple's build components cap CI run number at 9999; migrate numbering then.
+# Apple's build components cap CI run number at 9999.
 if not re.fullmatch(r'[1-9][0-9]{0,3}\.[1-9][0-9]?', build):
     raise ValueError('Store build requires run number 1..9999 and attempt 1..99')
 with open(sys.argv[1], 'rb') as source:

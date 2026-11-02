@@ -35,7 +35,7 @@ func searchCmd(goos string, rg bool, dir, text, glob string) []string {
 		return []string{"rg", "-l", "-i", "-F", "-uu", "--iglob", glob, "-e", text, dir}
 	case goos == "windows" && text == "":
 		return []string{"where", "/r", dir, glob}
-	case goos == "windows": // ponytail: findstr output uses OEM codepage; non-ASCII paths may garble. Install rg.
+	case goos == "windows": // findstr output uses OEM codepage; non-ASCII paths may garble. Install rg.
 		return []string{"findstr", "/s", "/m", "/i", "/l", "/c:" + text, filepath.Join(dir, glob)}
 	case text == "":
 		return []string{"find", dir, "-iname", glob}
@@ -90,7 +90,7 @@ type finder struct {
 	workerDone       chan struct{}
 }
 
-// ponytail: Fyne has no tooltip widget; in-content hints never intercept pointer events.
+// Fyne has no tooltip widget; in-content hints never intercept pointer events.
 type searchOption struct {
 	dialogButton
 	Checked bool
@@ -291,7 +291,7 @@ func (u *ui) search() *finder {
 		finished := make(chan struct{})
 		f.workerDone = finished
 		f.status.SetText(lang.L("Searching…"))
-		// ponytail: recursive search has no known total; avoid a second traversal just for percentages.
+		// recursive search has no known total; avoid a second traversal just for percentages.
 		f.activity.Show()
 		f.activity.Start()
 		go func() {
@@ -384,7 +384,7 @@ func searchArchiveNames(ctx context.Context, name string, match func(string) boo
 	if err != nil {
 		return err
 	}
-	// ponytail: search one archive level; nested archives require bounded indexing first.
+	// search one archive level; nested archives require bounded indexing first.
 	var walk func(string) error
 	walk = func(dir string) error {
 		if err := ctx.Err(); err != nil {

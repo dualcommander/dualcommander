@@ -21,7 +21,7 @@ func newPaneSplit(left, right fyne.CanvasObject) *paneSplit {
 
 func (s *paneSplit) CreateRenderer() fyne.WidgetRenderer {
 	r := s.Split.CreateRenderer()
-	// ponytail: transparent input layer until Fyne exposes divider callbacks; leave native renderer untouched.
+	// transparent input layer until Fyne exposes divider callbacks; leave native renderer untouched.
 	for _, o := range r.Objects() {
 		if d, ok := o.(fyne.Draggable); ok {
 			input := &paneDivider{Draggable: d, Hoverable: o.(desktop.Hoverable), Cursorable: o.(desktop.Cursorable), split: s}

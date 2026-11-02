@@ -22,7 +22,7 @@ const appName = "DualCommander"
 // Keep the base version in sync with FyneApp.toml.
 const appVersion = "0.1.0"
 
-// ponytail: retain original app ID so existing preferences survive the rebrand.
+// retain original app ID so existing preferences survive the rebrand.
 const appID = "io.github.typekpb.gommander"
 
 var appIcon = fyne.NewStaticResource("dualcommander.png", assets.IconPNG)

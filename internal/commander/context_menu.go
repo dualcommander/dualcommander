@@ -88,7 +88,7 @@ func (p *pane) showContextMenu(position fyne.Position) {
 		})
 		return
 	}
-	// ponytail: Fyne popup remains fallback outside macOS and in headless tests.
+	// Fyne popup remains fallback outside macOS and in headless tests.
 	widget.ShowPopUpMenuAtPosition(menu, p.ui.win.Canvas(), position)
 }
 

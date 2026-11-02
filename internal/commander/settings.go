@@ -12,7 +12,7 @@ import (
 )
 
 // settingsFile keeps Fyne's preference API and makes JSON authoritative at startup.
-// ponytail: manual edits load on restart; no live reload or multi-process merging.
+// manual edits load on restart; no live reload or multi-process merging.
 type settingsFile struct {
 	prefs      fyne.Preferences
 	path       string

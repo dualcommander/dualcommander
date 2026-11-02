@@ -8,7 +8,7 @@ import (
 
 func (p *pane) requestDirectorySize() {
 	e := p.current()
-	// ponytail: archive folders keep their existing status; add archive-aware sizing when requested.
+	// archive folders keep their existing status.
 	if !e.dir || e.name == ".." || p.inArchive() {
 		return
 	}

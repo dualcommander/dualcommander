@@ -15,7 +15,7 @@ var translations embed.FS
 var languageCodes = []string{"", "en", "zh-Hans", "es", "hi", "fr", "pt", "ru", "de", "ja", "ko", "it", "nl", "pl", "uk", "cs", "sk", "ro", "hu", "tr", "id", "vi", "th", "bn", "ta", "te", "mr", "sw", "fi", "sv", "da"}
 var languageNames = []string{"System", "English", "简体中文", "Español", "हिन्दी", "Français", "Português", "Русский", "Deutsch", "日本語", "한국어", "Italiano", "Nederlands", "Polski", "Українська", "Čeština", "Slovenčina", "Română", "Magyar", "Türkçe", "Bahasa Indonesia", "Tiếng Việt", "ไทย", "বাংলা", "தமிழ்", "తెలుగు", "मराठी", "Kiswahili", "Suomi", "Svenska", "Dansk"}
 
-// ponytail: language changes take effect on restart; no rebuilding open dialogs or jobs.
+// language changes take effect on restart; no rebuilding open dialogs or jobs.
 // Fyne has no public locale override; its built-in controls still follow the OS locale.
 func languageTranslator(code string) func(string, ...any) string {
 	bundle := i18n.NewBundle(language.English)

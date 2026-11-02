@@ -25,7 +25,7 @@ char *chooseApplication(unsigned long handle) {
             panel.allowsMultipleSelection = NO;
             panel.treatsFilePackagesAsDirectories = NO;
             panel.allowedContentTypes = @[UTTypeApplicationBundle];
-            // ponytail: browse application bundles, not Finder's suggested-app list.
+            // browse application bundles, not Finder's suggested-app list.
             if ([panel runModal] == NSModalResponseOK) {
                 NSBundle *bundle = [NSBundle bundleWithURL:panel.URL];
                 if (bundle.executableURL) chosen = strdup(panel.URL.path.fileSystemRepresentation);

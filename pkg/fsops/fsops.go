@@ -15,7 +15,7 @@ import (
 )
 
 // Trash moves paths to the OS trash / Recycle Bin (restorable via Finder "Put Back" etc.).
-// ponytail: one OS process per item (Finder is ~0.3s each); batch into one call if slow for big selections.
+// one OS process per item (Finder is ~0.3s each).
 func Trash(ctx context.Context, paths []string, progress Progress) error {
 	for i, p := range paths {
 		if ctx.Err() != nil {
@@ -199,7 +199,7 @@ func (c *copier) copyDuplicate(src, dir string) error {
 		if ext == name { // A leading dot alone does not introduce an extension.
 			ext = ""
 		}
-		// ponytail: common compressed tar suffixes; extend when another format is needed.
+		// common compressed tar suffixes.
 		for _, suffix := range []string{".tar.gz", ".tar.bz2", ".tar.xz", ".tar.zst", ".tar.lz4", ".tar.lz", ".tar.br", ".tar.sz", ".tar.zz"} {
 			if strings.HasSuffix(strings.ToLower(name), suffix) && len(name) > len(suffix) {
 				ext = name[len(name)-len(suffix):]

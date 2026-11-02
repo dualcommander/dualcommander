@@ -62,7 +62,7 @@ func (p *pane) updateFavourite() {
 	if slices.Contains(p.ui.app.Preferences().StringList(prefFavourites), p.path) {
 		p.favourite.SetText("★")
 	}
-	// ponytail: favourites target real folders only; archive bookmarks can follow if requested.
+	// favourites target real folders only.
 	if p.inArchive() {
 		p.favourite.Disable()
 	} else {

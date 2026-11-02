@@ -19,7 +19,7 @@ foreach ($arch in @('amd64', 'arm64')) {
     }
 }
 
-# ponytail: package existing native builds only; build each architecture in CI.
+# package existing native builds only; build each architecture in CI.
 $work = Join-Path ([System.IO.Path]::GetTempPath()) ([guid]::NewGuid().ToString())
 New-Item -ItemType Directory "$work/packages" -Force | Out-Null
 try {

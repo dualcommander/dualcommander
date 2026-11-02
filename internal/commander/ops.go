@@ -54,7 +54,7 @@ func latestUpdate[T any](dispatch func(func()), update func(T)) func(T) {
 	}
 }
 
-// ponytail: Cut stays app-local; macOS Copy also exports native file URLs.
+// Cut stays app-local; macOS Copy also exports native file URLs.
 type fileClipboard struct {
 	paths     []string
 	cut, busy bool

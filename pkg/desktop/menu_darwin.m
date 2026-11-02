@@ -17,7 +17,7 @@ void fixUnmodifiedMenuShortcuts(const char *json) {
     NSArray *labels = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
     NSSet *titles = [NSSet setWithArray:labels ?: @[]];
     dispatch_async(dispatch_get_main_queue(), ^{
-        // ponytail: Fyne supplies no native menu hook; observe insertions until upstream fixes zero masks.
+        // Fyne supplies no native menu hook; observe insertions until upstream fixes zero masks.
         static id observer;
         if (observer) [NSNotificationCenter.defaultCenter removeObserver:observer];
         observer = [NSNotificationCenter.defaultCenter

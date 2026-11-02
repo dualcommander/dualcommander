@@ -186,7 +186,7 @@ func (lzmaFormat) OpenReader(r io.Reader) (io.ReadCloser, error) {
 	if _, err := io.ReadFull(r, header); err != nil {
 		return nil, err
 	}
-	// ponytail: cap LZMA dictionaries at 64 MiB; raise only with bounded-memory decoding.
+	// cap LZMA dictionaries at 64 MiB.
 	if binary.LittleEndian.Uint32(header[1:5]) > 64<<20 {
 		return nil, fmt.Errorf("LZMA dictionary exceeds 64 MiB")
 	}

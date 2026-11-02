@@ -7,7 +7,7 @@
 #include <string.h>
 
 void *filePreview(const char *path, size_t *length) {
-    // ponytail: headless callers use fallback icons; native lookups need AppKit.
+    // headless callers use fallback icons; native lookups need AppKit.
     *length = 0;
     if (NSApp == nil) return NULL;
     @autoreleasepool {

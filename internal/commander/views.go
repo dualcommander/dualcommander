@@ -153,7 +153,7 @@ func newKeyGrid(p *pane) *keyGrid {
 	g.UpdateCell = func(id widget.TableCellID, o fyne.CanvasObject) {
 		r := o.(*row)
 		c := r.content.(*fyne.Container)
-		// ponytail: refresh geometry only on resize; Fyne recursively reshapes every
+		// refresh geometry only on resize; Fyne recursively reshapes every
 		// label on Container.Refresh, including unchanged cells during selection.
 		if c.Layout.MinSize(c.Objects) != g.cell {
 			c.Layout = layout.NewGridWrapLayout(g.cell)
@@ -205,7 +205,7 @@ func (g *keyGrid) CreateRenderer() fyne.WidgetRenderer {
 		if scroll, ok := o.(*container.Scroll); ok {
 			g.scroll = scroll
 			scroll.Direction = container.ScrollHorizontalOnly
-			// ponytail: wrap Fyne's inner scroller until horizontal-only scrolling maps wheel input itself.
+			// wrap Fyne's inner scroller until horizontal-only scrolling maps wheel input itself.
 			r.Objects()[i] = &briefScroll{scroll}
 		}
 	}
@@ -258,7 +258,7 @@ func (g *keyGrid) Refresh() {
 		width := fyne.MeasureText(e.name, theme.TextSize(), fyne.TextStyle{}).Width
 		cell.Width = max(cell.Width, width+2*theme.InnerPadding()+theme.IconInlineSize()+pad)
 	}
-	// ponytail: equal-width columns; truncate long names to keep two columns when space permits.
+	// equal-width columns; truncate long names to keep two columns when space permits.
 	cell.Width = min(cell.Width, limit)
 	rows := max(1, int((size.Height+pad)/(cell.Height+pad)))
 	available := max(1, int((size.Width+pad)/(cell.Width+pad)))
@@ -267,7 +267,7 @@ func (g *keyGrid) Refresh() {
 	changed := rows != g.rows || cols != g.cols || cell != g.cell
 	g.rows, g.cols = rows, cols
 	g.cell = cell
-	// ponytail: Fyne 2.8 attaches markers only after creating a divider.
+	// Fyne 2.8 attaches markers only after creating a divider.
 	// Seed once after layout, then restore real data; remove after upstream fix.
 	if !g.markersReady && size.Height >= 2*cell.Height+pad {
 		length := g.Length

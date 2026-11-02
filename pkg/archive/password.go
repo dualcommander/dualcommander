@@ -123,7 +123,7 @@ func (z passwordZip) Extract(ctx context.Context, input io.Reader, handle archiv
 				if z.password == "" {
 					return nil, ErrPassword
 				}
-				// ponytail: ZIP decryption buffers compressed data; cap at 256 MiB until reader supports streaming.
+				// ZIP decryption buffers compressed data; cap at 256 MiB until reader supports streaming.
 				minimum := uint64(12)
 				for extra := file.Extra; len(extra) >= 4; {
 					size := int(binary.LittleEndian.Uint16(extra[2:4]))

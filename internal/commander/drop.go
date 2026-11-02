@@ -33,6 +33,6 @@ func (u *ui) dropURIs(position fyne.Position, uris []fyne.URI) {
 		}
 		paths = append(paths, filepath.Clean(uri.Path()))
 	}
-	// ponytail: dropping anywhere in a pane targets its current folder, not hovered subfolders.
+	// dropping anywhere in a pane targets its current folder, not hovered subfolders.
 	u.transferSelection(dst, dst, paths, false)
 }

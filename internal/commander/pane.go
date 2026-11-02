@@ -666,7 +666,7 @@ func (p *pane) updateStatus() {
 		if folderFiles > 0 {
 			sizeNotice += fmt.Sprintf(lang.L(" · Folder contents: %d files"), folderFiles)
 		}
-		// ponytail: totals include only folders measured with Space; refresh invalidates cached sizes.
+		// totals include only folders measured with Space; refresh invalidates cached sizes.
 		if sizeNotice != "" {
 			sizeNotice = strings.TrimPrefix(sizeNotice, " · ") + " · "
 		}
@@ -773,7 +773,7 @@ func (p *pane) fillRow(i int, r *row) {
 	if p.marked[e.name] {
 		importance = widget.DangerImportance
 	}
-	// ponytail: Fyne SetText reshapes unchanged text; guard recycled row labels until upstream does.
+	// Fyne SetText reshapes unchanged text; guard recycled row labels until upstream does.
 	setText := func(label *widget.Label, text string) {
 		if label.Text != text {
 			label.SetText(text)

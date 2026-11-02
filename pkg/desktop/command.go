@@ -36,7 +36,7 @@ func Defaults(goos string) (reveal, terminal string) {
 	case "windows":
 		return `["explorer.exe","/select,{path}"]`, `["powershell.exe","-NoExit"]`
 	default:
-		// ponytail: xdg-open opens parent folder; use FileManager1 for file selection later.
+		// xdg-open opens parent folder.
 		return `["xdg-open","{dir}"]`, linuxTerminal(exec.LookPath)
 	}
 }

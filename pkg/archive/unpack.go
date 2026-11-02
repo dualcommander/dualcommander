@@ -90,7 +90,7 @@ func Unpack(ctx context.Context, src, dstDir string, progress fsops.Progress, pa
 			if !fs.ValidPath(name) || strings.ContainsAny(name, `\:`) || entry.LinkTarget != "" || (!entry.IsDir() && !entry.Mode().IsRegular()) {
 				return fmt.Errorf("unsafe archive entry: %q", entry.NameInArchive)
 			}
-			// ponytail: reject links/devices rather than recreate them; add safe link export when needed.
+			// reject links/devices rather than recreate them.
 			target := filepath.Join(dir, filepath.FromSlash(name))
 			if entry.IsDir() {
 				return os.MkdirAll(target, 0o700)

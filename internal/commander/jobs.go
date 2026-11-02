@@ -125,7 +125,7 @@ func (j *jobs) update() {
 		j.activity.Stop()
 	}
 	text := fmt.Sprintf(lang.L("%d operations · Show details"), len(j.active))
-	// ponytail: progress callbacks have no unit; mixed tasks are not safely summable.
+	// progress callbacks have no unit; mixed tasks are not safely summable.
 	// Add explicit work units before aggregating multiple task percentages.
 	known := len(j.active) == 1 && j.active[0].total > 0
 	if known {

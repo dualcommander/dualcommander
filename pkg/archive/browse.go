@@ -83,7 +83,7 @@ func Materialize(ctx context.Context, f fs.FS, name string) (string, error) {
 	if !info.Mode().IsRegular() || !fs.ValidPath(name) || strings.ContainsAny(name, `\:`) {
 		return "", fmt.Errorf("not a safe regular archive member: %s", name)
 	}
-	// ponytail: cap external previews at 256 MiB; add streamed export for larger members.
+	// cap external previews at 256 MiB.
 	const limit = 256 << 20
 	if info.Size() > limit {
 		return "", fmt.Errorf("archive member exceeds 256 MiB preview limit")

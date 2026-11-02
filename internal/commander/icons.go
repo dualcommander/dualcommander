@@ -48,7 +48,7 @@ func initIcons() {
 	}
 }
 
-// ponytail: cache lives with the directory listing; refresh reloads previews so
+// cache lives with the directory listing; refresh reloads previews so
 // changed files cannot retain stale thumbnails. No persistent thumbnail cache.
 var previewWorkers = make(chan struct{}, 2)
 

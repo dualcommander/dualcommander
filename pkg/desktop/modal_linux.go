@@ -27,6 +27,6 @@ func SetModalParent(parent, child any) {
 	if parentOK && childOK && p.WindowHandle != 0 && c.WindowHandle != 0 {
 		C.setX11ModalParent(C.ulong(p.WindowHandle), C.ulong(c.WindowHandle))
 	}
-	// ponytail: Fyne's Wayland context exposes no xdg_toplevel; retain input overlay
+	// Fyne's Wayland context exposes no xdg_toplevel; retain input overlay
 	// there until its driver exposes transient/modal relationships.
 }

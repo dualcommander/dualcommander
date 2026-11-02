@@ -50,7 +50,7 @@ func (u *ui) dialogContent(content fyne.CanvasObject) fyne.CanvasObject {
 		dialogTheme{u.app.Settings().Theme()})
 }
 
-// ponytail: Fyne has no wait cursor; use a static hourglass over blocked content.
+// Fyne has no wait cursor; use a static hourglass over blocked content.
 type busyBlocker struct{ widget.BaseWidget }
 
 func (b *busyBlocker) CreateRenderer() fyne.WidgetRenderer {
@@ -154,7 +154,7 @@ func (u *ui) blockNativeParent(blocked bool) {
 
 // dialogWindow keeps native decorations; closing never confirms an operation.
 
-// ponytail: cache one input window after first use; Fyne cannot prepare native windows invisibly.
+// cache one input window after first use; Fyne cannot prepare native windows invisibly.
 type inputWindow struct {
 	fyne.Window
 	closed func()
@@ -312,7 +312,7 @@ type dialogSelect struct {
 	close func()
 }
 
-// ponytail: in-content hover hints reuse search layout, avoiding input-blocking popups.
+// in-content hover hints reuse search layout, avoiding input-blocking popups.
 func (c *dialogCheck) MouseIn(e *desktop.MouseEvent) {
 	c.Check.MouseIn(e)
 	if c.hint != nil {
@@ -339,7 +339,7 @@ func (c *dialogCheck) FocusLost()                { c.Check.FocusLost(); c.hideHi
 func (c *dialogCheck) Tapped(e *fyne.PointEvent) { c.Check.Tapped(e); c.hideHint() }
 func (c *dialogCheck) TypedRune(r rune)          { c.Check.TypedRune(r); c.hideHint() }
 
-// ponytail: retain Fyne's select rendering; replace its animated, duplicate-value popup only.
+// retain Fyne's select rendering; replace its animated, duplicate-value popup only.
 func (s *dialogSelect) Tapped(*fyne.PointEvent) {
 	if s.Disabled() {
 		return

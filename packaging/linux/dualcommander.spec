@@ -6,7 +6,7 @@ License: MIT
 URL: https://dualcommander.github.io/
 BuildArch: %{package_arch}
 Requires: glibc >= %{glibc_version}, glib2, xdg-utils
-# ponytail: package existing Fyne build; change baseline before supporting older glibc.
+# package existing Fyne build.
 %global debug_package %{nil}
 %global __os_install_post %{nil}
 %description
