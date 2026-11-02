@@ -1,4 +1,4 @@
-.PHONY: check fmt fmt-check vet test profile-check ci-check build run install-packager package-native archive-macos archive-linux archive-windows package-macos package-linux sign-macos verify-windows publish-release package-snap package-msix package-apple-store publish-apple-store publish-windows-store
+.PHONY: check fmt fmt-check vet test profile-check ci-check build run download-deps install-packager install-snapcraft package-native archive-macos archive-linux archive-windows package-macos package-linux sign-macos verify-windows publish-release package-snap package-msix package-apple-store publish-apple-store publish-windows-store
 
 WINDOWS_STORE_INPUT ?= dist
 APPLE_STORE_INPUT ?= dist
@@ -39,8 +39,14 @@ build:
 run:
 	version=$$(sh scripts/version.sh) && go run -ldflags "-X github.com/dualcommander/dualcommander/internal/commander.buildVersion=$$version" ./cmd/dualcommander
 
+download-deps:
+	sh scripts/retry.sh go mod download
+
 install-packager:
-	go install fyne.io/tools/cmd/fyne@v1.7.4
+	sh scripts/retry.sh go install fyne.io/tools/cmd/fyne@v1.7.4
+
+install-snapcraft:
+	sh scripts/retry.sh sudo snap install snapcraft --classic
 
 package-native:
 	sh scripts/package-native.sh

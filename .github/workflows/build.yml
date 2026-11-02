@@ -95,9 +95,9 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: choco install make 7zip --no-progress -y
-      - name: Install packager
+      - name: Download Go dependencies and install packager
         shell: bash
-        run: make install-packager
+        run: make download-deps install-packager
       - name: Check native OS workflows
         shell: bash
         env:
@@ -132,7 +132,7 @@ jobs:
       - name: Build classic Snap package
         if: runner.os == 'Linux'
         run: |
-          sudo snap install snapcraft --classic
+          make install-snapcraft
           # Snapcraft 9.2.1 cannot resolve stage packages with Ubuntu's amd64v3 APT variant.
           printf 'APT::Architecture "%s";\n#clear APT::Architectures;\nAPT::Architectures { "%s"; };\n#clear APT::Architecture-Variants;\n' "$(go env GOARCH)" "$(go env GOARCH)" | sudo tee /etc/apt/apt.conf.d/zz-snapcraft-architecture
           sudo apt-get update
