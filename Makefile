@@ -18,9 +18,10 @@ vet:
 	go vet ./...
 
 profile-check:
-	python3 .devcontainer/cline-profile.py --self-test
+	sh -n .devcontainer/cline-settings.sh
+	python3 -m json.tool .devcontainer/devcontainer.json >/dev/null
 
-test: profile-check
+test:
 	go test -race -timeout=$(TEST_TIMEOUT) -count=1 ./...
 
 ci-check:

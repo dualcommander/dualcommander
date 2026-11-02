@@ -178,15 +178,43 @@ Run from the repository root:
 make run       # launch the app
 make build     # build into dist/
 make fmt       # format Go code
-make check     # check formatting, vet, development profile, and uncached race tests
+make check     # check formatting, vet, and uncached race tests
 ```
 
 Use `make fmt-check`, `make vet`, or `make test` for individual checks.
+These commands work on the host; Dev Containers are optional.
+`make profile-check` separately validates Dev Container configuration syntax;
+it does not require Docker or a running container.
 On Linux, `make package-snap` packages the existing
 `cmd/dualcommander/DualCommander.tar.xz` using Snapcraft (classic confinement).
 CI builds it natively on amd64 and arm64; `.snap` files ship with other release assets.
 Add regression tests for changes; keep blocking work off the UI thread.
 See [development guidelines](.agents/skills/dualcommander-guidelines/SKILL.md).
+
+### Dev Container
+
+Run **Dev Containers: Rebuild and Reopen in Container**. The container includes
+Go, Make, Python, a C compiler, Fyne development libraries, and Linux DEB/RPM
+packaging tools. From `/workspaces/project`, use `make test`, `make check`,
+`sh scripts/check.sh`, or `make build`. For native Linux packages:
+
+```sh
+make download-deps install-packager
+make package-native archive-linux package-linux
+```
+
+Go installs tools into the developer user's writable GOPATH, already on PATH.
+`GOMEMLIMIT=2GiB` bounds Go's soft memory target for race tests in small Docker
+VMs; override this environment variable for larger workloads.
+Tests are headless; no host display or Docker socket is mounted. Interactive
+`make run` needs a desktop outside this sandbox. Snapcraft requires a separate
+Snap-capable build host; macOS/Windows packaging and signing require their native
+OS tools. Publishing still requires explicit credentials.
+
+Container creation snapshots selected Cline settings into a private host profile
+and seeds a container-local copy. That profile can contain provider credentials;
+container processes can read them. Network and workspace writes remain enabled.
+Do not commit the profile or mount host home, agent sockets, or live Cline data.
 
 ### Coding agents
 

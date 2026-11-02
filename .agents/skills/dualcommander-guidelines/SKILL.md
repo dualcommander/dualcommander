@@ -67,7 +67,7 @@ For any modal dialog or dialog-driven workflow, also follow skill `native-modal-
 - DualCommander does one thing well: file management, not a Swiss army knife. Keep features and menus focused on browsing and managing files; delegate unrelated tasks to external apps.
 - Do not expose generic OS service catalogs such as macOS Services. Remove framework-injected Services menus through native integration, without replacing native menus or removing essential About, Settings, Hide, and Quit actions. Match native menu identity, not localized titles, and test removal plus preservation of unrelated items.
 - Feel native: native menus, OS shortcut modifier (`KeyModifierShortcutDefault`), the OS's own app to reveal/open files.
-- Keep functions short and files few. Note every simplification with a `ponytail:` comment.
+- Keep functions short and files few. Comment only when current behavior or constraints need explanation; do not add speculative TODO notes.
 
 ## Dialog spacing and progress
 - Reuse `ui.dialogContent`: 16px outer margins, dialog theme independent of file-list density. Use 12px gaps between stacked form groups; keep results lists within the same margins.

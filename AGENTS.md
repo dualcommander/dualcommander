@@ -9,6 +9,7 @@ before starting work. Resolve paths below from the repository root.
 - Any change affecting privacy disclosures: follow skill `privacy-policy` and update `PRIVACY.md` when behavior changes.
 - Every code change in this repo: follow skill `test-every-change` and run `sh scripts/check.sh` until it passes before finishing. Report its result in the final summary.
 - Tests must not depend on images or golden/screenshot comparisons. Assert UI structure, state, and behavior instead; image rendering is fragile and OS-dependent.
+- Do not add `ponytail:` markers or speculative TODO comments. Comments should explain current behavior or constraints, not unrequested future work.
 
 ## Skills
 

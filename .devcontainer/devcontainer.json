@@ -1,24 +1,34 @@
 {
-  "name": "DualCommander sandbox",
+  "name": "DualCommander Cline sandbox",
   "build": {
     "dockerfile": "Dockerfile",
-    "context": "."
+    "context": ".."
   },
-  "workspaceMount": "source=${localWorkspaceFolder},target=/workspaces/dualcommander,type=bind",
-  "workspaceFolder": "/workspaces/dualcommander",
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspaces/project,type=bind",
+  "workspaceFolder": "/workspaces/project",
   "containerUser": "developer",
   "remoteUser": "developer",
   "updateRemoteUserUID": true,
   "userEnvProbe": "none",
   "privileged": false,
   "capAdd": [],
-  "runArgs": ["--cap-drop=ALL", "--security-opt=no-new-privileges:true"],
-  "initializeCommand": ["python3", "${localWorkspaceFolder}/.devcontainer/cline-profile.py"],
+  "runArgs": [
+    "--cap-drop=ALL",
+    "--security-opt=no-new-privileges:true"
+  ],
   "mounts": [
-    "source=${localEnv:HOME}/.cline/devcontainer-profiles/dualcommander,target=/opt/cline-profile,type=bind,readonly"
+    "source=${localEnv:HOME}${localEnv:USERPROFILE}/.cline/devcontainer-profiles/90c457713ac24cfd,target=/opt/cline-profile,type=bind,readonly"
+  ],
+  "initializeCommand": [
+    "sh", "${localWorkspaceFolder}/.devcontainer/cline-settings.sh", "snapshot",
+    "${localEnv:HOME}${localEnv:USERPROFILE}/.cline/devcontainer-profiles/90c457713ac24cfd"
+  ],
+  "postCreateCommand": [
+    "sh", "/workspaces/project/.devcontainer/cline-settings.sh", "seed", "/opt/cline-profile"
   ],
   "forwardPorts": [],
   "containerEnv": {
+    "CLINE_DIR": "/home/developer/.cline",
     "CLINE_DATA_DIR": "/home/developer/.cline/data",
     "SSH_AUTH_SOCK": "",
     "GIT_CONFIG_NOSYSTEM": "1",
@@ -27,7 +37,7 @@
     "GIT_CONFIG_KEY_0": "credential.helper",
     "GIT_CONFIG_VALUE_0": "",
     "GIT_CONFIG_KEY_1": "safe.directory",
-    "GIT_CONFIG_VALUE_1": "/workspaces/dualcommander",
+    "GIT_CONFIG_VALUE_1": "/workspaces/project",
     "GIT_TERMINAL_PROMPT": "0"
   },
   "remoteEnv": {
@@ -47,6 +57,5 @@
         "git.useIntegratedAskPass": false
       }
     }
-  },
-  "postCreateCommand": "sh .devcontainer/verify.sh && python3 .devcontainer/cline-profile.py --seed"
+  }
 }
