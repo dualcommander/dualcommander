@@ -44,6 +44,8 @@ type entry struct {
 type pane struct {
 	ui              *ui
 	path            string
+	history         []folderLocation
+	historyIndex    int
 	entries         []entry
 	cursor          int
 	marked          map[string]bool
@@ -156,6 +158,10 @@ func (p *pane) focusable() fyne.Focusable {
 
 // cd loads dir; selectName puts the cursor on that entry (e.g. after going up).
 func (p *pane) cd(dir, selectName string) error {
+	return p.cdHistory(dir, selectName, -1)
+}
+
+func (p *pane) cdHistory(dir, selectName string, historyIndex int) error {
 	dir, _ = filepath.Abs(dir)
 	root, inner := archive.Root(dir)
 	var des []fs.DirEntry
@@ -209,6 +215,17 @@ func (p *pane) cd(dir, selectName string) error {
 	sortEntries(es, p.sortBy, p.desc)
 	if p.sizeCancel != nil {
 		p.sizeCancel()
+	}
+	if !same {
+		if len(p.history) > 0 {
+			p.history[p.historyIndex].selected = p.current().name
+		}
+		if historyIndex < 0 {
+			p.history = append(p.history[:min(p.historyIndex+1, len(p.history))], folderLocation{path: dir})
+			p.historyIndex = len(p.history) - 1
+		} else {
+			p.historyIndex = historyIndex
+		}
 	}
 	p.path, p.entries = dir, es
 	p.iconGeneration++
@@ -479,16 +496,20 @@ func (p *pane) inArchive() bool {
 
 // navigate indexes archives off the UI thread; stale completions cannot change folders.
 func (p *pane) navigate(dir, selected string) {
+	p.navigateHistory(dir, selected, -1)
+}
+
+func (p *pane) navigateHistory(dir, selected string, historyIndex int) {
 	dir, _ = filepath.Abs(dir)
 	p.navigation++
 	version := p.navigation
 	root, inner := archive.Root(dir)
 	if root == "" {
-		p.cd(dir, selected)
+		p.cdHistory(dir, selected, historyIndex)
 		return
 	}
 	if root == p.archiveRoot && p.archiveFS != nil {
-		p.cd(dir, selected)
+		p.cdHistory(dir, selected, historyIndex)
 		return
 	}
 	p.ui.jobs.run(lang.L("Browse archive"), nil, func(ctx context.Context, _ fsops.Progress) error {
@@ -505,7 +526,7 @@ func (p *pane) navigate(dir, selected string) {
 			post(func() {
 				if p.navigation == version {
 					p.archiveRoot, p.archiveFS = root, f
-					p.cd(dir, selected)
+					p.cdHistory(dir, selected, historyIndex)
 				}
 			})
 		}

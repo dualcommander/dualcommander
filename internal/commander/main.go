@@ -100,6 +100,7 @@ func Run() {
 	u.right.list.Refresh()
 	u.right.grid.Refresh()
 	a.Lifecycle().SetOnStarted(func() {
+		desktop.InstallNavigationMouse(u.win, func(step int) { u.active.travelHistory(step) })
 		desktop.HideServicesMenu()
 		desktop.FixMenuShortcuts(u.win.MainMenu())
 	})

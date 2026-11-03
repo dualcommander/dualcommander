@@ -106,6 +106,10 @@ func newUI(a fyne.App) *ui {
 	}
 
 	u.win.SetMainMenu(u.mainMenu()) // macOS: global menu bar; Win/Linux: window menu
+	for key, step := range map[fyne.KeyName]int{fyne.KeyLeft: -1, fyne.KeyRight: 1} {
+		u.win.Canvas().AddShortcut(&desktop.CustomShortcut{KeyName: key, Modifier: fyne.KeyModifierShortcutDefault},
+			func(fyne.Shortcut) { u.active.travelHistory(step) })
+	}
 	if fyne.KeyModifierShortcutDefault != fyne.KeyModifierControl {
 		u.win.Canvas().AddShortcut(&desktop.CustomShortcut{KeyName: fyne.KeyR, Modifier: fyne.KeyModifierControl},
 			func(fyne.Shortcut) { u.active.refresh() })
