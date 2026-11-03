@@ -31,6 +31,12 @@ behind.
 
 ## External applications and services
 
+When you copy files, DualCommander places their paths on the system clipboard
+where supported, so other applications can paste them. Pasting files reads file
+references from that clipboard. Clipboard managers and operating-system clipboard
+sync may retain or share these paths under their own policies. Cut remains local
+to DualCommander; external cut selections are pasted as copies.
+
 When you open a file in another application, launch an external tool, or follow
 a website link, the selected application or service receives the information
 needed for that action, such as a file path or website address. Its own privacy

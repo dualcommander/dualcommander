@@ -1,6 +1,10 @@
-//go:build !darwin || !cgo
+//go:build (!darwin && !linux && !windows) || (darwin && !cgo)
 
 package desktop
 
-// native file clipboard export is macOS-only; other platforms retain app-local copies.
+import "context"
+
+// Unsupported platforms retain app-local copies.
 func CopyFiles(paths []string) error { return nil }
+
+func ReadFiles(context.Context) ([]string, error) { return nil, nil }

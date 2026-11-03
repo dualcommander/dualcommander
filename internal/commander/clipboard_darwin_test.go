@@ -19,6 +19,7 @@ func TestCopyFilesPublishesFinderURLs(t *testing.T) {
 	u.active.markAll(true)
 	want := u.active.selection()
 	u.captureFiles(false)
+	waitJobs(t, u)
 	// Read native pasteboard independently, as another desktop app would.
 	output, err := exec.Command("swift", "-e", `import AppKit
 let urls = NSPasteboard.general.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL] ?? []

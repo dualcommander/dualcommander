@@ -6,10 +6,12 @@ package desktop
 #cgo LDFLAGS: -framework AppKit
 #include <stdlib.h>
 int copyFileURLs(const char *json);
+char *readFileURLs(void);
 */
 import "C"
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"unsafe"
@@ -30,4 +32,18 @@ func CopyFiles(paths []string) error {
 		return fmt.Errorf("could not write file URLs to macOS clipboard")
 	}
 	return nil
+}
+
+func ReadFiles(ctx context.Context) ([]string, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	text := C.readFileURLs()
+	if text == nil {
+		return nil, fmt.Errorf("could not read file URLs from macOS clipboard")
+	}
+	defer C.free(unsafe.Pointer(text))
+	var paths []string
+	err := json.Unmarshal([]byte(C.GoString(text)), &paths)
+	return paths, err
 }

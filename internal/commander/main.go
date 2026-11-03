@@ -94,6 +94,7 @@ func Run() {
 		lang.L = languageTranslator(code)
 	}
 	u := newUI(a)
+	u.readFileClipboard = desktop.ReadFiles
 	u.filePreview = fileicon.Preview
 	u.left.list.Refresh()
 	u.left.grid.Refresh()

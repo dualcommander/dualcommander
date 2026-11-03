@@ -54,10 +54,11 @@ func latestUpdate[T any](dispatch func(func()), update func(T)) func(T) {
 	}
 }
 
-// Cut stays app-local; macOS Copy also exports native file URLs.
+// Cut stays app-local; Copy also exports native file references.
 type fileClipboard struct {
 	paths     []string
 	cut, busy bool
+	ready     chan struct{}
 }
 
 func (u *ui) captureFiles(cut bool) {
@@ -70,20 +71,66 @@ func (u *ui) captureFiles(cut bool) {
 	}
 	u.fileClipboard = &fileClipboard{paths: u.active.selection(), cut: cut}
 	if !cut {
-		u.showErr(desktop.CopyFiles(u.fileClipboard.paths))
+		write := u.writeFileClipboard
+		if write == nil {
+			write = desktop.CopyFiles
+		}
+		paths := slices.Clone(u.fileClipboard.paths)
+		ready := make(chan struct{})
+		u.fileClipboard.ready = ready
+		u.jobs.run(lang.L("Copy"), nil, func(context.Context, fsops.Progress) error {
+			defer close(ready)
+			return write(paths)
+		})
 	}
 }
 
 func (u *ui) pasteFiles() {
 	clip := u.fileClipboard
-	if u.passwordWindow != nil || clip == nil || len(clip.paths) == 0 || clip.busy {
+	if u.passwordWindow != nil || (clip != nil && clip.busy) {
 		return
 	}
 	if u.active.inArchive() {
 		u.showErr(errors.New(lang.L("archive browsing is read-only")))
 		return
 	}
-	to := u.active.path
+	if clip == nil || !clip.cut {
+		read := u.readFileClipboard
+		if read != nil {
+			target := u.active
+			to := target.path
+			u.jobs.run(lang.L("Paste"), nil, func(ctx context.Context, _ fsops.Progress) error {
+				if clip != nil && clip.ready != nil {
+					select {
+					case <-clip.ready:
+					case <-ctx.Done():
+						return ctx.Err()
+					}
+				}
+				paths, err := read(ctx)
+				if err == nil {
+					post(func() {
+						if target.path != to || u.passwordWindow != nil {
+							return
+						}
+						if len(paths) > 0 {
+							clip = &fileClipboard{paths: paths}
+						}
+						u.pasteClipboard(clip, to)
+					})
+				}
+				return err
+			})
+			return
+		}
+	}
+	u.pasteClipboard(clip, u.active.path)
+}
+
+func (u *ui) pasteClipboard(clip *fileClipboard, to string) {
+	if clip == nil || len(clip.paths) == 0 || clip.busy {
+		return
+	}
 	verb := lang.L("Copy")
 	if clip.cut {
 		verb = lang.L("Move/Rename")

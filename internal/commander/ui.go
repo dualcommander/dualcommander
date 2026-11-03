@@ -2,6 +2,7 @@ package commander
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"fyne.io/fyne/v2/lang"
@@ -70,6 +71,8 @@ type ui struct {
 	passwordGate                         chan struct{}
 	passwordWindow                       fyne.Window
 	fileClipboard                        *fileClipboard
+	writeFileClipboard                   func([]string) error
+	readFileClipboard                    func(context.Context) ([]string, error)
 	startFileDrag                        func(fyne.Window, []string) bool
 }
 
