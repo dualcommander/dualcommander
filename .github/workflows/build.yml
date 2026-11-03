@@ -180,11 +180,17 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
       - uses: actions/download-artifact@v8
         with:
           pattern: dualcommander-*
           path: dist
           merge-multiple: true
+      - name: Generate release notes
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: make release-notes
       - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}

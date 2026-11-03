@@ -14,6 +14,7 @@ ENV GOPATH=/home/developer/go
 ENV PATH=/home/developer/go/bin:/usr/local/go/bin:${PATH}
 # soft Go heap target for small Docker VMs; override for larger workloads.
 ENV GOMEMLIMIT=2GiB
+COPY .devcontainer/vscode-memory.cjs /usr/local/lib/vscode-memory.cjs
 USER developer
 WORKDIR /workspaces/project
 CMD ["sleep", "infinity"]

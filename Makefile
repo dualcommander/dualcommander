@@ -1,4 +1,4 @@
-.PHONY: check fmt fmt-check vet test profile-check ci-check build run download-deps install-packager install-snapcraft package-native archive-macos archive-linux archive-windows package-macos package-linux sign-macos verify-windows publish-release package-snap package-msix package-apple-store publish-apple-store publish-windows-store
+.PHONY: check fmt fmt-check vet test profile-check ci-check build run download-deps install-packager install-snapcraft package-native archive-macos archive-linux archive-windows package-macos package-linux sign-macos verify-windows release-notes publish-release package-snap package-msix package-apple-store publish-apple-store publish-windows-store
 
 WINDOWS_STORE_INPUT ?= dist
 APPLE_STORE_INPUT ?= dist
@@ -76,8 +76,14 @@ sign-macos:
 verify-windows:
 	pwsh -NoProfile -File scripts/verify-windows.ps1
 
+release-notes:
+	mkdir -p dist
+	docker run --rm --network none --user "$$(id -u):$$(id -g)" --entrypoint git-cliff -v "$(CURDIR):/repo:ro" -w /repo orhunp/git-cliff:2.14.2 --offline $(if $(filter v%,$(RELEASE_TAG)),--current,--unreleased) > dist/CHANGELOG.md
+
 publish-release:
-	gh release view "$$RELEASE_TAG" >/dev/null 2>&1 || gh release create "$$RELEASE_TAG" --verify-tag --generate-notes
+	test -s dist/CHANGELOG.md
+	gh release view "$$RELEASE_TAG" >/dev/null 2>&1 || gh release create "$$RELEASE_TAG" --verify-tag --notes-file dist/CHANGELOG.md
+	gh release edit "$$RELEASE_TAG" --notes-file dist/CHANGELOG.md
 	gh release upload "$$RELEASE_TAG" dist/* --clobber
 
 # Requires Linux, Snapcraft, and the Fyne Linux tarball from the packaging build.

@@ -28,6 +28,7 @@
   ],
   "forwardPorts": [],
   "containerEnv": {
+    "NODE_OPTIONS": "--require=/usr/local/lib/vscode-memory.cjs",
     "CLINE_DIR": "/home/developer/.cline",
     "CLINE_DATA_DIR": "/home/developer/.cline/data",
     "SSH_AUTH_SOCK": "",
