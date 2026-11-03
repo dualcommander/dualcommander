@@ -16,6 +16,7 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
+	"github.com/dualcommander/dualcommander/pkg/archive"
 	"github.com/dualcommander/dualcommander/pkg/desktop"
 	"github.com/dualcommander/dualcommander/pkg/fsops"
 )
@@ -168,12 +169,25 @@ func (u *ui) copyOrMove(move bool) {
 }
 
 func (u *ui) transferSelection(src, dst *pane, sel []string, move bool) {
-	if src.inArchive() || dst.inArchive() {
+	if (move && src.inArchive()) || dst.inArchive() {
 		u.showErr(errors.New(lang.L("archive browsing is read-only; copy/move involving archive folders is not supported")))
 		return
 	}
 	if len(sel) == 0 {
 		return
+	}
+	archiveRoot, archiveFS := src.archiveRoot, src.archiveFS
+	fromArchive := src.inArchive()
+	members := make([]string, 0, len(sel))
+	if fromArchive {
+		for _, name := range sel {
+			rel, err := filepath.Rel(archiveRoot, name)
+			if err != nil {
+				u.showErr(err)
+				return
+			}
+			members = append(members, filepath.ToSlash(rel))
+		}
 	}
 	verb := lang.L("Copy")
 	if move {
@@ -190,11 +204,38 @@ func (u *ui) transferSelection(src, dst *pane, sel []string, move bool) {
 		}
 		to := target.Text
 		if !filepath.IsAbs(to) {
-			to = filepath.Join(src.path, to)
+			base := src.path
+			if fromArchive {
+				base = dst.path
+			}
+			to = filepath.Join(base, to)
 		}
 		title := fmt.Sprintf(lang.L("%s %d item(s) → %s"), verb, len(sel), to)
 		if !move {
 			u.jobs.runCounted(title, []*pane{src, dst}, func(ctx context.Context, report func(fsops.CopyProgress)) error {
+				if fromArchive {
+					var dir string
+					var paths []string
+					err := u.archiveRetry(ctx, archiveRoot, func(password string) error {
+						f := archiveFS
+						var err error
+						if password != "" {
+							f, err = archive.Open(ctx, archiveRoot, password)
+							if err != nil {
+								return err
+							}
+						}
+						dir, paths, err = archive.Stage(ctx, f, members, func(done, total int64, file string) {
+							report(fsops.CopyProgress{Done: done, Total: total, Current: file, FilesTotal: -1})
+						})
+						return err
+					})
+					if err != nil {
+						return err
+					}
+					defer os.RemoveAll(dir)
+					return fsops.CopyWithConflicts(ctx, paths, to, report, u.overwriteConflict)
+				}
 				return fsops.CopyWithConflicts(ctx, sel, to, report, u.overwriteConflict)
 			})
 			src.markAll(false)

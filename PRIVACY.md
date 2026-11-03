@@ -18,6 +18,12 @@ information. No account is required to use the app.
 
 ## Local storage and retention
 
+Copying files out of an archive temporarily extracts selected files into a private
+folder in your operating system's temporary storage. DualCommander removes this
+folder when the operation finishes or is cancelled. An unexpected exit may leave
+temporary files behind; these can be removed from the system temporary folder
+(names begin with `dualcommander-archive-copy-`).
+
 DualCommander saves preferences, session state, and favourite folder paths in
 `.dualcommander` within your home folder, including `settings.json`, `state.json`,
 and `favourites.json`. Saved information can include visited folder paths, window
