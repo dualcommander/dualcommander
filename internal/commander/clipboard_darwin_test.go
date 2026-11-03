@@ -10,11 +10,13 @@ import (
 	"testing"
 
 	"fyne.io/fyne/v2/test"
+	"github.com/dualcommander/dualcommander/pkg/desktop"
 )
 
 func TestCopyFilesPublishesFinderURLs(t *testing.T) {
 	root := fixture(t)
 	u := newTestUI(t, test.NewTempApp(t), filepath.Join(root, "src"), root)
+	u.writeFileClipboard = desktop.CopyFiles
 	cursorTo(t, u.active, "readme.md")
 	u.active.markAll(true)
 	want := u.active.selection()

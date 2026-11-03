@@ -71,11 +71,8 @@ func (u *ui) captureFiles(cut bool) {
 		return
 	}
 	u.fileClipboard = &fileClipboard{paths: u.active.selection(), cut: cut}
-	if !cut {
+	if !cut && u.writeFileClipboard != nil {
 		write := u.writeFileClipboard
-		if write == nil {
-			write = desktop.CopyFiles
-		}
 		paths := slices.Clone(u.fileClipboard.paths)
 		ready := make(chan struct{})
 		u.fileClipboard.ready = ready

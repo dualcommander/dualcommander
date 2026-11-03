@@ -10,6 +10,23 @@ import (
 	"fyne.io/fyne/v2/test"
 )
 
+func TestFileClipboardWithoutNativeIntegration(t *testing.T) {
+	root := fixture(t)
+	u := newTestUI(t, test.NewTempApp(t), filepath.Join(root, "src"), filepath.Join(root, "dst"))
+	cursorTo(t, u.left, "readme.md")
+	u.captureFiles(false)
+	if len(u.jobs.active) != 0 {
+		waitJobs(t, u)
+		t.Fatal("app-local copy started native clipboard job")
+	}
+	u.activate(u.right)
+	u.pasteFiles()
+	waitJobs(t, u)
+	if !exists(filepath.Join(root, "dst/readme.md")) || !exists(filepath.Join(root, "src/readme.md")) {
+		t.Fatal("app-local copy failed without native clipboard integration")
+	}
+}
+
 func TestNativeFileClipboard(t *testing.T) {
 	root := fixture(t)
 	u := newTestUI(t, test.NewTempApp(t), filepath.Join(root, "src"), filepath.Join(root, "dst"))
