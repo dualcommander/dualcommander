@@ -9,6 +9,7 @@ description: Test-driven application changes in dualcommander (Go/Fyne file mana
 1. After each edit batch to `*.go`, `go.mod`, or `testdata/`: run `sh scripts/check.sh`. Expected failures in the red phase below permit proceeding only to the matching implementation. Unrelated failures must be investigated; never finish with failing checks.
 2. Every new application behavior gets a test written or adapted BEFORE implementation. No exceptions for application fixes or "visual" work. Script and CI changes follow the native-validation policy below.
 3. Never weaken or delete a test to make it pass. If the test exposed a real bug, fix the app.
+4. Do not add tests for specific translation wording, translated-text snapshots, or handpicked labels being different from English. Translation-only edits need no wording regression tests. Keep localization tests focused on behavior and generic catalog integrity: valid JSON, key coverage, placeholders, fallback, locale selection, and UI wiring. Labels may identify controls in workflow tests; do not treat their wording as the behavior under test.
 
 ## Scripts and CI
 - Use Make targets as the shared entry points for local and CI checks, builds, packaging, signing, and publishing. Reuse existing targets; add small targets where needed instead of inline workflow scripts.
