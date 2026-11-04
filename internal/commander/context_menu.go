@@ -92,7 +92,7 @@ func (p *pane) showContextMenu(position fyne.Position) {
 	widget.ShowPopUpMenuAtPosition(menu, p.ui.win.Canvas(), position)
 }
 
-// Context actions target the clicked item, not unrelated marked files.
+// Context actions target the clicked item; packing includes marks only when it is marked.
 func (p *pane) contextMenu() *fyne.Menu {
 	e := p.current()
 	path := filepath.Join(p.path, e.name)
@@ -152,5 +152,14 @@ func (p *pane) contextMenu() *fyne.Menu {
 			cmd, err := desktop.Command(reveal, path, p.path)
 			p.ui.startExternal(cmd, err)
 		}), item(lang.L("Copy Path"), native, func() { p.ui.win.Clipboard().SetContent(path) }))
+	if native && e.dir {
+		selection := []string{path}
+		if p.marked[e.name] {
+			selection = p.selection()
+		}
+		items = append(items, item(lang.L("Create Archive…"), !p.ui.left.inArchive() && !p.ui.right.inArchive(), func() {
+			p.ui.packSelection(selection)
+		}))
+	}
 	return fyne.NewMenu("", items...)
 }

@@ -253,6 +253,7 @@ func (u *ui) mainMenu() *fyne.MainMenu {
 			item(lang.L("Find Files…"), fyne.KeyF, mod, func() { u.search() }),
 			u.functionItems[1],
 			u.functionItems[2],
+			item(lang.L("Create Archive…"), fyne.KeyF5, fyne.KeyModifierAlt, u.pack),
 			item(lang.L("Rename…"), fyne.KeyF6, fyne.KeyModifierShift, u.rename),
 			u.functionItems[4],
 			sep(), u.compareFilesItem, u.compareFoldersItem,

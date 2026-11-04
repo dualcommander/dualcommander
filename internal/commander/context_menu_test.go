@@ -25,6 +25,53 @@ func extractContextArchive(t *testing.T, p *pane) {
 	menu.Items[0].Action()
 }
 
+func TestContextCreateArchive(t *testing.T) {
+	for _, brief := range []bool{false, true} {
+		for _, marked := range []bool{false, true} {
+			root := fixture(t)
+			u := newTestUI(t, test.NewTempApp(t), filepath.Join(root, "dst"), filepath.Join(root, "src"))
+			p := u.right
+			p.setBrief(brief)
+			p.marked["photos"] = true
+			p.marked["docs"] = marked
+			r := newRowWidget(p, !brief)
+			r.id = slices.Index(names(p), "docs")
+			test.TapSecondary(r)
+			u.win.Canvas().Focused().(*widget.PopUpMenu).Hide()
+			var action *fyne.MenuItem
+			for _, item := range p.contextMenu().Items {
+				if item.Label == "Create Archive…" {
+					action = item
+				}
+			}
+			if action == nil || action.Disabled {
+				t.Fatal("folder context menu missing Create Archive")
+			}
+			action.Action()
+			w := windowByTitle(t, u.app, "Create Archive")
+			entries, _ := packFields(w)
+			entries[0].SetText("folders.zip")
+			tapDialogButton(t, u, "Create")
+			waitJobs(t, u)
+			z, err := zip.OpenReader(filepath.Join(root, "dst", "folders.zip"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			var members []string
+			for _, file := range z.File {
+				members = append(members, file.Name)
+			}
+			z.Close()
+			if !slices.Contains(members, "docs/") || slices.Contains(members, "photos/a.png") != marked || slices.Contains(members, "readme.md") {
+				t.Fatalf("wrong context selection: %v", members)
+			}
+			if u.active != p || p.current().name != "docs" || !p.marked["photos"] || p.marked["docs"] != marked || !slices.Contains(names(u.left), "folders.zip") || u.passwordWindow != nil {
+				t.Fatal("archive creation lost pane state, marks, refresh, or input")
+			}
+		}
+	}
+}
+
 func TestContextExtractArchive(t *testing.T) {
 	for _, brief := range []bool{false, true} {
 		root := fixture(t)

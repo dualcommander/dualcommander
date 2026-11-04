@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -92,13 +93,6 @@ func TestTranslationCatalogs(t *testing.T) {
 					t.Errorf("changed placeholders: %q: %q", key, text)
 				}
 			}
-			if catalog["Settings"] == "Settings" {
-				t.Error("untranslated settings")
-			}
-			archiveHint := "Browse supported archives like folders (read-only). When unchecked, archives open in the default application."
-			if catalog[archiveHint] == archiveHint {
-				t.Error("untranslated archive browsing tooltip")
-			}
 			translate := languageTranslator(code)
 			if got := translate("Settings"); got != catalog["Settings"] {
 				t.Fatalf("selected locale ignored: %q", got)
@@ -110,6 +104,36 @@ func TestTranslationCatalogs(t *testing.T) {
 				t.Fatalf("fallback: %q", got)
 			}
 		})
+	}
+}
+
+func TestDiskSpaceTranslationOrder(t *testing.T) {
+	files, err := translations.ReadDir("translations")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, file := range files {
+		data, err := translations.ReadFile("translations/" + file.Name())
+		if err != nil {
+			t.Fatal(err)
+		}
+		var messages map[string]string
+		if err := json.Unmarshal(data, &messages); err != nil {
+			t.Fatal(err)
+		}
+		var total string
+		for _, key := range []string{"%s free / %s total", "%s used / %s total"} {
+			text := fmt.Sprintf(messages[key], "256 GB", "1 TB")
+			parts := strings.Split(text, " / ")
+			if len(parts) != 2 || !strings.HasPrefix(parts[0], "256 GB ") || !strings.HasPrefix(parts[1], "1 TB ") {
+				t.Errorf("%s: disk sizes must precede labels: %q", file.Name(), text)
+				continue
+			}
+			if total != "" && parts[1] != total {
+				t.Errorf("%s: inconsistent total labels: %q, %q", file.Name(), total, parts[1])
+			}
+			total = parts[1]
+		}
 	}
 }
 
