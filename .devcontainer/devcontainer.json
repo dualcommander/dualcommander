@@ -50,6 +50,8 @@
     "vscode": {
       "extensions": ["saoudrizwan.claude-dev@4.1.26"],
       "settings": {
+        "search.onlyOpenEditors": false,
+        "search.useIgnoreFiles": false,
         "remote.extensionKind": {
           "saoudrizwan.claude-dev": ["workspace"]
         },
