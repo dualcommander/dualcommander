@@ -48,7 +48,7 @@
   },
   "customizations": {
     "vscode": {
-      "extensions": ["saoudrizwan.claude-dev@4.1.26"],
+      "extensions": ["saoudrizwan.claude-dev@4.1.26", "golang.go"],
       "settings": {
         "search.onlyOpenEditors": false,
         "search.useIgnoreFiles": false,

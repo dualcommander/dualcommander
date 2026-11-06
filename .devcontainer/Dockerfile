@@ -16,5 +16,7 @@ ENV PATH=/home/developer/go/bin:/usr/local/go/bin:${PATH}
 ENV GOMEMLIMIT=2GiB
 COPY .devcontainer/vscode-memory.cjs /usr/local/lib/vscode-memory.cjs
 USER developer
+RUN go install golang.org/x/tools/gopls@v0.24.0 \
+    && go install github.com/go-delve/delve/cmd/dlv@v1.27.2
 WORKDIR /workspaces/project
 CMD ["sleep", "infinity"]
