@@ -27,6 +27,7 @@ func newPathEntry() *pathEntry {
 
 func (e *pathEntry) FocusGained() {
 	e.editing = true
+	e.Scroll = fyne.ScrollHorizontalOnly
 	e.Entry.FocusGained()
 	if e.onFocusChanged != nil {
 		e.onFocusChanged()
@@ -35,6 +36,7 @@ func (e *pathEntry) FocusGained() {
 
 func (e *pathEntry) FocusLost() {
 	e.editing = false
+	e.Scroll = fyne.ScrollNone
 	e.Entry.FocusLost()
 	e.Refresh()
 	if e.onFocusChanged != nil {

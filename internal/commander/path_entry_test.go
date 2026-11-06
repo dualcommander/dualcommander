@@ -1,13 +1,69 @@
 package commander
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"unicode/utf8"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/test"
 )
+
+func TestF2PathCursorStaysVisible(t *testing.T) {
+	root := fixture(t)
+	path := filepath.Join(root, strings.Repeat("parent-", 12), "世界-current-folder")
+	if err := os.MkdirAll(path, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	u := newTestUI(t, test.NewTempApp(t), path, root)
+	cursorTo(t, u.left, "..")
+	press(u, fyne.KeyF2)
+	e := u.left.pathBar
+	e.Resize(fyne.NewSize(180, e.MinSize().Height))
+	if u.win.Canvas().Focused() != e {
+		t.Fatal("F2 did not focus path editor")
+	}
+	var scroll *container.Scroll
+	for _, o := range test.WidgetRenderer(e).Objects() {
+		if s, ok := o.(*container.Scroll); ok {
+			scroll = s
+		}
+	}
+	assertVisible := func() {
+		t.Helper()
+		x := e.CursorPosition().X
+		if scroll != nil {
+			x -= scroll.Offset.X
+		}
+		if x < 0 || x >= e.Size().Width {
+			t.Fatalf("cursor outside editor: x=%v width=%v column=%d", x, e.Size().Width, e.CursorColumn)
+		}
+	}
+	for _, key := range []fyne.KeyName{fyne.KeyEnd, fyne.KeyHome, fyne.KeyEnd} {
+		e.TypedKey(&fyne.KeyEvent{Name: key})
+		want := 0
+		if key == fyne.KeyEnd {
+			want = utf8.RuneCountInString(path)
+		}
+		if e.CursorColumn != want || e.SelectedText() != "" {
+			t.Fatalf("%s: cursor=%d selection=%q", key, e.CursorColumn, e.SelectedText())
+		}
+		assertVisible()
+	}
+	test.Type(e, "-edited")
+	assertVisible()
+	for range utf8.RuneCountInString(e.Text) {
+		e.TypedKey(&fyne.KeyEvent{Name: fyne.KeyLeft})
+		assertVisible()
+	}
+	for range utf8.RuneCountInString(e.Text) {
+		e.TypedKey(&fyne.KeyEvent{Name: fyne.KeyRight})
+		assertVisible()
+	}
+}
 
 func TestPathLengthDoesNotWidenPane(t *testing.T) {
 	root := fixture(t)
@@ -30,8 +86,12 @@ func TestPathLengthDoesNotWidenPane(t *testing.T) {
 			if e.MinSize() != entryMin || r.MinSize() != entryMin || p.box.MinSize() != paneMin || p.box.Size().Width != width {
 				t.Fatalf("path widened pane (editing=%v): entry=%v pane=%v width=%v", editing, e.MinSize(), p.box.MinSize(), p.box.Size().Width)
 			}
-			if e.Text != path || e.Scroll != fyne.ScrollNone {
-				t.Fatal("full editable path or no-scroll setting lost")
+			wantScroll := fyne.ScrollNone
+			if editing {
+				wantScroll = fyne.ScrollHorizontalOnly
+			}
+			if e.Text != path || e.Scroll != wantScroll {
+				t.Fatal("full editable path or focus-dependent scrolling lost")
 			}
 			if !editing && (!strings.Contains(r.label.Text, "...") || !strings.HasSuffix(r.label.Text, "current-folder")) {
 				t.Fatalf("path not shortened around current folder: %q", r.label.Text)
