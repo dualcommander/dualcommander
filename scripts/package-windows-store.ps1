@@ -4,10 +4,14 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 if (-not $IsWindows) { throw 'MSIX packaging requires Windows and Windows SDK MakeAppx' }
 Set-Location (Split-Path $PSScriptRoot -Parent)
-foreach ($key in @('RELEASE_TAG', 'WINDOWS_STORE_IDENTITY_NAME', 'WINDOWS_STORE_PUBLISHER', 'WINDOWS_STORE_PUBLISHER_DISPLAY_NAME')) {
-    if ([string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($key))) { throw "Missing $key" }
+if ($env:RELEASE_TAG -cnotmatch '^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\z') {
+    throw 'Store releases require vMAJOR.MINOR.PATCH tags'
 }
-Get-Command python -ErrorAction Stop | Out-Null
+$stats = $Matches[1], $Matches[2], $Matches[3] | ForEach-Object { [int64]$_ } | Measure-Object -Maximum -Sum
+if ($stats.Maximum -gt 65535 -or $stats.Sum -eq 0) {
+    throw 'Store version components must fit uint16; version must be nonzero'
+}
+$version = "$($env:RELEASE_TAG.Substring(1)).0"
 $sdk = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin" -Directory |
     Where-Object { Test-Path "$($_.FullName)\x64\makeappx.exe" } |
     Sort-Object { [version]$_.Name } -Descending | Select-Object -First 1
@@ -32,8 +36,9 @@ try {
         if (-not (Test-Path "$stage/software/opengl32.dll" -PathType Leaf)) { throw "Missing bundled software OpenGL: $arch; rebuild Windows ZIP" }
         if (-not (Test-Path "$stage/software/DualCommander.exe" -PathType Leaf)) { throw "Missing software renderer executable: $arch" }
         if (-not (Test-Path "$stage/mesa-licenses/LLVM.txt" -PathType Leaf)) { throw "Missing Mesa dependency licenses: $arch" }
-        python scripts/windows-store.py "$stage/AppxManifest.xml" $arch
-        if ($LASTEXITCODE -ne 0) { throw 'Store manifest generation failed' }
+        $manifestArch = if ($arch -eq 'amd64') { 'x64' } else { $arch }
+        (Get-Content -Raw -Encoding utf8 'cmd/dualcommander/AppxManifest.xml').Replace('${version}', $version).Replace('${arch}', $manifestArch) |
+            Set-Content -NoNewline -Encoding utf8NoBOM "$stage/AppxManifest.xml"
         $source = [System.Drawing.Image]::FromFile("$pwd/assets/dualcommander.png")
         try {
             foreach ($asset in @{ StoreLogo = 50; Logo = 150; SmallLogo = 44 }.GetEnumerator()) {

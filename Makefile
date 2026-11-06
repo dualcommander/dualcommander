@@ -1,4 +1,4 @@
-.PHONY: check fmt fmt-check vet test profile-check ci-check build run download-deps install-packager install-snapcraft package-native archive-macos archive-linux archive-windows package-macos package-linux sign-macos verify-windows release-notes publish-release package-snap package-msix package-apple-store publish-apple-store publish-windows-store
+.PHONY: check fmt fmt-check vet test profile-check ci-check build run download-deps install-packager install-snapcraft package-native archive-macos archive-linux archive-windows package-macos package-linux sign-macos verify-windows package-snap package-msix package-apple-store publish-apple-store
 
 WINDOWS_STORE_INPUT ?= dist
 APPLE_STORE_INPUT ?= dist
@@ -41,13 +41,13 @@ run:
 	version=$$(sh scripts/version.sh) && go run -ldflags "-X github.com/dualcommander/dualcommander/internal/commander.buildVersion=$$version" ./cmd/dualcommander
 
 download-deps:
-	sh scripts/retry.sh go mod download
+	go mod download
 
 install-packager:
-	sh scripts/retry.sh go install fyne.io/tools/cmd/fyne@v1.7.4
+	go install fyne.io/tools/cmd/fyne@v1.7.4
 
 install-snapcraft:
-	sh scripts/retry.sh sudo snap install snapcraft --classic
+	sudo snap install snapcraft --classic
 
 package-native:
 	sh scripts/package-native.sh
@@ -76,21 +76,11 @@ sign-macos:
 verify-windows:
 	pwsh -NoProfile -File scripts/verify-windows.ps1
 
-release-notes:
-	mkdir -p dist
-	docker run --rm --network none --user "$$(id -u):$$(id -g)" --entrypoint git-cliff -v "$(CURDIR):/repo:ro" -w /repo orhunp/git-cliff:2.14.2 --offline $(if $(filter v%,$(RELEASE_TAG)),--current,--unreleased) > dist/CHANGELOG.md
-
-publish-release:
-	test -s dist/CHANGELOG.md
-	gh release view "$$RELEASE_TAG" >/dev/null 2>&1 || gh release create "$$RELEASE_TAG" --verify-tag --notes-file dist/CHANGELOG.md
-	gh release edit "$$RELEASE_TAG" --notes-file dist/CHANGELOG.md
-	gh release upload "$$RELEASE_TAG" dist/* --clobber
-
 # Requires Linux, Snapcraft, and the Fyne Linux tarball from the packaging build.
 package-snap:
 	SNAPCRAFT_ARGS="$(SNAPCRAFT_ARGS)" sh scripts/package-snap.sh
 
-# Requires Windows SDK, PowerShell 7, Python, Store identity, and both Windows ZIPs.
+# Requires Windows SDK, PowerShell 7, and both Windows ZIPs.
 package-msix:
 	pwsh -NoProfile -File scripts/package-windows-store.ps1 -InputDirectory "$(WINDOWS_STORE_INPUT)"
 
@@ -99,6 +89,3 @@ package-apple-store:
 
 publish-apple-store:
 	sh scripts/publish-apple-store.sh
-
-publish-windows-store:
-	pwsh -NoProfile -File scripts/publish-windows-store.ps1

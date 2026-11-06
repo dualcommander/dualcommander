@@ -303,11 +303,8 @@ tools; `make check` does not exercise credential-dependent signing or notarizati
 Every successful CI build (branches, pull requests, manual runs, and tags) creates
 Actions artifact `dualcommander-windows-store`, containing `dualcommander.msixbundle`
 for x64/arm64. Tagged GitHub Releases also include this unsigned bundle.
-Packaging needs no Store credentials or publishing approval. Set
-`WINDOWS_STORE_IDENTITY_NAME`, `WINDOWS_STORE_PUBLISHER`, and
-`WINDOWS_STORE_PUBLISHER_DISPLAY_NAME` as **repository Actions variables**, not only
-environment variables, so the packaging job can read them. Fork pull requests may
-lack these variables and cannot package without them.
+Packaging needs no Store credentials, repository variables, or publishing approval,
+so fork pull requests can package too.
 
 Development and prerelease bundles use fixed MSIX version `0.0.1.0`; identify builds
 by workflow run and commit. Uninstall an existing package before testing an older
@@ -316,10 +313,18 @@ use a disposable test VM. Bundles need local test signing before sideloading.
 
 After GitHub Release publication, CI submits one x64/arm64 MSIX bundle for stable
 `vMAJOR.MINOR.PATCH` tags only. Prereleases/build metadata stay GitHub-only.
+Submission uses the secret names from the
+[Microsoft Store GitHub Actions guide](https://learn.microsoft.com/en-us/windows/apps/publish/msstore-dev-cli/github-actions?tabs=msix),
+set in GitHub environment `windows-store`: `AZURE_AD_TENANT_ID`, `SELLER_ID`,
+`AZURE_AD_APPLICATION_CLIENT_ID`, and `AZURE_AD_APPLICATION_SECRET`. Set the
+Partner Center Store ID as variable `WINDOWS_STORE_PRODUCT_ID` there too.
+
 MSIX version is `MAJOR.MINOR.PATCH.0`: components must be at most 65535, version
-nonzero, and each update newer. Package structure lives in
-[`cmd/dualcommander/AppxManifest.xml`](cmd/dualcommander/AppxManifest.xml);
-CI substitutes escaped release version, architecture, and Store identity.
+nonzero, and each update newer. Package structure and Store identity (name,
+publisher, publisher display name) live in
+[`cmd/dualcommander/AppxManifest.xml`](cmd/dualcommander/AppxManifest.xml); they must
+match Partner Center's Product identity. CI substitutes only release version and
+architecture.
 
 Store signs MSIX; SignPath is independent and optional. Actions artifact
 `dualcommander-windows-store` is unsigned, not sideload-ready. Certification and
@@ -379,9 +384,9 @@ Check App Store Connect processing state before rerunning failed uploads.
 With the environment above configured, `make package-apple-store
 APPLE_STORE_INPUT=macos-artifacts` packages existing macOS ZIPs without uploading.
 `make publish-apple-store` validates and uploads that PKG. `make package-msix`
-and `make publish-windows-store` likewise keep Windows packaging and publishing
-separate. `make sign-macos`, `make verify-windows`, and `make publish-release`
-expose the same signing verification and GitHub release steps used by CI.
+packages Windows without publishing; CI submits the bundle with the Microsoft Store
+CLI. `make sign-macos` and `make verify-windows` expose the same signing
+verification steps used by CI.
 Publishing targets perform real uploads; supply credentials through environment
 variables, never Make command-line arguments.
 
