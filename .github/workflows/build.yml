@@ -225,11 +225,14 @@ jobs:
           pattern: dualcommander-darwin-*
           path: macos-artifacts
           merge-multiple: true
+      - name: Import Store signing certificates
+        uses: apple-actions/import-codesign-certs@v7
+        with:
+          p12-file-base64: ${{ secrets.APPLE_STORE_CERTIFICATE_BASE64 }}
+          p12-password: ${{ secrets.APPLE_STORE_CERTIFICATE_PASSWORD }}
       - name: Build signed universal Store package
         env:
           RELEASE_TAG: ${{ github.ref_name }}
-          APPLE_STORE_CERTIFICATE_BASE64: ${{ secrets.APPLE_STORE_CERTIFICATE_BASE64 }}
-          APPLE_STORE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_STORE_CERTIFICATE_PASSWORD }}
           APPLE_STORE_PROFILE_BASE64: ${{ secrets.APPLE_STORE_PROFILE_BASE64 }}
           APPLE_STORE_APPLICATION_IDENTITY: ${{ vars.APPLE_STORE_APPLICATION_IDENTITY }}
           APPLE_STORE_INSTALLER_IDENTITY: ${{ vars.APPLE_STORE_INSTALLER_IDENTITY }}
@@ -241,16 +244,16 @@ jobs:
           name: dualcommander-apple-store
           path: dist/apple-store/*.pkg
           if-no-files-found: error
-      - name: Validate and upload Store build
-        env:
-          APPLE_API_KEY_BASE64: ${{ secrets.APPLE_API_KEY_BASE64 }}
-          APPLE_API_KEY_ID: ${{ vars.APPLE_API_KEY_ID }}
-          APPLE_API_ISSUER_ID: ${{ vars.APPLE_API_ISSUER_ID }}
-          APPLE_STORE_APP_ID: ${{ vars.APPLE_STORE_APP_ID }}
-          APPLE_STORE_PROVIDER_ID: ${{ vars.APPLE_STORE_PROVIDER_ID }}
-          APPLE_STORE_BUNDLE_ID: ${{ vars.APPLE_STORE_BUNDLE_ID }}
-          RELEASE_TAG: ${{ github.ref_name }}
-        run: make publish-apple-store
+      - name: Upload Store build to App Store Connect
+        uses: apple-actions/upload-testflight-build@v5
+        with:
+          app-path: dist/apple-store/dualcommander.pkg
+          app-type: macos
+          backend: altool
+          wait-for-processing: 'false'
+          issuer-id: ${{ vars.APPLE_API_ISSUER_ID }}
+          api-key-id: ${{ vars.APPLE_API_KEY_ID }}
+          api-private-key: ${{ secrets.APPLE_API_PRIVATE_KEY }}
 
   windows-msix:
     if: github.event_name != 'pull_request'

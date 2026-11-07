@@ -1,4 +1,4 @@
-.PHONY: check fmt fmt-check vet test profile-check ci-check build run download-deps install-packager install-snapcraft package-native archive-macos archive-linux archive-windows package-macos package-linux sign-macos verify-windows package-snap package-msix package-apple-store publish-apple-store
+.PHONY: check fmt fmt-check vet test profile-check ci-check build run download-deps install-packager install-snapcraft package-native archive-macos archive-linux archive-windows package-macos package-linux sign-macos verify-windows package-snap package-msix package-apple-store
 
 WINDOWS_STORE_INPUT ?= dist
 APPLE_STORE_INPUT ?= dist
@@ -86,6 +86,3 @@ package-msix:
 
 package-apple-store:
 	sh scripts/package-apple-store.sh "$(APPLE_STORE_INPUT)"
-
-publish-apple-store:
-	sh scripts/publish-apple-store.sh

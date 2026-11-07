@@ -6,8 +6,6 @@ cd "$(dirname "$0")/.."
 : "${RELEASE_TAG:?Missing stable release tag}"
 : "${GITHUB_RUN_NUMBER:?Missing CI build number}"
 : "${GITHUB_RUN_ATTEMPT:?Missing CI run attempt}"
-: "${APPLE_STORE_CERTIFICATE_BASE64:?Missing application and installer PKCS#12 certificates}"
-: "${APPLE_STORE_CERTIFICATE_PASSWORD:?Missing certificate password}"
 : "${APPLE_STORE_PROFILE_BASE64:?Missing Mac App Store distribution profile}"
 : "${APPLE_STORE_APPLICATION_IDENTITY:?Missing Store application signing identity}"
 : "${APPLE_STORE_INSTALLER_IDENTITY:?Missing Store installer signing identity}"
@@ -15,12 +13,7 @@ cd "$(dirname "$0")/.."
 : "${APPLE_STORE_TEAM_ID:?Missing Apple team ID}"
 input=${1:-dist}
 work=$(mktemp -d)
-keychain="$work/store.keychain-db"
-cleanup() {
-    security delete-keychain "$keychain" >/dev/null 2>&1 || true
-    rm -rf "$work"
-}
-trap cleanup EXIT
+trap 'rm -rf "$work"' EXIT
 umask 077
 for arch in amd64 arm64; do
     ditto -x -k "$input/dualcommander-darwin-$arch.zip" "$work/$arch"
@@ -98,19 +91,11 @@ with open(sys.argv[4], 'wb') as target:
     plistlib.dump(entitlements, target)
 PY
 plutil -lint "$plist" "$work/entitlements.plist"
-password=$(openssl rand -hex 32)
-security create-keychain -p "$password" "$keychain"
-security set-keychain-settings -lut 21600 "$keychain"
-security unlock-keychain -p "$password" "$keychain"
-printf '%s' "$APPLE_STORE_CERTIFICATE_BASE64" | base64 --decode > "$work/certificates.p12"
-security import "$work/certificates.p12" -k "$keychain" -P "$APPLE_STORE_CERTIFICATE_PASSWORD" \
-    -T /usr/bin/codesign -T /usr/bin/productbuild
-security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$password" "$keychain"
-codesign --force --sign "$APPLE_STORE_APPLICATION_IDENTITY" --keychain "$keychain" \
+codesign --force --sign "$APPLE_STORE_APPLICATION_IDENTITY" \
     --timestamp --entitlements "$work/entitlements.plist" "$app"
 codesign --verify --strict --verbose=2 "$app"
 mkdir -p dist/apple-store
 productbuild --component "$app" /Applications --sign "$APPLE_STORE_INSTALLER_IDENTITY" \
-    --keychain "$keychain" "$work/dualcommander.pkg"
+    "$work/dualcommander.pkg"
 pkgutil --check-signature "$work/dualcommander.pkg"
 cp "$work/dualcommander.pkg" dist/apple-store/dualcommander.pkg

@@ -361,34 +361,37 @@ Do not bypass sandbox restrictions with broad temporary exception entitlements.
    approval. Keep credentials only in this environment, never repository-wide.
 4. Add environment secrets `APPLE_STORE_CERTIFICATE_BASE64` (PKCS#12),
    `APPLE_STORE_CERTIFICATE_PASSWORD`, `APPLE_STORE_PROFILE_BASE64` (distribution
-   `.provisionprofile`), and `APPLE_API_KEY_BASE64` (App Store Connect `.p8` key
-   authorized to upload builds).
+   `.provisionprofile`), and `APPLE_API_PRIVATE_KEY` (full text of the App Store
+   Connect `.p8` key authorized to upload builds; not base64).
 5. Add environment variables `APPLE_STORE_APPLICATION_IDENTITY` (full Store
    application certificate identity, e.g. `Apple Distribution: … (TEAMID)`),
    `APPLE_STORE_INSTALLER_IDENTITY` (`3rd Party Mac Developer Installer: … (TEAMID)`),
-   `APPLE_STORE_BUNDLE_ID`, `APPLE_STORE_TEAM_ID`, `APPLE_STORE_APP_ID` (numeric app
-   ID), `APPLE_STORE_PROVIDER_ID` (provider public ID from `xcrun altool
-   --list-providers`), `APPLE_API_KEY_ID`, and `APPLE_API_ISSUER_ID`.
+   `APPLE_STORE_BUNDLE_ID`, `APPLE_STORE_TEAM_ID`, `APPLE_API_KEY_ID`, and
+   `APPLE_API_ISSUER_ID`.
 6. Validate sandboxed workflows on macOS and complete App Review requirements.
    Set **repository variable** `APPLE_STORE_ENABLED=true` last; environment-only
    flags cannot gate this job. Push a new stable tag and approve deployment.
 
-CI merges both native macOS ZIP executables into one universal app, checks bundle
-metadata and distribution profile, embeds the profile, signs app and installer,
-then validates and uploads PKG through `altool`. No notarization is used for Store
-distribution. Artifact `dualcommander-apple-store` holds the signed PKG.
-Temporary credentials and keychain are removed on exit. Build number uses
-`GITHUB_RUN_NUMBER.GITHUB_RUN_ATTEMPT` (Apple limits: 9999 runs, 99 attempts).
-Check App Store Connect processing state before rerunning failed uploads.
+CI imports the Store certificates into a temporary keychain with
+`apple-actions/import-codesign-certs`, merges both native macOS ZIP executables into
+one universal app, checks bundle metadata and distribution profile, embeds the
+profile, and signs app and installer. `apple-actions/upload-testflight-build` then
+uploads the PKG through `altool` and does not wait for processing. No notarization
+is used for Store distribution. Artifact `dualcommander-apple-store` holds the
+signed PKG. Both actions receive signing or upload credentials and are referenced
+by version tag, not commit SHA. The certificate action removes its keychain after
+the job. Build number uses `GITHUB_RUN_NUMBER.GITHUB_RUN_ATTEMPT` (Apple limits:
+9999 runs, 99 attempts). Check App Store Connect processing state before rerunning
+failed uploads.
 
-With the environment above configured, `make package-apple-store
-APPLE_STORE_INPUT=macos-artifacts` packages existing macOS ZIPs without uploading.
-`make publish-apple-store` validates and uploads that PKG. `make package-msix`
-packages Windows without publishing; CI submits the bundle with the Microsoft Store
-CLI. `make sign-macos` and `make verify-windows` expose the same signing
-verification steps used by CI.
-Publishing targets perform real uploads; supply credentials through environment
-variables, never Make command-line arguments.
+With the certificates in the default keychain search list and
+`APPLE_STORE_PROFILE_BASE64` plus the identity variables set in the environment,
+`make package-apple-store APPLE_STORE_INPUT=macos-artifacts` packages existing macOS
+ZIPs without uploading. `make package-msix` packages Windows without publishing; CI
+submits the bundle with the Microsoft Store CLI. `make sign-macos` and
+`make verify-windows` expose the same signing verification steps used by CI.
+Supply credentials through environment variables, never Make command-line
+arguments.
 
 Upload does **not** submit for App Review or automatically release the app.
 Select the processed build and submit/release in App Store Connect, including
