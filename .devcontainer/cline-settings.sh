@@ -29,13 +29,7 @@ for file in "$@"; do
   if test -f "$source_dir/$file"; then
     install -m 600 "$source_dir/$file" "$target/$file"
     if test "$target" = "$data"; then
-      python3 - "$target/$file" <<'PY'
-import pathlib
-import sys
-
-path = pathlib.Path(sys.argv[1])
-path.write_text(path.read_text().replace("localhost", "host.docker.internal"))
-PY
+      sed -i 's/localhost/host.docker.internal/g' "$target/$file"
     fi
   fi
 done

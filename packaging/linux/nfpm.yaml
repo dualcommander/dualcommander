@@ -1,0 +1,58 @@
+# nFPM builds the DEB and RPM from this file; scripts/package-linux.sh sets the env values.
+name: dualcommander
+arch: ${ARCH}
+version: ${VERSION}
+release: 1
+maintainer: DualCommander maintainers <dualcommander@users.noreply.github.com>
+description: Two-pane desktop file manager built with Go and Fyne
+homepage: https://dualcommander.github.io/
+license: MIT
+section: utils
+priority: optional
+
+contents:
+  - src: ${SOURCE}/bin/dualcommander
+    dst: /usr/bin/dualcommander
+    expand: true
+    file_info:
+      mode: 0755
+  - src: ${SOURCE}/share/pixmaps/io.github.typekpb.gommander.png
+    dst: /usr/share/pixmaps/io.github.typekpb.gommander.png
+    expand: true
+    file_info:
+      mode: 0644
+  - src: packaging/linux/io.github.typekpb.gommander.desktop
+    dst: /usr/share/applications/io.github.typekpb.gommander.desktop
+    file_info:
+      mode: 0644
+  - src: LICENSE
+    dst: /usr/share/licenses/dualcommander/LICENSE
+    type: license
+    file_info:
+      mode: 0644
+
+overrides:
+  deb:
+    depends:
+      - libc6 (>= ${GLIBC_VERSION})
+      - libgl1
+      - libx11-6
+      - libxrandr2
+      - libxxf86vm1
+      - libxi6
+      - libxcursor1
+      - libxinerama1
+      - libwayland-client0
+      - libwayland-cursor0
+      - libwayland-egl1
+      - libxkbcommon0
+      - libglib2.0-bin
+      - xdg-utils
+  rpm:
+    depends:
+      - glibc >= ${GLIBC_VERSION}
+      - glib2
+      - xdg-utils
+
+rpm:
+  summary: Two-pane desktop file manager built with Go and Fyne
