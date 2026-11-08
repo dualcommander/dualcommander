@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"slices"
@@ -452,35 +451,24 @@ func TestSearchCmd(t *testing.T) {
 	}
 }
 
-// Runs the real native tool(s) present on this machine.
-func TestRunSearchNative(t *testing.T) {
-	root := fixture(t)
-	checkResult := func(got []string, want string) {
-		t.Helper()
-		if len(got) != 1 {
-			t.Fatalf("got %q, want one result for %q", got, want)
-		}
-		actual, err := os.Stat(got[0])
-		if err != nil {
-			t.Fatal(err)
-		}
-		expected, err := os.Stat(want)
-		if err != nil {
-			t.Fatal(err)
-		}
-		// Native Windows tools may expand short paths or change their casing.
-		if !os.SameFile(actual, expected) {
-			t.Errorf("got %q, want same file as %q", got[0], want)
-		}
+// runSearch streams stdout of a fixed command; no real search tool or disk traversal.
+func TestRunSearchStreamsFakeTool(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("fake tool uses a POSIX shell script")
 	}
-	_, rgErr := exec.LookPath("rg")
-	for _, rg := range []bool{false, rgErr == nil} {
-		var got []string
-		runSearch(context.Background(), searchCmd(runtime.GOOS, rg, root, "HELLO", ""), func(b []string) { got = append(got, b...) })
-		checkResult(got, filepath.Join(root, "src", "readme.md"))
-		got = nil
-		runSearch(context.Background(), searchCmd(runtime.GOOS, rg, root, "", "*.PNG"), func(b []string) { got = append(got, b...) })
-		checkResult(got, filepath.Join(root, "src", "photos", "a.png"))
+	bin := t.TempDir()
+	script := filepath.Join(bin, "fakesearch")
+	if err := os.WriteFile(script, []byte("#!/bin/sh\necho one\necho two\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	var got []string
+	if err := runSearch(ctx, []string{script}, func(b []string) { got = append(got, b...) }); err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(got, []string{"one", "two"}) {
+		t.Fatalf("got %q", got)
 	}
 }
 
