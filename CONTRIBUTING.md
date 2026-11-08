@@ -199,7 +199,7 @@ packaging tools. From `/workspaces/project`, use `make test`, `make check`,
 or `make build`. For native Linux packages:
 
 ```sh
-make download-deps install-packager
+make download-deps install-packager install-nfpm
 make package-native archive-linux package-linux
 ```
 
@@ -413,3 +413,14 @@ dualcommander
 ```
 
 For arm64, use `dualcommander-linux-arm64.snap` instead.
+
+## Arch Linux installation
+
+Download `dualcommander-linux-amd64.pkg.tar.zst` (or `-arm64`) from
+[GitHub Releases](https://github.com/dualcommander/dualcommander/releases).
+The package is unsigned and not in the official repositories or AUR; install
+only trusted downloads. It needs manual updates.
+
+```sh
+sudo pacman -U ./dualcommander-linux-amd64.pkg.tar.zst
+```

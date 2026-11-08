@@ -25,6 +25,6 @@ prefix="$tmp/source/usr/local"
 [ -d "$prefix" ] || prefix="$tmp/source/usr"
 desktop-file-validate packaging/linux/io.github.typekpb.gommander.desktop
 export ARCH="$arch" VERSION="$native_version" RELEASE="$release" GLIBC_VERSION="$glibc_version" SOURCE="$prefix"
-for format in deb rpm; do
-    nfpm package --config packaging/linux/nfpm.yaml --packager "$format" --target "dist/dualcommander-linux-$arch.$format"
+for spec in deb:deb rpm:rpm archlinux:pkg.tar.zst; do
+    nfpm package --config packaging/linux/nfpm.yaml --packager "${spec%%:*}" --target "dist/dualcommander-linux-$arch.${spec#*:}"
 done

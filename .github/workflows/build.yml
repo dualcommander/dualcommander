@@ -134,7 +134,7 @@ jobs:
       - name: Install nFPM
         if: runner.os == 'Linux'
         run: make install-nfpm
-      - name: Build DEB and RPM packages
+      - name: Build DEB, RPM, and Arch Linux packages
         if: runner.os == 'Linux'
         run: make package-linux
       - name: Install Snapcraft

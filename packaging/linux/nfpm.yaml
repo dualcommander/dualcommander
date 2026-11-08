@@ -1,4 +1,4 @@
-# nFPM builds the DEB and RPM from this file; scripts/package-linux.sh sets the env values.
+# nFPM builds the DEB, RPM, and Arch Linux package from this file; scripts/package-linux.sh sets the env values.
 name: dualcommander
 arch: ${ARCH}
 version: ${VERSION}
@@ -27,7 +27,18 @@ contents:
       mode: 0644
   - src: LICENSE
     dst: /usr/share/licenses/dualcommander/LICENSE
+    packager: deb
+    file_info:
+      mode: 0644
+  - src: LICENSE
+    dst: /usr/share/licenses/dualcommander/LICENSE
     type: license
+    packager: rpm
+    file_info:
+      mode: 0644
+  - src: LICENSE
+    dst: /usr/share/licenses/dualcommander/LICENSE
+    packager: archlinux
     file_info:
       mode: 0644
 
@@ -51,6 +62,20 @@ overrides:
   rpm:
     depends:
       - glibc >= ${GLIBC_VERSION}
+      - glib2
+      - xdg-utils
+  archlinux:
+    depends:
+      - glibc>=${GLIBC_VERSION}
+      - libgl
+      - libx11
+      - libxrandr
+      - libxxf86vm
+      - libxi
+      - libxcursor
+      - libxinerama
+      - wayland
+      - libxkbcommon
       - glib2
       - xdg-utils
 
