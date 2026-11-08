@@ -2,8 +2,8 @@
 
 WINDOWS_STORE_INPUT ?= dist
 APPLE_STORE_INPUT ?= dist
-# Headless Fyne race tests can exceed Go's 10-minute default on CI runners.
-TEST_TIMEOUT ?= 15m
+# Headless Fyne race tests can exceed 15 minutes on macOS CI runners.
+TEST_TIMEOUT ?= 30m
 
 check: fmt-check vet test
 

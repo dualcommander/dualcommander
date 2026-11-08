@@ -13,7 +13,7 @@ $work = Join-Path ([System.IO.Path]::GetTempPath()) ([guid]::NewGuid().ToString(
 New-Item -ItemType Directory "$work/stage/software" -Force | Out-Null
 try {
     $url = "https://github.com/mmozeiko/build-mesa/releases/download/$($runtime.version)/mesa-llvmpipe-$($runtime.assetArchitecture)-$($runtime.version).7z"
-    Invoke-WebRequest $url -OutFile "$work/mesa.7z"
+    Invoke-WebRequest $url -OutFile "$work/mesa.7z" -MaximumRetryCount 5 -RetryIntervalSec 20
     if ((Get-FileHash "$work/mesa.7z" -Algorithm SHA256).Hash -ne $runtime.sha256) {
         throw 'Mesa archive checksum mismatch'
     }

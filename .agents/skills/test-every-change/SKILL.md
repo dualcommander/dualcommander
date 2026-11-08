@@ -50,8 +50,9 @@ waitJobs(t, u)                                       // drain background jobs
 - Background work must post UI updates via `u.jobs.do`, never touch widgets from goroutines (`-race` catches it).
 - Restart/persistence: call `u.save()`, then `newUI(a)` on the same app.
 
-## UI assertions without images
-- Tests must not depend on images: no golden images, screenshot/pixel comparisons, or `test.AssertRendersToImage`. Rendering varies across operating systems, fonts, and drivers.
+## No visual checks in tests
+- No visual checks in tests: no screenshots, canvas captures (`Canvas().Capture()`), pixel inspection, image/golden comparisons, rendered-image assertions (`test.AssertRendersToImage`), or image baseline generation. Rendering varies across operating systems, fonts, and drivers.
+- Do not use tests as screenshot generators, including skipped, manual, environment-gated, or opt-in test paths. Documentation image capture belongs outside the test suite; visual appearance checks are manual only.
 - Assert widget structure, labels, accessible controls, theme values, layout invariants, focus, and behavior through headless tests instead.
 - Replace existing image comparisons with meaningful structural and workflow assertions; preserve coverage rather than skipping failing cases.
 - Check visual appearance manually when needed. Never generate or update image baselines.

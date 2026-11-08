@@ -10,7 +10,7 @@ before starting work. Resolve paths below from the repository root.
 - Any script, Makefile, packaging, signing, publishing, or workflow change that creates files: follow skill `static-files-over-generation`.
 - Every code change in this repo: follow skill `test-every-change` and run `make check` until it passes before finishing. Report its result in the final summary.
 - After every change task: follow skill `semantic-commit-message` and include suggested Conventional Commit message(s) based on the diff against the latest pushed branch state.
-- Tests must not depend on images or golden/screenshot comparisons. Assert UI structure, state, and behavior instead; image rendering is fragile and OS-dependent.
+- No visual checks or screenshot generation in tests, including manual or opt-in paths. No canvas captures, pixel inspection, or image/golden comparisons. Assert UI structure, state, and behavior instead; check visual appearance manually outside tests.
 - Do not add `ponytail:` markers or speculative TODO comments. Comments should explain current behavior or constraints, not unrequested future work.
 
 ## Skills
