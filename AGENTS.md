@@ -8,7 +8,7 @@ before starting work. Resolve paths below from the repository root.
 - Any modal dialog or dialog-driven workflow: follow skill `native-modal-dialogs`.
 - Any change affecting privacy disclosures: follow skill `privacy-policy` and update `PRIVACY.md` when behavior changes.
 - Any script, Makefile, packaging, signing, publishing, or workflow change that creates files: follow skill `static-files-over-generation`.
-- Every code change in this repo: follow skill `test-every-change` and run `sh scripts/check.sh` until it passes before finishing. Report its result in the final summary.
+- Every code change in this repo: follow skill `test-every-change` and run `make check` until it passes before finishing. Report its result in the final summary.
 - After every change task: follow skill `semantic-commit-message` and include suggested Conventional Commit message(s) based on the diff against the latest pushed branch state.
 - Tests must not depend on images or golden/screenshot comparisons. Assert UI structure, state, and behavior instead; image rendering is fragile and OS-dependent.
 - Do not add `ponytail:` markers or speculative TODO comments. Comments should explain current behavior or constraints, not unrequested future work.

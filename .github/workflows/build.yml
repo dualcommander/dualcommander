@@ -131,6 +131,9 @@ jobs:
       - name: Archive Linux package
         if: runner.os == 'Linux'
         run: make archive-linux
+      - name: Install nFPM
+        if: runner.os == 'Linux'
+        run: make install-nfpm
       - name: Build DEB and RPM packages
         if: runner.os == 'Linux'
         run: make package-linux

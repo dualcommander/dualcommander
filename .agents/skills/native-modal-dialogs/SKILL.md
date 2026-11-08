@@ -30,5 +30,5 @@ Always also follow `dualcommander-guidelines` and `test-every-change`.
 - Test native window close and Cancel independently. Assert no confirmation callback, follow-up prompt, file creation, or workflow continuation occurs.
 - For active or input-waiting jobs, assert cancellation reaches the worker, waiters exit, and owned partial output is cleaned up.
 - Assert parent actions are blocked while open and input/focus are restored after closing. Keep a successful-confirmation test too.
-- Run `sh scripts/check.sh` until it passes after code changes.
+- Run `make check` until it passes after code changes.
 - Headless tests cannot prove OS decorations. Report manual checks for native close controls and Escape behavior on macOS, Windows, and Linux; do not claim unperformed checks passed.

@@ -196,7 +196,7 @@ See [development guidelines](.agents/skills/dualcommander-guidelines/SKILL.md).
 Run **Dev Containers: Rebuild and Reopen in Container**. The container includes
 Go, Make, Python, a C compiler, Fyne development libraries, and Linux DEB/RPM
 packaging tools. From `/workspaces/project`, use `make test`, `make check`,
-`sh scripts/check.sh`, or `make build`. For native Linux packages:
+or `make build`. For native Linux packages:
 
 ```sh
 make download-deps install-packager

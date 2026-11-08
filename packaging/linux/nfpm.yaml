@@ -2,7 +2,7 @@
 name: dualcommander
 arch: ${ARCH}
 version: ${VERSION}
-release: 1
+release: ${RELEASE}
 maintainer: DualCommander maintainers <dualcommander@users.noreply.github.com>
 description: Two-pane desktop file manager built with Go and Fyne
 homepage: https://dualcommander.github.io/
