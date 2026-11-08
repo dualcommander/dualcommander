@@ -313,8 +313,6 @@ use a disposable test VM. Bundles need local test signing before sideloading.
 
 After GitHub Release publication, CI submits one x64/arm64 MSIX bundle for stable
 `vMAJOR.MINOR.PATCH` tags only. Prereleases/build metadata stay GitHub-only.
-Before submitting, CI runs `msstore info`, `apps list -v`, and `apps get -v` as
-diagnostics; that step does not fail the job.
 Submission uses the secret names from the
 [Microsoft Store GitHub Actions guide](https://learn.microsoft.com/en-us/windows/apps/publish/msstore-dev-cli/github-actions?tabs=msix),
 set in GitHub environment `windows-store`: `AZURE_AD_TENANT_ID`, `SELLER_ID`,
