@@ -509,6 +509,32 @@ func TestSettingsCommandArrayValidation(t *testing.T) {
 	}
 }
 
+// The Settings window is capped at 700px and scrolls the rest, so every field stays reachable.
+func TestSettingsWindowCapsHeightAndScrolls(t *testing.T) {
+	root := fixture(t)
+	a := test.NewTempApp(t)
+	u := newTestUI(t, a, filepath.Join(root, "src"), filepath.Join(root, "dst"))
+	u.settings()
+	w := windowByTitle(t, a, "Settings")
+	scroll, ok := w.Content().(*fyne.Container).Objects[0].(*container.Scroll)
+	if !ok {
+		t.Fatal("settings content is not scrollable")
+	}
+	entries := 0
+	for _, o := range test.LaidOutObjects(scroll.Content) {
+		if _, ok := o.(*escEntry); ok {
+			entries++
+		}
+	}
+	if entries != 5 {
+		t.Fatalf("external application fields: %d", entries)
+	}
+	want := min(float32(700), scroll.Content.MinSize().Height)
+	if got := w.Canvas().Size().Height; got != want {
+		t.Fatalf("settings height %v, want %v (content %v)", got, want, scroll.Content.MinSize().Height)
+	}
+}
+
 func TestExternalCommandsSettings(t *testing.T) {
 	root := fixture(t)
 	a := test.NewTempApp(t)

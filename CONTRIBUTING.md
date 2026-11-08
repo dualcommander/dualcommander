@@ -39,15 +39,15 @@ winget install --exact --id Microsoft.PowerShell
 winget install --exact --id 7zip.7zip --source winget
 ```
 
-Open **MSYS2 MINGW64**, then:
+Open **MSYS2 UCRT64**, then:
 
 ```sh
-pacman -Syu  # reopen MINGW64 and repeat if prompted
-pacman -S --needed make git python mingw-w64-x86_64-gcc
+pacman -Syu  # reopen UCRT64 and repeat if prompted
+pacman -S --needed make git python mingw-w64-ucrt-x86_64-gcc
 export PATH="/c/Program Files/Go/bin:/c/Program Files/PowerShell/7:$PATH"
 ```
 
-Run project commands in MINGW64. For local/unreleased testing without signing:
+Run project commands in UCRT64. For local/unreleased testing without signing:
 
 ```sh
 make install-packager

@@ -134,6 +134,16 @@ func newTestUI(t *testing.T, a fyne.App, left, right string) *ui {
 	return u
 }
 
+// restartUI closes old before starting a new UI on the same preferences, like a real relaunch.
+// Windows left open make every later theme change refresh all of them.
+func restartUI(t *testing.T, a fyne.App, old *ui) *ui {
+	t.Helper()
+	old.closePanes()
+	old.win.SetCloseIntercept(nil)
+	old.win.Close()
+	return newTrackedUI(t, a)
+}
+
 func newTrackedUI(t *testing.T, a fyne.App) *ui {
 	t.Helper()
 	u := newUI(a)
