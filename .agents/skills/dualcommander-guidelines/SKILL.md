@@ -64,6 +64,7 @@ For any modal dialog or dialog-driven workflow, also follow skill `native-modal-
 - Tests: open/close/switch tabs by key, restore after restart (save, then `newUI` on the same app), missing-path fallback, and tab labels/active state. No image comparisons.
 
 ## General
+- Never compromise a proper implementation to avoid touching translations. Adding, changing, or removing a UI string is fine: in the same change, update `internal/commander/translations/en.json` and every other `translations/*.json` in place (same key, same placeholders, translated text; delete keys no longer used). Do not keep a static label just because it is already translated.
 - DualCommander does one thing well: file management, not a Swiss army knife. Keep features and menus focused on browsing and managing files; delegate unrelated tasks to external apps.
 - Do not expose generic OS service catalogs such as macOS Services. Remove framework-injected Services menus through native integration, without replacing native menus or removing essential About, Settings, Hide, and Quit actions. Match native menu identity, not localized titles, and test removal plus preservation of unrelated items.
 - Feel native: native menus, OS shortcut modifier (`KeyModifierShortcutDefault`), the OS's own app to reveal/open files.

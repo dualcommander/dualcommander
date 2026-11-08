@@ -69,9 +69,10 @@ func TestFindFileNameWorkflow(t *testing.T) {
 		t.Fatal("selection navigated before confirmation")
 	}
 	test.Tap(f.regexp)
+	started := f.ctx
 	f.glob.SetText("[")
 	f.glob.TypedKey(&fyne.KeyEvent{Name: fyne.KeyReturn})
-	if f.status.Text == "Searching…" {
+	if f.ctx != started || f.activity.Visible() {
 		t.Fatal("invalid regex started worker")
 	}
 	f.glob.SetText(`^a\.png$`)
@@ -84,6 +85,37 @@ func TestFindFileNameWorkflow(t *testing.T) {
 	tapDialogButton(t, u, "Go to")
 	if u.left.path != filepath.Join(root, "src", "photos") || u.left.current().name != "a.png" || u.passwordWindow != nil || u.win.Canvas().Overlays().Top() != nil {
 		t.Fatal("navigation or parent restoration failed")
+	}
+}
+
+func TestFindStatusShowsSearchedFolder(t *testing.T) {
+	root := fixture(t)
+	long := filepath.Join(root, strings.Repeat("d", 150))
+	if err := os.MkdirAll(filepath.Join(long, "sub"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	u := newTestUI(t, test.NewTempApp(t), root, root)
+	f := u.search()
+	defer f.win.Close()
+	f.dir.SetText(long)
+	f.glob.SetText("absent")
+	f.glob.TypedKey(&fyne.KeyEvent{Name: fyne.KeyReturn})
+	var shown bool
+	var width float32
+	waitUntil(t, func() bool {
+		if strings.Contains(f.status.Text, long) {
+			shown, width = true, f.status.MinSize().Width
+		}
+		return f.done
+	})
+	if !shown {
+		t.Fatal("running search must show the folder being searched")
+	}
+	if width > 300 {
+		t.Fatalf("long folder widened the dialog: status min width %v", width)
+	}
+	if strings.Contains(f.status.Text, long) || f.status.Truncation != fyne.TextTruncateOff {
+		t.Fatalf("finished status must replace folder and not clip: %q", f.status.Text)
 	}
 }
 

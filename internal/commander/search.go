@@ -290,7 +290,15 @@ func (u *ui) search() *finder {
 		content := f.text.Text != "" && !includeArchives
 		finished := make(chan struct{})
 		f.workerDone = finished
-		f.status.SetText(lang.L("Searching…"))
+		// Long paths must not widen the dialog; final counts and errors are not clipped.
+		f.status.Truncation = fyne.TextTruncateEllipsis
+		searching := lang.L("Searching: %s")
+		f.status.SetText(fmt.Sprintf(searching, root))
+		showDir := latestUpdate(post, func(dir string) {
+			if ctx.Err() == nil && !f.done {
+				f.status.SetText(fmt.Sprintf(searching, dir))
+			}
+		})
 		// recursive search has no known total; avoid a second traversal just for percentages.
 		f.activity.Show()
 		f.activity.Start()
@@ -318,6 +326,9 @@ func (u *ui) search() *finder {
 					if err != nil {
 						return err
 					}
+					if d.IsDir() {
+						showDir(path)
+					}
 					if path != root && match(d.Name()) {
 						results = append(results, path)
 					}
@@ -343,6 +354,7 @@ func (u *ui) search() *finder {
 				f.done = true
 				f.activity.Stop()
 				f.activity.Hide()
+				f.status.Truncation = fyne.TextTruncateOff
 				f.status.SetText(fmt.Sprintf(lang.L("%d found"), len(f.results)))
 				if err != nil {
 					f.status.SetText(fmt.Sprintf(lang.L("%d found; search incomplete: %v"), len(f.results), err))
