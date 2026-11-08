@@ -1,4 +1,4 @@
-.PHONY: check fmt fmt-check vet test profile-check ci-check build run download-deps install-packager install-snapcraft package-native archive-macos archive-linux archive-windows package-macos package-linux sign-macos verify-windows package-snap package-msix package-apple-store
+.PHONY: check fmt fmt-check vet test profile-check ci-check build run download-deps install-packager install-nfpm install-snapcraft package-native archive-macos archive-linux archive-windows package-macos package-linux sign-macos verify-windows package-snap package-msix package-apple-store
 
 WINDOWS_STORE_INPUT ?= dist
 APPLE_STORE_INPUT ?= dist
@@ -45,6 +45,9 @@ download-deps:
 
 install-packager:
 	go install fyne.io/tools/cmd/fyne@v1.7.4
+
+install-nfpm:
+	go install github.com/goreleaser/nfpm/v2/cmd/nfpm@v2.48.0
 
 install-snapcraft:
 	sudo snap install snapcraft --classic

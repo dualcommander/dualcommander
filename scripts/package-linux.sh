@@ -4,8 +4,7 @@ cd "$(dirname "$0")/.."
 [ "$(go env GOOS)" = linux ] || { echo 'Run packaging on Linux with native build tools.' >&2; exit 1; }
 arch=$(go env GOARCH)
 case "$arch" in
-    amd64) rpm_arch=x86_64 ;;
-    arm64) rpm_arch=aarch64 ;;
+    amd64|arm64) ;;
     *) echo "Unsupported package architecture: $arch" >&2; exit 1 ;;
 esac
 version=$(sh scripts/version.sh)
@@ -21,22 +20,11 @@ esac
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 mkdir -p "$tmp/source" dist
-cp -R packaging/linux/root "$tmp/root"
 tar -xJf cmd/dualcommander/DualCommander.tar.xz -C "$tmp/source" --strip-components=1
 prefix="$tmp/source/usr/local"
 [ -d "$prefix" ] || prefix="$tmp/source/usr"
-install -D -m 755 "$prefix/bin/dualcommander" "$tmp/root/usr/bin/dualcommander"
-install -D -m 644 "$prefix/share/pixmaps/io.github.typekpb.gommander.png" \
-    "$tmp/root/usr/share/pixmaps/io.github.typekpb.gommander.png"
-install -D -m 644 LICENSE "$tmp/root/usr/share/licenses/dualcommander/LICENSE"
-sed -e "s/@VERSION@/$native_version/g" -e "s/@RELEASE@/$release/g" \
-    -e "s/@ARCH@/$arch/g" -e "s/@GLIBC_VERSION@/$glibc_version/g" \
-    packaging/linux/root/DEBIAN/control > "$tmp/root/DEBIAN/control"
-desktop-file-validate "$tmp/root/usr/share/applications/io.github.typekpb.gommander.desktop"
-dpkg-deb --root-owner-group --build "$tmp/root" "dist/dualcommander-linux-$arch.deb"
-rm -r "$tmp/root/DEBIAN"
-rpmbuild --define "_topdir $tmp/rpm" --define "package_version $native_version" \
-    --define "package_release $release" --define "package_arch $rpm_arch" \
-    --define "glibc_version $glibc_version" --define "payload_root $tmp/root" \
-    --target "$rpm_arch" -bb packaging/linux/dualcommander.spec
-cp "$tmp/rpm/RPMS/$rpm_arch/dualcommander-$native_version-$release.$rpm_arch.rpm" "dist/dualcommander-linux-$arch.rpm"
+desktop-file-validate packaging/linux/io.github.typekpb.gommander.desktop
+export ARCH="$arch" VERSION="$native_version" RELEASE="$release" GLIBC_VERSION="$glibc_version" SOURCE="$prefix"
+for format in deb rpm; do
+    nfpm package --config packaging/linux/nfpm.yaml --packager "$format" --target "dist/dualcommander-linux-$arch.$format"
+done
