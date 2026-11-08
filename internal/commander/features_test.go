@@ -118,6 +118,36 @@ func TestSortByDateSizeName(t *testing.T) {
 	}
 }
 
+func TestSortNonLetterPrefixes(t *testing.T) {
+	ordered := []string{"!z", ".z", "9z", "_z", "~z", "☆z", "alpha", "Beta", "Éclair", "中"}
+	for _, by := range sortKeys {
+		for _, desc := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%s/desc=%v", by, desc), func(t *testing.T) {
+				var entries []entry
+				for _, dir := range []bool{false, true} {
+					for _, name := range []string{"中", "Beta", "~z", "alpha", "☆z", "_z", "Éclair", ".z", "9z", "!z"} {
+						entries = append(entries, entry{name: name, dir: dir})
+					}
+				}
+				entries = append(entries, entry{name: "..", dir: true})
+				sortEntries(entries, by, desc)
+				want := slices.Clone(ordered)
+				if desc {
+					slices.Reverse(want)
+				}
+				if entries[0].name != ".." {
+					t.Fatal("parent directory must stay first")
+				}
+				for i, e := range entries[1:] {
+					if e.name != want[i%len(want)] || e.dir != (i < len(want)) {
+						t.Errorf("entry %d = %q (dir=%v), want %q (dir=%v)", i+1, e.name, e.dir, want[i%len(want)], i < len(want))
+					}
+				}
+			})
+		}
+	}
+}
+
 func TestBriefSortHeader(t *testing.T) {
 	root := fixture(t)
 	u := newTestUI(t, test.NewTempApp(t), filepath.Join(root, "src"), root)

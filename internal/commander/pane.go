@@ -14,6 +14,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
@@ -278,6 +280,11 @@ func sortEntries(es []entry, by string, desc bool) {
 			return a.mod.Before(b.mod)
 		case by == "size" && !a.dir && a.size != b.size:
 			return a.size < b.size
+		}
+		ar, _ := utf8.DecodeRuneInString(a.name)
+		br, _ := utf8.DecodeRuneInString(b.name)
+		if unicode.IsLetter(ar) != unicode.IsLetter(br) {
+			return !unicode.IsLetter(ar)
 		}
 		return strings.ToLower(a.name) < strings.ToLower(b.name)
 	})
