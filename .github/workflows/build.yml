@@ -311,8 +311,17 @@ jobs:
           AZURE_AD_APPLICATION_CLIENT_ID: ${{ secrets.AZURE_AD_APPLICATION_CLIENT_ID }}
           AZURE_AD_APPLICATION_SECRET: ${{ secrets.AZURE_AD_APPLICATION_SECRET }}
         run: msstore reconfigure --tenantId $env:AZURE_AD_TENANT_ID --sellerId $env:SELLER_ID --clientId $env:AZURE_AD_APPLICATION_CLIENT_ID --clientSecret $env:AZURE_AD_APPLICATION_SECRET
+      - name: Diagnose Store access
+        continue-on-error: true
+        shell: pwsh
+        env:
+          WINDOWS_STORE_PRODUCT_ID: ${{ vars.WINDOWS_STORE_PRODUCT_ID }}
+        run: |
+          msstore info
+          msstore apps list -v
+          msstore apps get $env:WINDOWS_STORE_PRODUCT_ID -v
       - name: Publish Store submission
         shell: pwsh
         env:
           WINDOWS_STORE_PRODUCT_ID: ${{ vars.WINDOWS_STORE_PRODUCT_ID }}
-        run: msstore publish dist/windows-store/dualcommander.msixbundle --appId $env:WINDOWS_STORE_PRODUCT_ID
+        run: msstore publish dist/windows-store/dualcommander.msixbundle --appId $env:WINDOWS_STORE_PRODUCT_ID -v
