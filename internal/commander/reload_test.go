@@ -8,8 +8,56 @@ import (
 	"slices"
 	"testing"
 
+	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/test"
 )
+
+type refreshTrackingCanvas struct {
+	fyne.Canvas
+	refreshed []fyne.CanvasObject
+}
+
+func (c *refreshTrackingCanvas) Refresh(o fyne.CanvasObject) {
+	c.refreshed = append(c.refreshed, o)
+	c.Canvas.Refresh(o)
+}
+
+type refreshTrackingWindow struct {
+	fyne.Window
+	canvas *refreshTrackingCanvas
+}
+
+func (w *refreshTrackingWindow) Canvas() fyne.Canvas { return w.canvas }
+
+func TestForegroundRepaintsWithoutNavigation(t *testing.T) {
+	for _, brief := range []bool{false, true} {
+		t.Run(fmt.Sprint("brief=", brief), func(t *testing.T) {
+			root := fixture(t)
+			a := test.NewTempApp(t)
+			u := newTestUI(t, a, filepath.Join(root, "src"), filepath.Join(root, "dst"))
+			u.left.setBrief(brief)
+			cursorTo(t, u.left, "readme.md")
+			u.left.marked["readme.md"] = true
+			generation := u.left.iconGeneration
+			focus := u.win.Canvas().Focused()
+			c := &refreshTrackingCanvas{Canvas: u.win.Canvas()}
+			u.win = &refreshTrackingWindow{Window: u.win, canvas: c}
+			foreground := a.Lifecycle().(interface{ OnEnteredForeground() func() }).OnEnteredForeground()
+			if foreground == nil {
+				t.Fatal("foreground return has no repaint handler")
+			}
+			foreground()
+			if len(c.refreshed) != 0 {
+				t.Fatal("foreground repaint must be queued on UI dispatcher")
+			}
+			waitUntil(t, func() bool { return slices.Contains(c.refreshed, u.win.Content()) })
+			if u.left.current().name != "readme.md" || !u.left.marked["readme.md"] ||
+				u.left.iconGeneration != generation || u.win.Canvas().Focused() != focus {
+				t.Fatal("foreground repaint changed navigation, marks, listing, or focus")
+			}
+		})
+	}
+}
 
 func TestTestUICleanupClosesEveryInstance(t *testing.T) {
 	root := fixture(t)

@@ -135,6 +135,10 @@ func newUI(a fyne.App) *ui {
 		func(fyne.Shortcut) { u.newFile() })
 	u.ready = true
 	u.activate(u.active)
+	// Native permission prompts can leave macOS content stale until the next input.
+	a.Lifecycle().SetOnEnteredForeground(func() {
+		post(func() { u.win.Canvas().Refresh(u.win.Content()) })
+	})
 	return u
 }
 
