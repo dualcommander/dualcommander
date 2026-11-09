@@ -1,4 +1,4 @@
-.PHONY: check fmt fmt-check vet test profile-check ci-check build run download-deps install-packager install-nfpm install-snapcraft package-native archive-macos archive-linux archive-windows package-macos package-linux sign-macos verify-windows package-snap package-msix package-apple-store
+.PHONY: check fmt fmt-check vet test ci-check build run download-deps install-packager install-nfpm install-snapcraft package-native archive-macos archive-linux archive-windows package-macos package-linux sign-macos verify-windows package-snap package-msix package-apple-store
 
 WINDOWS_STORE_INPUT ?= dist
 APPLE_STORE_INPUT ?= dist
@@ -16,10 +16,6 @@ fmt-check:
 
 vet:
 	go vet ./...
-
-profile-check:
-	sh -n .devcontainer/cline-settings.sh
-	python3 -m json.tool .devcontainer/devcontainer.json >/dev/null
 
 test:
 	go test -race -timeout=$(TEST_TIMEOUT) -count=1 ./...

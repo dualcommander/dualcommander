@@ -183,8 +183,6 @@ make check     # check formatting, vet, and uncached race tests
 
 Use `make fmt-check`, `make vet`, or `make test` for individual checks.
 These commands work on the host; Dev Containers are optional.
-`make profile-check` separately validates Dev Container configuration syntax;
-it does not require Docker or a running container.
 On Linux, `make package-snap` packages the existing
 `cmd/dualcommander/DualCommander.tar.xz` using Snapcraft (classic confinement).
 CI builds it natively on amd64 and arm64; `.snap` files ship with other release assets.
