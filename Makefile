@@ -2,8 +2,8 @@
 
 WINDOWS_STORE_INPUT ?= dist
 APPLE_STORE_INPUT ?= dist
-# Headless Fyne race tests take about 3 minutes locally; leave headroom for slower CI runners.
-TEST_TIMEOUT ?= 10m
+# Headless Fyne race tests take about 3 minutes locally but up to 14 minutes on macOS Intel CI runners.
+TEST_TIMEOUT ?= 20m
 
 check: fmt-check vet test
 
