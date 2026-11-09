@@ -17,5 +17,3 @@
 /dist/
 /cmd/*/*.app/
 /cmd/dualcommander/DualCommander.tar.xz
-
-.idea/
