@@ -9,7 +9,6 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"runtime"
 	"slices"
 	"sort"
 	"strings"
@@ -234,7 +233,6 @@ func (p *pane) cdHistory(dir, selectName string, historyIndex int) error {
 	if !same {
 		p.watch()
 	}
-	p.watchFiles()
 	p.pathBar.SetText(dir)
 	p.updateFavourite()
 	p.updateSpace()
@@ -380,29 +378,6 @@ func (p *pane) watch() {
 			}
 		}
 	}()
-}
-
-// kqueue reports directory membership changes, but needs file watches for writes.
-func (p *pane) watchFiles() {
-	if runtime.GOOS != "darwin" || p.watcher == nil {
-		return
-	}
-	wanted := map[string]bool{p.path: true}
-	for _, e := range p.entries {
-		if !e.dir && e.name != ".." {
-			wanted[filepath.Join(p.path, e.name)] = true
-		}
-	}
-	for _, path := range p.watcher.WatchList() {
-		if wanted[path] {
-			delete(wanted, path)
-		} else {
-			p.watcher.Remove(path)
-		}
-	}
-	for path := range wanted {
-		p.watcher.Add(path)
-	}
 }
 
 func (p *pane) up() {

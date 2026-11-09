@@ -2,6 +2,7 @@ package commander
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
@@ -118,4 +119,27 @@ func TestNativeWatchFileWriteAndRename(t *testing.T) {
 		t.Fatal(err)
 	}
 	waitUntil(t, func() bool { return p.current().size == 6 })
+}
+
+// Large folders: the watcher must track the directory only. Per-file kqueue watches
+// cost one descriptor each and were added synchronously on every cd.
+func TestWatcherTracksDirectoryOnlyInLargeFolder(t *testing.T) {
+	root := fixture(t)
+	big := filepath.Join(root, "big")
+	if err := os.Mkdir(big, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for i := range 2000 {
+		if err := os.WriteFile(filepath.Join(big, fmt.Sprintf("f%04d.txt", i)), []byte("x"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	u := newTestUI(t, test.NewTempApp(t), filepath.Join(root, "src"), big)
+	p := u.right
+	if p.watcher == nil {
+		t.Fatal("watcher not started")
+	}
+	if got := p.watcher.WatchList(); !slices.Equal(got, []string{p.path}) {
+		t.Fatalf("watch list = %d paths, want only directory", len(got))
+	}
 }
