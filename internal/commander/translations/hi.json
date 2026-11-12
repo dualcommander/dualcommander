@@ -1,4 +1,5 @@
 {
+  "%d files · %d folders": "%d फ़ाइलें · %d फ़ोल्डर",
   "Create Archive": "संग्रह बनाएँ",
   "Create Archive…": "संग्रह बनाएँ…",
   "Enter a file name with the selected archive extension": "चुने गए संग्रह प्रारूप के एक्सटेंशन वाला फ़ाइल नाम दर्ज करें",
@@ -179,6 +180,10 @@
   "Search: ": "खोज: ",
   "Searching: %s": "खोज रहे हैं: %s",
   "Select All": "सभी चुनें",
+  "Enter a pattern": "एक पैटर्न दर्ज करें",
+  "Select Group": "समूह चुनें",
+  "Select Group…": "समूह चुनें…",
+
   "Settings": "सेटिंग्स",
   "Settings…": "सेटिंग्स…",
   "Show Hidden Files": "छिपी फ़ाइलें दिखाएँ",
@@ -207,8 +212,6 @@
   "Version {{.Version}}": "संस्करण {{.Version}}",
   "View": "दृश्य",
   "Waiting for archive password…": "संग्रह पासवर्ड की प्रतीक्षा…",
-  "Wildcard": "वाइल्डकार्ड",
-  "Wildcard: match whole file names with * and ?.": "* और ? से पूरे फ़ाइल नाम मिलाएँ।",
   "X-large": "+ बड़ा",
   "X-small": "+ छोटा",
   "Xx-large": "++ बड़ा",

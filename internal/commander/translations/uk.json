@@ -1,4 +1,5 @@
 {
+  "%d files · %d folders": "%d файлів · %d тек",
   "Create Archive": "Створити архів",
   "Create Archive…": "Створити архів…",
   "Enter a file name with the selected archive extension": "Введіть ім’я файлу з розширенням вибраного формату архіву",
@@ -179,6 +180,10 @@
   "Search: ": "Шукати: ",
   "Searching: %s": "Пошук: %s",
   "Select All": "Вибрати все",
+  "Enter a pattern": "Введіть шаблон",
+  "Select Group": "Вибрати групу",
+  "Select Group…": "Вибрати групу…",
+
   "Settings": "Налаштування",
   "Settings…": "Налаштування…",
   "Show Hidden Files": "Показати приховані файли",
@@ -207,8 +212,6 @@
   "Version {{.Version}}": "Версія {{.Version}}",
   "View": "Вигляд",
   "Waiting for archive password…": "Очікування пароля архіву…",
-  "Wildcard": "Шаблон",
-  "Wildcard: match whole file names with * and ?.": "Символ підстановки: відповідність повним іменам файлів за допомогою * та ?.",
   "X-large": "X-великий",
   "X-small": "Х-малий",
   "Xx-large": "Хх-великий",

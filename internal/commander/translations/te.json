@@ -1,4 +1,5 @@
 {
+  "%d files · %d folders": "%d ఫైళ్లు · %d ఫోల్డర్లు",
   "Create Archive": "ఆర్కైవ్ సృష్టించండి",
   "Create Archive…": "ఆర్కైవ్ సృష్టించండి…",
   "Enter a file name with the selected archive extension": "ఎంచుకున్న ఆర్కైవ్ ఆకృతి పొడిగింపుతో ఫైల్ పేరు నమోదు చేయండి",
@@ -179,6 +180,10 @@
   "Search: ": "శోధన: ",
   "Searching: %s": "శోధిస్తోంది: %s",
   "Select All": "అన్నీ ఎంచుకోండి",
+  "Enter a pattern": "ఒక నమూనాను నమోదు చేయండి",
+  "Select Group": "సమూహాన్ని ఎంచుకోండి",
+  "Select Group…": "సమూహాన్ని ఎంచుకోండి…",
+
   "Settings": "సెట్టింగ్‌లు",
   "Settings…": "సెట్టింగ్‌లు...",
   "Show Hidden Files": "దాచిన ఫైల్‌లను చూపించు",
@@ -207,8 +212,6 @@
   "Version {{.Version}}": "వెర్షన్ {{.Version}}",
   "View": "చూడండి",
   "Waiting for archive password…": "ఆర్కైవ్ పాస్‌వర్డ్ కోసం వేచి ఉంది...",
-  "Wildcard": "వైల్డ్‌కార్డ్",
-  "Wildcard: match whole file names with * and ?.": "వైల్డ్‌కార్డ్: మొత్తం ఫైల్ పేర్లను * మరియు ?తో సరిపోల్చండి.",
   "X-large": "X-పెద్దది",
   "X-small": "X-చిన్న",
   "Xx-large": "Xx-పెద్దది",

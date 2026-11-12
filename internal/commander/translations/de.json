@@ -1,4 +1,5 @@
 {
+  "%d files · %d folders": "%d Dateien · %d Ordner",
   "Create Archive": "Archiv erstellen",
   "Create Archive…": "Archiv erstellen…",
   "Enter a file name with the selected archive extension": "Geben Sie einen Dateinamen mit der Endung des gewählten Archivformats ein",
@@ -179,6 +180,10 @@
   "Search: ": "Suche: ",
   "Searching: %s": "Suche läuft: %s",
   "Select All": "Alles auswählen",
+  "Enter a pattern": "Muster eingeben",
+  "Select Group": "Gruppe auswählen",
+  "Select Group…": "Gruppe auswählen…",
+
   "Settings": "Einstellungen",
   "Settings…": "Einstellungen…",
   "Show Hidden Files": "Versteckte Dateien anzeigen",
@@ -207,8 +212,6 @@
   "Version {{.Version}}": "Version {{.Version}}",
   "View": "Ansicht",
   "Waiting for archive password…": "Warte auf Archivpasswort…",
-  "Wildcard": "Platzhalter",
-  "Wildcard: match whole file names with * and ?.": "Vollständige Dateinamen mit * und ? abgleichen.",
   "X-large": "+ Groß",
   "X-small": "+ Klein",
   "Xx-large": "++ Groß",

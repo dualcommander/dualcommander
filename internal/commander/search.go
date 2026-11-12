@@ -74,20 +74,19 @@ func runSearch(ctx context.Context, args []string, emit func([]string)) error {
 
 // finder is the Find Files dialog state (exposed for tests).
 type finder struct {
-	text, glob, dir  *escEntry
-	mode             string
-	caseSensitive    *searchOption
-	regexp, globMode *searchOption
-	archives         *dialogCheck
-	win              fyne.Window
-	list             *dialogList
-	status           *widget.Label
-	activity         *widget.ProgressBarInfinite
-	results          []string
-	done             bool
-	cancel           context.CancelFunc
-	ctx              context.Context
-	workerDone       chan struct{}
+	text, glob, dir *escEntry
+	caseSensitive   *searchOption
+	regexp          *searchOption
+	archives        *dialogCheck
+	win             fyne.Window
+	list            *dialogList
+	status          *widget.Label
+	activity        *widget.ProgressBarInfinite
+	results         []string
+	done            bool
+	cancel          context.CancelFunc
+	ctx             context.Context
+	workerDone      chan struct{}
 }
 
 // Fyne has no tooltip widget; in-content hints never intercept pointer events.
@@ -129,11 +128,19 @@ func (l searchHintLayout) Layout(objects []fyne.CanvasObject, size fyne.Size) {
 	}
 }
 
-func nameMatcher(pattern, mode string, sensitive bool) (func(string) bool, error) {
-	if mode == "Wildcard" && pattern == "" {
-		pattern = "*"
-	}
-	if mode == "Regular expression" {
+// newSearchOption builds a toggle that shares Find Files' hover hint and close-on-tap behaviour.
+func newSearchOption(w fyne.Window, text, label, hint string) *searchOption {
+	b := &searchOption{label: label}
+	b.Text, b.close, b.Importance = text, w.Close, widget.LowImportance
+	b.ExtendBaseWidget(b)
+	b.hint = container.New(searchHintLayout{b}, widget.NewCard("", "", widget.NewLabel(hint)))
+	b.hint.Hide()
+	b.OnTapped = func() { b.hint.Hide(); b.SetChecked(!b.Checked) }
+	return b
+}
+
+func nameMatcher(pattern string, regex, sensitive bool) (func(string) bool, error) {
+	if regex {
 		if !sensitive {
 			pattern = "(?i:" + pattern + ")"
 		}
@@ -146,18 +153,9 @@ func nameMatcher(pattern, mode string, sensitive bool) (func(string) bool, error
 	if !sensitive {
 		pattern = strings.ToLower(pattern)
 	}
-	if mode == "Wildcard" {
-		if _, err := filepath.Match(pattern, ""); err != nil {
-			return nil, err
-		}
-	}
 	return func(name string) bool {
 		if !sensitive {
 			name = strings.ToLower(name)
-		}
-		if mode == "Wildcard" {
-			ok, _ := filepath.Match(pattern, name)
-			return ok
 		}
 		return strings.Contains(name, pattern)
 	}, nil
@@ -182,19 +180,8 @@ func (u *ui) search() *finder {
 	f.text.SetPlaceHolder(lang.L("Text in file (empty = names only)"))
 	f.glob.SetPlaceHolder(lang.L("File name, e.g. readme"))
 	w := u.dialogWindow(lang.L("Find Files"))
-	f.mode = "Partial match"
-	option := func(text, label, hint string) *searchOption {
-		b := &searchOption{label: label}
-		b.Text, b.close, b.Importance = text, w.Close, widget.LowImportance
-		b.ExtendBaseWidget(b)
-		b.hint = container.New(searchHintLayout{b}, widget.NewCard("", "", widget.NewLabel(hint)))
-		b.hint.Hide()
-		b.OnTapped = func() { b.hint.Hide(); b.SetChecked(!b.Checked) }
-		return b
-	}
-	f.caseSensitive = option("Aa", lang.L("Match case"), lang.L("Match case: distinguish uppercase and lowercase file names."))
-	f.regexp = option(".*", lang.L("Regular expression"), lang.L("Regular expression: match file names using Go regexp syntax."))
-	f.globMode = option("*", lang.L("Wildcard"), lang.L("Wildcard: match whole file names with * and ?."))
+	f.caseSensitive = newSearchOption(w, "Aa", lang.L("Match case"), lang.L("Match case: distinguish uppercase and lowercase file names."))
+	f.regexp = newSearchOption(w, ".*", lang.L("Regular expression"), lang.L("Regular expression: match file names using Go regexp syntax."))
 	f.archives = &dialogCheck{close: w.Close}
 	f.archives.Text = lang.L("Search in archives")
 	f.archives.ExtendBaseWidget(f.archives)
@@ -205,17 +192,6 @@ func (u *ui) search() *finder {
 			f.text.Enable()
 		}
 	}
-	setMode := func(b, other *searchOption, mode string) {
-		b.hint.Hide()
-		b.SetChecked(!b.Checked)
-		other.SetChecked(false)
-		f.mode = "Partial match"
-		if b.Checked {
-			f.mode = mode
-		}
-	}
-	f.regexp.OnTapped = func() { setMode(f.regexp, f.globMode, "Regular expression") }
-	f.globMode.OnTapped = func() { setMode(f.globMode, f.regexp, "Wildcard") }
 	selected := -1
 	goTo := windowButton(w, lang.L("Go to"), func() {
 		if selected < 0 || selected >= len(f.results) {
@@ -263,7 +239,7 @@ func (u *ui) search() *finder {
 		if f.ctx != nil && !f.done {
 			return
 		}
-		match, err := nameMatcher(f.glob.Text, f.mode, f.caseSensitive.Checked)
+		match, err := nameMatcher(f.glob.Text, f.regexp.Checked, f.caseSensitive.Checked)
 		if err != nil {
 			f.status.SetText(lang.L("Invalid pattern: ") + err.Error())
 			return
@@ -368,7 +344,7 @@ func (u *ui) search() *finder {
 		selected = i
 		goTo.Enable()
 	}
-	nameRow := container.NewBorder(nil, nil, nil, container.NewHBox(f.caseSensitive, f.regexp, f.globMode), f.glob)
+	nameRow := container.NewBorder(nil, nil, nil, container.NewHBox(f.caseSensitive, f.regexp), f.glob)
 	form := widget.NewForm(widget.NewFormItem(lang.L("In:"), f.dir), widget.NewFormItem(lang.L("File name"), nameRow), widget.NewFormItem(lang.L("Containing text"), f.text))
 	form.Append("", f.archives)
 	search := windowButton(w, lang.L("Search"), func() { start("") })
@@ -378,7 +354,7 @@ func (u *ui) search() *finder {
 	// Keep result spacing compact without changing shared dialog or pane density.
 	results := container.NewThemeOverride(f.list, resultsTheme)
 	w.SetContent(container.NewStack(u.dialogContent(container.NewBorder(form, footer, nil, nil, results)),
-		f.caseSensitive.hint, f.regexp.hint, f.globMode.hint))
+		f.caseSensitive.hint, f.regexp.hint))
 	unblock := u.blockParent(w)
 	w.SetOnClosed(func() { f.cancel(); f.activity.Stop(); f.activity.Hide(); unblock() })
 	esc := escapeWindow(w)

@@ -270,6 +270,101 @@ func inputDialog(u *ui, title, confirm, label string, e *escEntry, ok func()) {
 	w.Show()
 }
 
+// selectGroup marks entries whose names match a pattern; existing marks are kept.
+// Substring match by default; Match case and Regular expression are opt-in, as in Find Files.
+func (u *ui) selectGroup() {
+	if u.passwordWindow != nil {
+		return
+	}
+	p := u.active
+	w := u.inputDialogWindow(lang.L("Select Group"))
+	caseOpt := newSearchOption(w, "Aa", lang.L("Match case"), lang.L("Match case: distinguish uppercase and lowercase file names."))
+	regexOpt := newSearchOption(w, ".*", lang.L("Regular expression"), lang.L("Regular expression: match file names using Go regexp syntax."))
+	pattern := newEscEntry()
+	pattern.SetPlaceHolder(lang.L("File name, e.g. readme"))
+	pattern.Validator = func(value string) error {
+		if value == "" {
+			return errors.New(lang.L("Enter a pattern"))
+		}
+		if _, err := nameMatcher(value, regexOpt.Checked, caseOpt.Checked); err != nil {
+			return errors.New(lang.L("Invalid pattern: ") + err.Error())
+		}
+		return nil
+	}
+	unblock := u.blockParent(w)
+	counts := widget.NewLabel("")
+	entries := p.entries
+	var match func(string) bool
+	var next, files, folders int
+	showCounts := func() {
+		counts.SetText(fmt.Sprintf(lang.L("%d files · %d folders"), files, folders))
+	}
+	// Count in bounded chunks so a huge folder never blocks the UI thread.
+	var recount func(struct{})
+	recount = latestUpdate(post, func(struct{}) {
+		if match == nil {
+			return
+		}
+		end := min(next+256, len(entries))
+		for _, e := range entries[next:end] {
+			if e.name != ".." && match(e.name) {
+				if e.dir {
+					folders++
+				} else {
+					files++
+				}
+			}
+		}
+		next = end
+		if next < len(entries) {
+			recount(struct{}{})
+		} else {
+			showCounts()
+		}
+	})
+	preview := func() {
+		next, files, folders, match = 0, 0, 0, nil
+		showCounts()
+		if pattern.Text != "" {
+			match, _ = nameMatcher(pattern.Text, regexOpt.Checked, caseOpt.Checked)
+			recount(struct{}{})
+		}
+	}
+	w.SetOnClosed(func() { match = nil; unblock() })
+	pattern.OnChanged = func(string) { preview() }
+	for _, o := range []*searchOption{caseOpt, regexOpt} {
+		tap := o.OnTapped
+		o.OnTapped = func() { tap(); preview() }
+	}
+	preview()
+	submit := func() {
+		if pattern.Validate() != nil {
+			return
+		}
+		w.Close()
+		matches, _ := nameMatcher(pattern.Text, regexOpt.Checked, caseOpt.Checked) // validated above
+		for _, e := range p.entries {
+			if e.name != ".." && matches(e.name) {
+				p.marked[e.name] = true
+			}
+		}
+		p.list.Refresh()
+		p.grid.Refresh()
+		p.updateStatus()
+	}
+	pattern.esc = escapeWindow(w)
+	pattern.OnSubmitted = func(string) { submit() }
+	nameRow := container.NewBorder(nil, nil, nil, container.NewHBox(caseOpt, regexOpt), pattern)
+	w.SetContent(container.NewStack(u.dialogContent(container.NewVBox(
+		widget.NewForm(widget.NewFormItem(lang.L("File name"), nameRow)),
+		counts,
+		dialogButtons(w, 1, windowButton(w, lang.L("Cancel"), w.Close), windowButton(w, lang.L("Select Group"), submit)),
+	)), caseOpt.hint, regexOpt.hint))
+	w.Resize(fyne.NewSize(500, w.Content().MinSize().Height))
+	w.Canvas().Focus(pattern)
+	w.Show()
+}
+
 func (u *ui) rename() {
 	p := u.active
 	if p.inArchive() {

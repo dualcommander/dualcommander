@@ -253,6 +253,58 @@ func TestShiftArrowMarksAndMoves(t *testing.T) {
 	}
 }
 
+func TestShiftColumnMarksAndMoves(t *testing.T) {
+	for _, right := range []bool{false, true} {
+		for _, key := range []fyne.KeyName{fyne.KeyLeft, fyne.KeyRight} {
+			t.Run(fmt.Sprintf("right=%v/%s", right, key), func(t *testing.T) {
+				root := fixture(t)
+				u := newTestUI(t, shiftApp{test.NewTempApp(t)}, filepath.Join(root, "src"), filepath.Join(root, "src"))
+				p := u.left
+				if right {
+					p = u.right
+				}
+				p.setBrief(true)
+				u.activate(p)
+				p.grid.Resize(fyne.NewSize(400, 100))
+				if p.grid.rows < 2 || p.grid.rows >= len(p.entries)-1 {
+					t.Fatalf("need multiple rows and columns, got %d rows", p.grid.rows)
+				}
+				for _, start := range []int{0, p.grid.rows, len(p.entries) - 1} {
+					p.markAll(false)
+					step := p.grid.rows
+					if key == fyne.KeyLeft {
+						step = -step
+					}
+					target := max(0, min(start+step, len(p.entries)-1))
+					want := map[string]bool{}
+					for i := min(start, target); i <= max(start, target); i++ {
+						if i != target || start == target {
+							if name := p.entries[i].name; name != ".." {
+								want[name] = true
+							}
+						}
+					}
+					for repeat := 0; repeat < 2; repeat++ {
+						p.moveTo(start)
+						u.win.Canvas().Focused().TypedKey(&fyne.KeyEvent{Name: key})
+						if p.cursor != target || !reflect.DeepEqual(p.marked, want) || len(u.other().marked) != 0 {
+							t.Fatalf("start=%d: cursor=%d marks=%v; want cursor=%d marks=%v", start, p.cursor, p.marked, target, want)
+						}
+						want = map[string]bool{}
+					}
+				}
+				u.app = u.app.(shiftApp).App
+				p.moveTo(0)
+				u.win.Canvas().Focused().TypedKey(&fyne.KeyEvent{Name: fyne.KeyRight})
+				if p.cursor != p.grid.rows || len(p.marked) != 0 {
+					t.Fatalf("plain column navigation: cursor=%d marks=%v", p.cursor, p.marked)
+				}
+				assertPaneRows(t, p)
+			})
+		}
+	}
+}
+
 func TestShiftPageAndBoundaryMarks(t *testing.T) {
 	for _, brief := range []bool{false, true} {
 		for _, right := range []bool{false, true} {
@@ -2563,5 +2615,282 @@ func TestPaneUIContent(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// openSelectGroup runs Edit > Select Group… and types pattern into the dialog entry.
+func openSelectGroup(t *testing.T, u *ui, pattern string) {
+	t.Helper()
+	var found *fyne.MenuItem
+	for _, menu := range u.win.MainMenu().Items {
+		if menu.Label != "Edit" {
+			continue
+		}
+		for _, item := range menu.Items {
+			if item.Label == "Select Group…" {
+				found = item
+			}
+		}
+	}
+	if found == nil {
+		t.Fatal("Select Group menu item missing")
+	}
+	found.Action()
+	w := windowByTitle(t, u.app, "Select Group")
+	test.Type(w.Canvas().Focused().(*escEntry), pattern)
+}
+
+// markedNames lists marked entries in sorted order; ".." is never marked.
+func markedNames(p *pane) []string {
+	var out []string
+	for _, e := range p.entries {
+		if p.marked[e.name] {
+			out = append(out, e.name)
+		}
+	}
+	slices.Sort(out)
+	return out
+}
+
+func TestSelectGroupInlineOptionsAndHints(t *testing.T) {
+	root := fixture(t)
+	u := newTestUI(t, test.NewTempApp(t), root, root)
+	u.selectGroup()
+	w := windowByTitle(t, u.app, "Select Group")
+	defer w.Close()
+	input := w.Canvas().Focused().(*escEntry)
+	objects := test.LaidOutObjects(w.Content())
+	pos := u.app.Driver().AbsolutePositionForObject(input)
+	var options int
+	for _, o := range objects {
+		b, ok := o.(*searchOption)
+		if !ok {
+			continue
+		}
+		options++
+		buttonPos := u.app.Driver().AbsolutePositionForObject(b)
+		if buttonPos.Y != pos.Y || buttonPos.X < pos.X+input.Size().Width {
+			t.Errorf("option must follow input in same row: %v vs %v", buttonPos, pos)
+		}
+		if !slices.Contains(objects, fyne.CanvasObject(b.hint)) {
+			t.Error("hint not attached to dialog content")
+		}
+		test.MoveMouse(w.Canvas(), buttonPos.Add(fyne.NewPos(2, 2)))
+		if !b.hint.Visible() || w.Canvas().Overlays().Top() != nil {
+			t.Error("hover must show in-content hint")
+		}
+		test.MoveMouse(w.Canvas(), fyne.NewPos(1, 1))
+		if b.hint.Visible() {
+			t.Error("hint remains after mouse leaves")
+		}
+	}
+	if options != 2 {
+		t.Fatalf("want case and regex options, got %d", options)
+	}
+}
+
+func TestSelectGroupLiveCounts(t *testing.T) {
+	root := fixture(t)
+	for i := range 300 {
+		if err := os.WriteFile(filepath.Join(root, "src", fmt.Sprintf("item-%03d", i)), nil, 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	u := newTestUI(t, test.NewTempApp(t), filepath.Join(root, "src"), filepath.Join(root, "dst"))
+	cursorTo(t, u.left, "readme.md")
+	press(u, fyne.KeyInsert)
+	u.selectGroup()
+	w := windowByTitle(t, u.app, "Select Group")
+	input := w.Canvas().Focused().(*escEntry)
+	var count *widget.Label
+	options := map[string]*searchOption{}
+	for _, o := range test.LaidOutObjects(w.Content()) {
+		if label, ok := o.(*widget.Label); ok && label.Text == "0 files · 0 folders" {
+			count = label
+		}
+		if option, ok := o.(*searchOption); ok {
+			options[option.label] = option
+		}
+	}
+	if count == nil {
+		t.Fatal("live match counts missing")
+	}
+	check := func(text, want string) {
+		t.Helper()
+		input.SetText(text)
+		waitUntil(t, func() bool { return count.Text == want })
+		if !slices.Equal(markedNames(u.left), []string{"readme.md"}) {
+			t.Fatal("preview changed marks")
+		}
+	}
+	check("o", "1 files · 2 folders")
+	check("READ", "1 files · 0 folders")
+	test.Tap(options["Match case"])
+	waitUntil(t, func() bool { return count.Text == "0 files · 0 folders" })
+	test.Tap(options["Match case"])
+	waitUntil(t, func() bool { return count.Text == "1 files · 0 folders" })
+	check(".", "3 files · 0 folders")
+	test.Tap(options["Regular expression"])
+	waitUntil(t, func() bool { return count.Text == "303 files · 2 folders" })
+	check("[", "0 files · 0 folders")
+	check("", "0 files · 0 folders")
+	// Rapid changes must leave only the latest input's result.
+	input.SetText("o")
+	check("photos", "0 files · 1 folders")
+	input.SetText("readme")
+	tapDialogButton(t, u, "Cancel")
+	for len(uiQueue) > 0 {
+		(<-uiQueue)()
+	}
+	if !slices.Equal(markedNames(u.left), []string{"readme.md"}) || hasWindow(u.app, "Select Group") {
+		t.Fatal("cancelled preview changed selection or left dialog open")
+	}
+}
+
+func TestSelectGroupByWildcard(t *testing.T) {
+	root := fixture(t)
+	u := newTestUI(t, test.NewTempApp(t), filepath.Join(root, "src"), filepath.Join(root, "dst"))
+	cursorTo(t, u.left, "app.zip")
+	press(u, fyne.KeyInsert) // earlier marks must survive a select group
+	for _, tc := range []struct {
+		pattern string
+		want    []string
+	}{
+		// Default is a substring match on file names.
+		{"md", []string{"app.zip", "readme.md"}},
+		// Matching ignores case by default.
+		{"MP3", []string{"app.zip", "readme.md", "song.mp3"}},
+		// A bare "." is a literal substring, not a wildcard.
+		{".", []string{"app.zip", "readme.md", "song.mp3"}},
+	} {
+		openSelectGroup(t, u, tc.pattern)
+		tapDialogButton(t, u, "Select Group")
+		if got := markedNames(u.left); !slices.Equal(got, tc.want) {
+			t.Fatalf("pattern %q marked %v, want %v", tc.pattern, got, tc.want)
+		}
+	}
+}
+
+// Mod+G is the keyboard route to Select Group, same as its menu item.
+func TestSelectGroupShortcut(t *testing.T) {
+	root := fixture(t)
+	u := newTestUI(t, test.NewTempApp(t), filepath.Join(root, "src"), filepath.Join(root, "dst"))
+	var found *fyne.MenuItem
+	for _, item := range u.win.MainMenu().Items[1].Items {
+		if item.Label == "Select Group…" {
+			found = item
+		}
+	}
+	if found == nil {
+		t.Fatal("Select Group menu item missing")
+	}
+	shortcut, ok := found.Shortcut.(*desktop.CustomShortcut)
+	if !ok || shortcut.KeyName != fyne.KeyG || shortcut.Modifier != fyne.KeyModifierShortcutDefault {
+		t.Fatalf("shortcut: %#v", found.Shortcut)
+	}
+	canvas := reflect.ValueOf(u.win.Canvas()).Elem().FieldByName("WindowlessCanvas").Interface().(fyne.Shortcutable)
+	canvas.TypedShortcut(shortcut)
+	w := windowByTitle(t, u.app, "Select Group")
+	test.Type(w.Canvas().Focused().(*escEntry), "readme")
+	tapDialogButton(t, u, "Select Group")
+	if got := markedNames(u.left); !slices.Equal(got, []string{"readme.md"}) {
+		t.Fatalf("shortcut marked %v", got)
+	}
+}
+
+// Select Group defaults to a case-insensitive substring match, like Find Files' default mode.
+func TestSelectGroupSubstringDefaultAndOptions(t *testing.T) {
+	root := fixture(t)
+	u := newTestUI(t, test.NewTempApp(t), filepath.Join(root, "src"), filepath.Join(root, "dst"))
+	openSelectGroup(t, u, "EAD")
+	w := windowByTitle(t, u.app, "Select Group")
+	var caseOpt, regexOpt *searchOption
+	for _, o := range test.LaidOutObjects(w.Content()) {
+		if b, ok := o.(*searchOption); ok {
+			switch b.label {
+			case "Match case":
+				caseOpt = b
+			case "Regular expression":
+				regexOpt = b
+			}
+		}
+	}
+	if caseOpt == nil || regexOpt == nil {
+		t.Fatal("Match case / Regular expression options missing")
+	}
+	if caseOpt.Checked || regexOpt.Checked {
+		t.Fatal("options must default to off")
+	}
+	tapDialogButton(t, u, "Select Group")
+	if got := markedNames(u.left); !slices.Equal(got, []string{"readme.md"}) {
+		t.Fatalf("substring default marked %v", got)
+	}
+}
+
+// Match case and regular expression are non-default toggles, as in Find Files.
+func TestSelectGroupCaseAndRegexToggles(t *testing.T) {
+	root := fixture(t)
+	u := newTestUI(t, test.NewTempApp(t), filepath.Join(root, "src"), filepath.Join(root, "dst"))
+	for _, tc := range []struct {
+		pattern string
+		toggles []string
+		want    []string
+	}{
+		{"READ", []string{"Match case"}, nil},
+		{"^song", []string{"Regular expression"}, []string{"song.mp3"}},
+		{"^SONG", []string{"Regular expression", "Match case"}, nil},
+	} {
+		openSelectGroup(t, u, tc.pattern)
+		w := windowByTitle(t, u.app, "Select Group")
+		for _, label := range tc.toggles {
+			for _, o := range test.LaidOutObjects(w.Content()) {
+				if b, ok := o.(*searchOption); ok && b.label == label {
+					test.Tap(b)
+				}
+			}
+		}
+		tapDialogButton(t, u, "Select Group")
+		if got := markedNames(u.left); !slices.Equal(got, tc.want) {
+			t.Fatalf("pattern %q toggles %v marked %v, want %v", tc.pattern, tc.toggles, got, tc.want)
+		}
+		u.left.markAll(false)
+	}
+}
+
+// An invalid regular expression keeps the dialog open and marks nothing.
+func TestSelectGroupRejectsBadRegex(t *testing.T) {
+	root := fixture(t)
+	u := newTestUI(t, test.NewTempApp(t), filepath.Join(root, "src"), filepath.Join(root, "dst"))
+	openSelectGroup(t, u, "[")
+	w := windowByTitle(t, u.app, "Select Group")
+	for _, o := range test.LaidOutObjects(w.Content()) {
+		if b, ok := o.(*searchOption); ok && b.label == "Regular expression" {
+			test.Tap(b)
+		}
+	}
+	tapDialogButton(t, u, "Select Group")
+	windowByTitle(t, u.app, "Select Group")
+	tapDialogButton(t, u, "Cancel")
+	if got := markedNames(u.left); len(got) != 0 {
+		t.Fatalf("bad regex marked %v", got)
+	}
+}
+
+func TestSelectGroupRejectsBadPatternAndCancel(t *testing.T) {
+	root := fixture(t)
+	u := newTestUI(t, test.NewTempApp(t), filepath.Join(root, "src"), filepath.Join(root, "dst"))
+	// "[" is plain text in the default substring mode, so it is accepted and matches nothing here.
+	openSelectGroup(t, u, "[")
+	tapDialogButton(t, u, "Select Group")
+	if got := markedNames(u.left); len(got) != 0 {
+		t.Fatalf("literal [ marked %v", got)
+	}
+	// An empty pattern is rejected: the dialog stays open and marks nothing.
+	openSelectGroup(t, u, "")
+	tapDialogButton(t, u, "Select Group")
+	windowByTitle(t, u.app, "Select Group")
+	tapDialogButton(t, u, "Cancel")
+	if got := markedNames(u.left); len(got) != 0 {
+		t.Fatalf("rejected or cancelled group marked %v", got)
 	}
 }

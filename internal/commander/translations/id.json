@@ -1,4 +1,5 @@
 {
+  "%d files · %d folders": "%d berkas · %d folder",
   "Create Archive": "Buat arsip",
   "Create Archive…": "Buat arsip…",
   "Enter a file name with the selected archive extension": "Masukkan nama berkas dengan ekstensi format arsip yang dipilih",
@@ -179,6 +180,10 @@
   "Search: ": "Cari: ",
   "Searching: %s": "Mencari: %s",
   "Select All": "Pilih Semua",
+  "Enter a pattern": "Masukkan pola",
+  "Select Group": "Pilih Grup",
+  "Select Group…": "Pilih Grup…",
+
   "Settings": "Pengaturan",
   "Settings…": "Pengaturan…",
   "Show Hidden Files": "Tampilkan File Tersembunyi",
@@ -207,8 +212,6 @@
   "Version {{.Version}}": "Versi {{.Version}}",
   "View": "Tampilan",
   "Waiting for archive password…": "Menunggu kata sandi arsip…",
-  "Wildcard": "Karakter pengganti",
-  "Wildcard: match whole file names with * and ?.": "Wildcard: cocokkan seluruh nama file dengan * dan ?.",
   "X-large": "X-besar",
   "X-small": "X-kecil",
   "Xx-large": "Xx-besar",

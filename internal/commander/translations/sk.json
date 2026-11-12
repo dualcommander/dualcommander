@@ -1,4 +1,5 @@
 {
+  "%d files · %d folders": "%d súborov · %d priečinkov",
   "Create Archive": "Vytvoriť archív",
   "Create Archive…": "Vytvoriť archív…",
   "Enter a file name with the selected archive extension": "Zadajte názov súboru s príponou vybraného formátu archívu",
@@ -179,6 +180,10 @@
   "Search: ": "Hľadať: ",
   "Searching: %s": "Hľadá sa: %s",
   "Select All": "Vybrať všetko",
+  "Enter a pattern": "Zadajte vzor",
+  "Select Group": "Vybrať skupinu",
+  "Select Group…": "Vybrať skupinu…",
+
   "Settings": "Nastavenia",
   "Settings…": "Nastavenia…",
   "Show Hidden Files": "Zobraziť skryté súbory",
@@ -207,8 +212,6 @@
   "Version {{.Version}}": "Verzia {{.Version}}",
   "View": "Zobrazenie",
   "Waiting for archive password…": "Čaká sa na heslo archívu…",
-  "Wildcard": "Zástupný znak",
-  "Wildcard: match whole file names with * and ?.": "Zástupný znak: porovnajte názvy celých súborov s * a ?.",
   "X-large": "X-veľký",
   "X-small": "X-malé",
   "Xx-large": "Xx-veľké",

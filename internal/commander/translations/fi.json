@@ -1,4 +1,5 @@
 {
+  "%d files · %d folders": "%d tiedostoa · %d kansiota",
   "Create Archive": "Luo arkisto",
   "Create Archive…": "Luo arkisto…",
   "Enter a file name with the selected archive extension": "Anna tiedostonimi, jossa on valitun arkistomuodon tiedostopääte",
@@ -179,6 +180,10 @@
   "Search: ": "Etsi: ",
   "Searching: %s": "Haetaan: %s",
   "Select All": "Valitse Kaikki",
+  "Enter a pattern": "Anna malli",
+  "Select Group": "Valitse ryhmä",
+  "Select Group…": "Valitse ryhmä…",
+
   "Settings": "Asetukset",
   "Settings…": "Asetukset…",
   "Show Hidden Files": "Näytä piilotetut tiedostot",
@@ -207,8 +212,6 @@
   "Version {{.Version}}": "Versio {{.Version}}",
   "View": "Näkymä",
   "Waiting for archive password…": "Odotetaan arkiston salasanaa…",
-  "Wildcard": "Jokerimerkki",
-  "Wildcard: match whole file names with * and ?.": "Jokerimerkki: yhdistä kokonaiset tiedostonimet *- ja ?-merkillä.",
   "X-large": "X-kokoinen",
   "X-small": "X-pieni",
   "Xx-large": "Xx iso",

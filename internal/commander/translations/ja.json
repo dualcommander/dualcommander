@@ -1,4 +1,5 @@
 {
+  "%d files · %d folders": "ファイル %d 個 · フォルダー %d 個",
   "Create Archive": "アーカイブを作成",
   "Create Archive…": "アーカイブを作成…",
   "Enter a file name with the selected archive extension": "選択したアーカイブ形式の拡張子を含むファイル名を入力してください",
@@ -179,6 +180,10 @@
   "Search: ": "検索: ",
   "Searching: %s": "検索中: %s",
   "Select All": "すべて選択",
+  "Enter a pattern": "パターンを入力してください",
+  "Select Group": "グループを選択",
+  "Select Group…": "グループを選択…",
+
   "Settings": "設定",
   "Settings…": "設定…",
   "Show Hidden Files": "隠しファイルを表示",
@@ -207,8 +212,6 @@
   "Version {{.Version}}": "バージョン {{.Version}}",
   "View": "表示",
   "Waiting for archive password…": "アーカイブのパスワードを待機中…",
-  "Wildcard": "ワイルドカード",
-  "Wildcard: match whole file names with * and ?.": "* と ? でファイル名全体を検索します。",
   "X-large": "+ 大",
   "X-small": "+ 小",
   "Xx-large": "++ 大",

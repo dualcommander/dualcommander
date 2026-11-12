@@ -18,29 +18,24 @@ import (
 
 func TestFileNameSearchModes(t *testing.T) {
 	for _, tc := range []struct {
-		pattern, mode, name string
-		sensitive, want     bool
+		pattern, name          string
+		regex, sensitive, want bool
 	}{
-		{"READ", "Partial match", "readme.md", false, true},
-		{"READ", "Partial match", "readme.md", true, false},
-		{"read", "Partial match", "readme.md", true, true},
-		{".", "Partial match", "readme", false, false},
-		{`^READ.*\.md$`, "Regular expression", "readme.md", false, true},
-		{`^READ.*\.md$`, "Regular expression", "readme.md", true, false},
-		{`\.md$`, "Regular expression", "readme.md.bak", false, false},
-		{"*.MD", "Wildcard", "readme.md", false, true},
-		{"*.MD", "Wildcard", "readme.md", true, false},
-		{"", "Wildcard", "readme.md", false, true},
+		{"READ", "readme.md", false, false, true},
+		{"READ", "readme.md", false, true, false},
+		{"read", "readme.md", false, true, true},
+		{".", "readme", false, false, false},
+		{`^READ.*\.md$`, "readme.md", true, false, true},
+		{`^READ.*\.md$`, "readme.md", true, true, false},
+		{`\.md$`, "readme.md.bak", true, false, false},
 	} {
-		match, err := nameMatcher(tc.pattern, tc.mode, tc.sensitive)
+		match, err := nameMatcher(tc.pattern, tc.regex, tc.sensitive)
 		if err != nil || match(tc.name) != tc.want {
 			t.Fatalf("%+v: %v", tc, err)
 		}
 	}
-	for _, mode := range []string{"Regular expression", "Wildcard"} {
-		if _, err := nameMatcher("[", mode, false); err == nil {
-			t.Fatalf("invalid %s accepted", mode)
-		}
+	if _, err := nameMatcher("[", true, false); err == nil {
+		t.Fatal("invalid regular expression accepted")
 	}
 }
 
@@ -205,12 +200,12 @@ func TestFindArchiveNames(t *testing.T) {
 		t.Fatal("archive search ignored case sensitivity")
 	}
 	test.Tap(f.caseSensitive)
-	test.Tap(f.globMode)
-	f.glob.SetText("*.txt")
+	test.Tap(f.regexp)
+	f.glob.SetText(`\.txt$`)
 	f.glob.TypedKey(&fyne.KeyEvent{Name: fyne.KeyReturn})
 	waitUntil(t, func() bool { return f.done })
 	if !slices.Contains(f.results, member) {
-		t.Fatalf("wildcard failed for archive member: %v", f.results)
+		t.Fatalf("regex failed for archive member: %v", f.results)
 	}
 	f.list.Select(slices.Index(f.results, member))
 	tapDialogButton(t, u, "Go to")
@@ -329,7 +324,12 @@ func TestFindCompactOptionsAndHoverHints(t *testing.T) {
 	test.LaidOutObjects(f.win.Content())
 	driver := u.app.Driver()
 	namePos := driver.AbsolutePositionForObject(f.glob)
-	for _, b := range []*searchOption{f.caseSensitive, f.regexp, f.globMode} {
+	for _, o := range test.LaidOutObjects(f.win.Content()) {
+		if b, ok := o.(*searchOption); ok && b != f.caseSensitive && b != f.regexp {
+			t.Fatal("unexpected search option")
+		}
+	}
+	for _, b := range []*searchOption{f.caseSensitive, f.regexp} {
 		pos := driver.AbsolutePositionForObject(b)
 		if pos.X <= namePos.X || pos.Y != namePos.Y || b.AccessibilityLabel() == b.Text {
 			t.Fatalf("option must share filename row and have accessible name: %s, %v vs %v", b.Text, pos, namePos)
@@ -352,12 +352,12 @@ func TestFindCompactOptionsAndHoverHints(t *testing.T) {
 			t.Fatal("hint remains after pointer exits")
 		}
 	}
-	if f.regexp.Checked || !f.globMode.Checked || f.mode != "Wildcard" {
-		t.Fatal("wildcard and regexp must be exclusive")
+	if !f.regexp.Checked {
+		t.Fatal("tapping regexp must enable regular expression matching")
 	}
-	test.Tap(f.globMode)
-	if f.mode != "Partial match" {
-		t.Fatal("deselecting mode must restore partial match")
+	test.Tap(f.regexp)
+	if f.regexp.Checked {
+		t.Fatal("tapping again must restore partial match")
 	}
 }
 

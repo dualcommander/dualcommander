@@ -1,4 +1,5 @@
 {
+  "%d files · %d folders": "%d fájl · %d mappa",
   "Create Archive": "Archívum létrehozása",
   "Create Archive…": "Archívum létrehozása…",
   "Enter a file name with the selected archive extension": "Adjon meg egy fájlnevet a kiválasztott archívumformátum kiterjesztésével",
@@ -179,6 +180,10 @@
   "Search: ": "Keresés: ",
   "Searching: %s": "Keresés: %s",
   "Select All": "Válassza az Összes lehetőséget",
+  "Enter a pattern": "Adjon meg mintát",
+  "Select Group": "Csoport kijelölése",
+  "Select Group…": "Csoport kijelölése…",
+
   "Settings": "Beállítások elemre",
   "Settings…": "Beállítások…",
   "Show Hidden Files": "Rejtett fájlok megjelenítése",
@@ -207,8 +212,6 @@
   "Version {{.Version}}": "{{.Version}} verzió",
   "View": "Nézet",
   "Waiting for archive password…": "Várakozás az archiválási jelszóra…",
-  "Wildcard": "Helyettesítő karakter",
-  "Wildcard: match whole file names with * and ?.": "Helyettesítő karakter: párosítsa a teljes fájlneveket * és ? jelekkel.",
   "X-large": "X-nagy",
   "X-small": "X-kicsi",
   "Xx-large": "Xx nagy",

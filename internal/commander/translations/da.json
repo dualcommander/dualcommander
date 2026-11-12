@@ -1,4 +1,5 @@
 {
+  "%d files · %d folders": "%d filer · %d mapper",
   "Create Archive": "Opret arkiv",
   "Create Archive…": "Opret arkiv…",
   "Enter a file name with the selected archive extension": "Indtast et filnavn med filtypen for det valgte arkivformat",
@@ -179,6 +180,10 @@
   "Search: ": "Søg: ",
   "Searching: %s": "Søger: %s",
   "Select All": "Vælg alle",
+  "Enter a pattern": "Angiv et mønster",
+  "Select Group": "Vælg gruppe",
+  "Select Group…": "Vælg gruppe…",
+
   "Settings": "Indstillinger",
   "Settings…": "Indstillinger...",
   "Show Hidden Files": "Vis skjulte filer",
@@ -207,8 +212,6 @@
   "Version {{.Version}}": "Version {{.Version}}",
   "View": "Vis",
   "Waiting for archive password…": "Venter på arkivadgangskode...",
-  "Wildcard": "Jokertegn",
-  "Wildcard: match whole file names with * and ?.": "Jokertegn: match hele filnavne med * og ?.",
   "X-large": "X-stor",
   "X-small": "X-lille",
   "Xx-large": "Xx-stor",

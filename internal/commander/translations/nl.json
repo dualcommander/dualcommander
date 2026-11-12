@@ -1,4 +1,5 @@
 {
+  "%d files · %d folders": "%d bestanden · %d mappen",
   "Create Archive": "Archief maken",
   "Create Archive…": "Archief maken…",
   "Enter a file name with the selected archive extension": "Voer een bestandsnaam in met de extensie van het gekozen archiefformaat",
@@ -179,6 +180,10 @@
   "Search: ": "Zoeken: ",
   "Searching: %s": "Zoeken: %s",
   "Select All": "Selecteer Alles",
+  "Enter a pattern": "Voer een patroon in",
+  "Select Group": "Selecteer groep",
+  "Select Group…": "Selecteer groep…",
+
   "Settings": "Instellingen",
   "Settings…": "Instellingen…",
   "Show Hidden Files": "Toon verborgen bestanden",
@@ -207,8 +212,6 @@
   "Version {{.Version}}": "Versie {{.Version}}",
   "View": "Beeld",
   "Waiting for archive password…": "Wachten op archiefwachtwoord…",
-  "Wildcard": "Jokerteken",
-  "Wildcard: match whole file names with * and ?.": "Wildcard: match hele bestandsnamen met * en ?.",
   "X-large": "X-groot",
   "X-small": "X-klein",
   "Xx-large": "Xx-groot",

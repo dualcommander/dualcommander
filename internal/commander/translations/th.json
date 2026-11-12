@@ -1,4 +1,5 @@
 {
+  "%d files · %d folders": "%d ไฟล์ · %d โฟลเดอร์",
   "Create Archive": "สร้างไฟล์บีบอัด",
   "Create Archive…": "สร้างไฟล์บีบอัด…",
   "Enter a file name with the selected archive extension": "ป้อนชื่อไฟล์พร้อมนามสกุลของรูปแบบไฟล์บีบอัดที่เลือก",
@@ -179,6 +180,10 @@
   "Search: ": "ค้นหา: ",
   "Searching: %s": "กำลังค้นหา: %s",
   "Select All": "เลือกทั้งหมด",
+  "Enter a pattern": "ป้อนรูปแบบ",
+  "Select Group": "เลือกกลุ่ม",
+  "Select Group…": "เลือกกลุ่ม…",
+
   "Settings": "การตั้งค่า",
   "Settings…": "การตั้งค่า…",
   "Show Hidden Files": "แสดงไฟล์ที่ซ่อน",
@@ -207,8 +212,6 @@
   "Version {{.Version}}": "เวอร์ชัน {{.Version}}",
   "View": "ดู",
   "Waiting for archive password…": "กำลังรอเก็บรหัสผ่าน...",
-  "Wildcard": "อักขระตัวแทน",
-  "Wildcard: match whole file names with * and ?.": "Wildcard: จับคู่ชื่อไฟล์ทั้งหมดด้วย * และ ?",
   "X-large": "X-ขนาดใหญ่",
   "X-small": "X-เล็ก",
   "Xx-large": "Xx-ใหญ่",

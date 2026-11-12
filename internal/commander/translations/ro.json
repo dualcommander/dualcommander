@@ -1,4 +1,5 @@
 {
+  "%d files · %d folders": "%d fișiere · %d dosare",
   "Create Archive": "Creează arhivă",
   "Create Archive…": "Creează arhivă…",
   "Enter a file name with the selected archive extension": "Introduceți un nume de fișier cu extensia formatului de arhivă selectat",
@@ -179,6 +180,10 @@
   "Search: ": "Caută: ",
   "Searching: %s": "Se caută: %s",
   "Select All": "Selectați Toate",
+  "Enter a pattern": "Introduceți un model",
+  "Select Group": "Selectați grupul",
+  "Select Group…": "Selectați grupul…",
+
   "Settings": "Setări",
   "Settings…": "Setări…",
   "Show Hidden Files": "Afișați fișierele ascunse",
@@ -207,8 +212,6 @@
   "Version {{.Version}}": "Versiunea {{.Version}}",
   "View": "Vizualizare",
   "Waiting for archive password…": "Se așteaptă parola de arhivare...",
-  "Wildcard": "Metacaracter",
-  "Wildcard: match whole file names with * and ?.": "Wildcard: potriviți numele întregului fișier cu * și ?.",
   "X-large": "X-mari",
   "X-small": "X-mic",
   "Xx-large": "Xx-mari",

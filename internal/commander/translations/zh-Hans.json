@@ -1,4 +1,5 @@
 {
+  "%d files · %d folders": "%d 个文件 · %d 个文件夹",
   "Create Archive": "创建压缩包",
   "Create Archive…": "创建压缩包…",
   "Enter a file name with the selected archive extension": "请输入带有所选压缩格式扩展名的文件名",
@@ -179,6 +180,10 @@
   "Search: ": "搜索: ",
   "Searching: %s": "正在搜索: %s",
   "Select All": "全选",
+  "Enter a pattern": "请输入模式",
+  "Select Group": "选择组",
+  "Select Group…": "选择组…",
+
   "Settings": "设置",
   "Settings…": "设置…",
   "Show Hidden Files": "显示隐藏文件",
@@ -207,8 +212,6 @@
   "Version {{.Version}}": "版本 {{.Version}}",
   "View": "视图",
   "Waiting for archive password…": "正在等待压缩包密码…",
-  "Wildcard": "通配符",
-  "Wildcard: match whole file names with * and ?.": "通配符：使用 * 和 ? 匹配完整文件名。",
   "X-large": "+ 大",
   "X-small": "+ 小",
   "Xx-large": "++ 大",

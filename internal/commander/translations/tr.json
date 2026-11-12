@@ -1,4 +1,5 @@
 {
+  "%d files · %d folders": "%d dosya · %d klasör",
   "Create Archive": "Arşiv oluştur",
   "Create Archive…": "Arşiv oluştur…",
   "Enter a file name with the selected archive extension": "Seçilen arşiv biçiminin uzantısını içeren bir dosya adı girin",
@@ -179,6 +180,10 @@
   "Search: ": "Ara: ",
   "Searching: %s": "Aranıyor: %s",
   "Select All": "Tümünü Seç",
+  "Enter a pattern": "Bir desen girin",
+  "Select Group": "Grup Seç",
+  "Select Group…": "Grup Seç…",
+
   "Settings": "Ayarlar",
   "Settings…": "Ayarlar…",
   "Show Hidden Files": "Gizli Dosyaları Göster",
@@ -207,8 +212,6 @@
   "Version {{.Version}}": "Sürüm {{.Version}}",
   "View": "Görünüm",
   "Waiting for archive password…": "Arşiv şifresi bekleniyor…",
-  "Wildcard": "Joker karakter",
-  "Wildcard: match whole file names with * and ?.": "Joker karakter: tüm dosya adlarını * ve ? ile eşleştirin.",
   "X-large": "X-large",
   "X-small": "X-küçük",
   "Xx-large": "Xx-büyük",

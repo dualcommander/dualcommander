@@ -1,4 +1,5 @@
 {
+  "%d files · %d folders": "파일 %d개 · 폴더 %d개",
   "Create Archive": "압축 파일 만들기",
   "Create Archive…": "압축 파일 만들기…",
   "Enter a file name with the selected archive extension": "선택한 압축 형식의 확장자를 포함한 파일 이름을 입력하세요",
@@ -179,6 +180,10 @@
   "Search: ": "검색: ",
   "Searching: %s": "검색 중: %s",
   "Select All": "모두 선택",
+  "Enter a pattern": "패턴을 입력하세요",
+  "Select Group": "그룹 선택",
+  "Select Group…": "그룹 선택…",
+
   "Settings": "설정",
   "Settings…": "설정…",
   "Show Hidden Files": "숨김 파일 표시",
@@ -207,8 +212,6 @@
   "Version {{.Version}}": "버전 {{.Version}}",
   "View": "보기",
   "Waiting for archive password…": "압축 파일 암호 대기 중…",
-  "Wildcard": "와일드카드",
-  "Wildcard: match whole file names with * and ?.": "* 및 ?로 전체 파일 이름을 검색합니다.",
   "X-large": "+ 크게",
   "X-small": "+ 작게",
   "Xx-large": "++ 크게",

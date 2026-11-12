@@ -1,4 +1,5 @@
 {
+  "%d files · %d folders": "%dটি ফাইল · %dটি ফোল্ডার",
   "Create Archive": "সংরক্ষণাগার তৈরি করুন",
   "Create Archive…": "সংরক্ষণাগার তৈরি করুন…",
   "Enter a file name with the selected archive extension": "নির্বাচিত সংরক্ষণাগারের এক্সটেনশনসহ একটি ফাইলের নাম লিখুন",
@@ -179,6 +180,10 @@
   "Search: ": "অনুসন্ধান: ",
   "Searching: %s": "অনুসন্ধান করা হচ্ছে: %s",
   "Select All": "সব নির্বাচন করুন",
+  "Enter a pattern": "একটি প্যাটার্ন লিখুন",
+  "Select Group": "গোষ্ঠী নির্বাচন করুন",
+  "Select Group…": "গোষ্ঠী নির্বাচন করুন…",
+
   "Settings": "সেটিংস",
   "Settings…": "সেটিংস...",
   "Show Hidden Files": "লুকানো ফাইল দেখান",
@@ -207,8 +212,6 @@
   "Version {{.Version}}": "সংস্করণ {{.Version}}",
   "View": "দেখুন",
   "Waiting for archive password…": "সংরক্ষণাগার পাসওয়ার্ডের জন্য অপেক্ষা করা হচ্ছে...",
-  "Wildcard": "ওয়াইল্ডকার্ড",
-  "Wildcard: match whole file names with * and ?.": "ওয়াইল্ডকার্ড: * এবং? এর সাথে পুরো ফাইলের নাম মেলে।",
   "X-large": "এক্স-বড়",
   "X-small": "এক্স-ছোট",
   "Xx-large": "Xx-বড়",

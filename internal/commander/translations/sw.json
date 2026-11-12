@@ -1,4 +1,5 @@
 {
+  "%d files · %d folders": "Faili %d · Folda %d",
   "Create Archive": "Unda faili la kumbukumbu",
   "Create Archive…": "Unda faili la kumbukumbu…",
   "Enter a file name with the selected archive extension": "Weka jina la faili lenye kiendelezi cha umbizo la kumbukumbu lililochaguliwa",
@@ -179,6 +180,10 @@
   "Search: ": "Tafuta: ",
   "Searching: %s": "Inatafuta: %s",
   "Select All": "Chagua Zote",
+  "Enter a pattern": "Weka muundo",
+  "Select Group": "Chagua Kikundi",
+  "Select Group…": "Chagua Kikundi…",
+
   "Settings": "Mipangilio",
   "Settings…": "Mipangilio...",
   "Show Hidden Files": "Onyesha Faili Zilizofichwa",
@@ -207,8 +212,6 @@
   "Version {{.Version}}": "Toleo la {{.Version}}",
   "View": "Tazama",
   "Waiting for archive password…": "Inasubiri nenosiri la kumbukumbu...",
-  "Wildcard": "Kibambo mbadala",
-  "Wildcard: match whole file names with * and ?.": "Wildcard: linganisha majina ya faili nzima na * na ?.",
   "X-large": "X-kubwa",
   "X-small": "X-ndogo",
   "Xx-large": "Xx kubwa",

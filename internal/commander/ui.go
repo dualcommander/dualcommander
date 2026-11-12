@@ -268,6 +268,7 @@ func (u *ui) mainMenu() *fyne.MainMenu {
 		fyne.NewMenu(lang.L("Edit"),
 			item(lang.L("Select All"), fyne.KeyA, mod, func() { u.active.markAll(true) }),
 			item(lang.L("Deselect All"), fyne.KeyA, mod|fyne.KeyModifierShift, func() { u.active.markAll(false) }),
+			item(lang.L("Select Group…"), fyne.KeyG, mod, u.selectGroup),
 			sep(),
 			item(lang.L("Cut"), fyne.KeyX, mod, func() { u.captureFiles(true) }),
 			item(lang.L("Copy"), fyne.KeyC, mod, func() { u.captureFiles(false) }),
@@ -571,11 +572,11 @@ func (u *ui) key(p *pane, e *fyne.KeyEvent, page int) {
 		move(p.cursor + 1)
 	case fyne.KeyLeft:
 		if p.brief {
-			p.moveTo(p.cursor - p.grid.rows)
+			move(p.cursor - p.grid.rows)
 		}
 	case fyne.KeyRight:
 		if p.brief {
-			p.moveTo(p.cursor + p.grid.rows)
+			move(p.cursor + p.grid.rows)
 		}
 	case fyne.KeyTab:
 		u.activate(u.other())

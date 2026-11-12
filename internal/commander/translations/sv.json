@@ -1,4 +1,5 @@
 {
+  "%d files · %d folders": "%d filer · %d mappar",
   "Create Archive": "Skapa arkiv",
   "Create Archive…": "Skapa arkiv…",
   "Enter a file name with the selected archive extension": "Ange ett filnamn med filändelsen för det valda arkivformatet",
@@ -179,6 +180,10 @@
   "Search: ": "Sök: ",
   "Searching: %s": "Söker: %s",
   "Select All": "Välj Alla",
+  "Enter a pattern": "Ange ett mönster",
+  "Select Group": "Välj grupp",
+  "Select Group…": "Välj grupp…",
+
   "Settings": "Inställningar",
   "Settings…": "Inställningar...",
   "Show Hidden Files": "Visa dolda filer",
@@ -207,8 +212,6 @@
   "Version {{.Version}}": "Version {{.Version}}",
   "View": "Visa",
   "Waiting for archive password…": "Väntar på arkivlösenord...",
-  "Wildcard": "Jokertecken",
-  "Wildcard: match whole file names with * and ?.": "Jokertecken: matcha hela filnamn med * och ?.",
   "X-large": "X-stor",
   "X-small": "X-liten",
   "Xx-large": "Xx-stor",

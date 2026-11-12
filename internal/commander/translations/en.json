@@ -1,4 +1,5 @@
 {
+  "%d files · %d folders": "%d files · %d folders",
   "Create Archive": "Create Archive",
   "Create Archive…": "Create Archive…",
   "Enter a file name with the selected archive extension": "Enter a file name with the selected archive extension",
@@ -179,6 +180,10 @@
   "Search: ": "Search: ",
   "Searching: %s": "Searching: %s",
   "Select All": "Select All",
+  "Enter a pattern": "Enter a pattern",
+  "Select Group": "Select Group",
+  "Select Group…": "Select Group…",
+
   "Settings": "Settings",
   "Settings…": "Settings…",
   "Show Hidden Files": "Show Hidden Files",
@@ -207,8 +212,6 @@
   "Version {{.Version}}": "Version {{.Version}}",
   "View": "View",
   "Waiting for archive password…": "Waiting for archive password…",
-  "Wildcard": "Wildcard",
-  "Wildcard: match whole file names with * and ?.": "Wildcard: match whole file names with * and ?.",
   "X-large": "X-large",
   "X-small": "X-small",
   "Xx-large": "Xx-large",
