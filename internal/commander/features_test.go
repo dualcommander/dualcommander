@@ -16,7 +16,6 @@ import (
 	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/test"
 	"fyne.io/fyne/v2/theme"
-	"fyne.io/fyne/v2/widget"
 )
 
 // Density menu: compact rows shorter than standard; persisted; cursor survives rebuild.
@@ -71,7 +70,7 @@ func TestEntryNamesNotBold(t *testing.T) {
 			if !detailed {
 				content = content.Objects[0].(*fyne.Container)
 			}
-			if content.Objects[0].(*widget.Label).TextStyle.Bold {
+			if content.Objects[0].(*rowLabel).TextStyle.Bold {
 				t.Fatalf("bold entry %q, detailed=%v", u.left.entries[i].name, detailed)
 			}
 		}

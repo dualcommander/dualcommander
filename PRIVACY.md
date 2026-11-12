@@ -29,6 +29,13 @@ DualCommander saves preferences, session state, and favourite folder paths in
 and `favourites.json`. Saved information can include visited folder paths, window
 settings, and external application commands.
 
+Only if you set `DUALCOMMANDER_DEBUG=1`, DualCommander also writes a diagnostic
+log named `dualcommander-debug.log` next to the application executable. It records
+folder paths you browse, names of non-text keys pressed in the file panes (such as
+arrows or Enter), the name of the entry selected after a navigation, entry counts,
+view size and scroll position, the start and finish of file operations, and errors. It is
+overwritten each time the app starts. It is never sent anywhere; delete the file when you no longer need it.
+
 This information remains on your device until you change or remove it. To remove
 these saved files, close DualCommander and delete the `.dualcommander` folder.
 This resets saved preferences, session state, and favourites; it does not delete

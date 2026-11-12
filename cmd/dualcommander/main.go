@@ -9,7 +9,12 @@ import (
 )
 
 func main() {
-	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, nil)).With("app", "DualCommander"))
+	exe, _ := os.Executable()
+	closeLog, err := setupLogging(os.Getenv, exe, os.Stderr)
+	defer closeLog()
+	if err != nil {
+		slog.Error("Cannot open debug log", "error", err)
+	}
 	if handled, err := graphicsStartup(); handled || err != nil {
 		if err != nil {
 			slog.Error("Graphics startup failed", "error", err)

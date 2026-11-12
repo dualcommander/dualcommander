@@ -14,7 +14,6 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/test"
-	"fyne.io/fyne/v2/widget"
 )
 
 func previewFixture(t *testing.T) []byte {
@@ -158,7 +157,7 @@ func TestFilePreviewRows(t *testing.T) {
 	w.Resize(fyne.NewSize(480, 280))
 	assertPaneRows(t, u.left)
 	for _, o := range test.LaidOutObjects(w.Content()) {
-		if icon, ok := o.(*widget.Icon); ok && icon.Resource != nil && bytes.Equal(icon.Resource.Content(), data) {
+		if icon, ok := o.(*rowIcon); ok && icon.Resource != nil && bytes.Equal(icon.Resource.Content(), data) {
 			return
 		}
 	}

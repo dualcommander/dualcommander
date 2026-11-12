@@ -52,7 +52,7 @@ func TestUnchangedRowDoesNotMeasureText(t *testing.T) {
 		if !detailed {
 			content = content.Objects[0].(*fyne.Container)
 		}
-		name := content.Objects[0].(*widget.Label)
+		name := content.Objects[0].(*rowLabel)
 		if name.Importance != widget.DangerImportance {
 			t.Fatal("mark did not update row styling")
 		}
@@ -67,7 +67,7 @@ func TestUnchangedRowDoesNotMeasureText(t *testing.T) {
 			p.fillRow(0, r)
 			assertUIText(t, r, "<DIR>")
 			right := content.Objects[2].(*fyne.Container)
-			if right.Objects[1].(*fyne.Container).Objects[0].(*widget.Label).Text != "" {
+			if right.Objects[1].(*fyne.Container).Objects[0].(*rowLabel).Text != "" {
 				t.Fatal("recycled row retained old modification date")
 			}
 		}

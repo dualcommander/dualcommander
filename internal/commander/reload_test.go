@@ -10,6 +10,7 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/test"
+	"fyne.io/fyne/v2/theme"
 )
 
 type refreshTrackingCanvas struct {
@@ -28,6 +29,84 @@ type refreshTrackingWindow struct {
 }
 
 func (w *refreshTrackingWindow) Canvas() fyne.Canvas { return w.canvas }
+
+func TestListingRestoresExpiredLabelLayout(t *testing.T) {
+	root := fixture(t)
+	u := newTestUI(t, test.NewTempApp(t), filepath.Join(root, "src"), filepath.Join(root, "dst"))
+	p := u.left
+	p.setBrief(false)
+	var labels []*rowLabel
+	var icons []*rowIcon
+	for _, o := range laidOutObjects(p.list) {
+		if label, ok := o.(*rowLabel); ok && label.Text != "" {
+			labels = append(labels, label)
+		}
+		if icon, ok := o.(*rowIcon); ok {
+			icons = append(icons, icon)
+		}
+	}
+	if len(labels) == 0 {
+		t.Fatal("no row labels to expire")
+	}
+	// Fyne discards idle renderers; recreate them without changing widget sizes.
+	t.Run("expire", func(t *testing.T) {
+		for _, label := range labels {
+			test.TempWidgetRenderer(t, label)
+		}
+		for _, icon := range icons {
+			test.TempWidgetRenderer(t, icon)
+		}
+	})
+	p.refresh()
+	for _, label := range labels {
+		provider := test.WidgetRenderer(label).Objects()[0]
+		if provider.Size() != label.Size() {
+			t.Errorf("label %q content size = %v, want %v", label.Text, provider.Size(), label.Size())
+		}
+	}
+	for _, icon := range icons {
+		image := test.WidgetRenderer(icon).Objects()[0]
+		if image.Size() != icon.Size() {
+			t.Errorf("icon content size = %v, want %v", image.Size(), icon.Size())
+		}
+	}
+}
+
+func TestNavigationRepaintsOwningCanvasWithoutInput(t *testing.T) {
+	for _, brief := range []bool{false, true} {
+		for _, active := range []bool{false, true} {
+			t.Run(fmt.Sprintf("brief=%v/active=%v", brief, active), func(t *testing.T) {
+				root := fixture(t)
+				t.Setenv("HOME", filepath.Join(root, "src"))
+				t.Setenv("USERPROFILE", filepath.Join(root, "src"))
+				u := newTestUI(t, test.NewTempApp(t), filepath.Join(root, "dst"), filepath.Join(root, "dst"))
+				p := u.left
+				p.setBrief(brief)
+				if !active {
+					u.activate(u.right)
+				}
+				focus := u.win.Canvas().Focused()
+				c := &refreshTrackingCanvas{Canvas: u.win.Canvas()}
+				u.win = &refreshTrackingWindow{Window: u.win, canvas: c}
+				home, err := os.UserHomeDir()
+				if err != nil {
+					t.Fatal(err)
+				}
+				p.navigate(home, "")
+				if !slices.Contains(c.refreshed, fyne.CanvasObject(p.body)) {
+					t.Fatal("navigation did not invalidate pane on owning canvas")
+				}
+				if p.path != home || !slices.Contains(names(p), "readme.md") || p.cursor != 0 {
+					t.Fatal("navigation did not populate home folder and reset cursor")
+				}
+				if u.win.Canvas().Focused() != focus {
+					t.Fatal("repaint changed focus")
+				}
+				assertPaneRows(t, p)
+			})
+		}
+	}
+}
 
 func TestForegroundRepaintsWithoutNavigation(t *testing.T) {
 	for _, brief := range []bool{false, true} {
@@ -189,5 +268,37 @@ func TestWatcherTracksDirectoryOnlyInLargeFolder(t *testing.T) {
 	}
 	if got := p.watcher.WatchList(); !slices.Equal(got, []string{p.path}) {
 		t.Fatalf("watch list = %d paths, want only directory", len(got))
+	}
+}
+
+// Going up into a large folder restores the cursor to a late entry. In brief view the scroller
+// must show that column at once, not after the next key event.
+func TestBriefNavigationShowsRestoredCursorWithoutInput(t *testing.T) {
+	root := fixture(t)
+	big := filepath.Join(root, "big")
+	// Folders sort before files, so many folders must precede the child to push it past column 0.
+	for i := range 120 {
+		if err := os.MkdirAll(filepath.Join(big, fmt.Sprintf("d%04d", i)), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.MkdirAll(filepath.Join(big, "zz-child"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	u := newTestUI(t, test.NewTempApp(t), filepath.Join(big, "zz-child"), filepath.Join(root, "dst"))
+	p := u.left
+	p.setBrief(true)
+	p.up()
+	if p.path != big || p.current().name != "zz-child" {
+		t.Fatalf("up did not restore cursor: %s %q", p.path, p.current().name)
+	}
+	col := p.cursor / p.grid.rows
+	left := float32(col) * (p.grid.cell.Width + p.grid.Theme().Size(theme.SizeNamePadding))
+	if col == 0 {
+		t.Fatal("fixture too small: cursor column is the first column")
+	}
+	offset := p.grid.scroll.Offset.X
+	if left+p.grid.cell.Width <= offset || left >= offset+p.grid.Size().Width {
+		t.Fatalf("cursor column %d at x=%v is outside viewport [%v, %v)", col, left, offset, offset+p.grid.Size().Width)
 	}
 }

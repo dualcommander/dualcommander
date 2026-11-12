@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"fyne.io/fyne/v2/lang"
+	"log/slog"
 	"path/filepath"
 	"slices"
 
@@ -76,6 +77,7 @@ func (j *jobs) runCounted(title string, refresh []*pane, fn func(context.Context
 	op := &operation{title: title, cancel: cancel}
 	j.active = append(j.active, op)
 	j.update()
+	slog.Debug("job start", "title", title)
 	go func() {
 		err := fn(ctx, latestUpdate(post, func(p fsops.CopyProgress) {
 			if !slices.Contains(j.active, op) {
@@ -90,6 +92,7 @@ func (j *jobs) runCounted(title string, refresh []*pane, fn func(context.Context
 		}))
 		cancelled := ctx.Err() != nil
 		cancel()
+		slog.Debug("job done", "title", title, "cancelled", cancelled, "error", err)
 		post(func() {
 			j.active = slices.DeleteFunc(j.active, func(o *operation) bool { return o == op })
 			j.update()

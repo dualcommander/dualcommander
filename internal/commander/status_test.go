@@ -6,7 +6,6 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/test"
-	"fyne.io/fyne/v2/widget"
 )
 
 func TestStatusDetailsMatchFullView(t *testing.T) {
@@ -31,13 +30,13 @@ func TestStatusDetailsMatchFullView(t *testing.T) {
 				size := fyne.NewSize(width, r.MinSize().Height)
 				p.statusRow.Resize(size)
 				r.content.Resize(size)
-				var got, want []*widget.Label
+				var got, want []*rowLabel
 				for _, pair := range []struct {
 					object fyne.CanvasObject
-					labels *[]*widget.Label
+					labels *[]*rowLabel
 				}{{p.statusRow, &got}, {r.content, &want}} {
 					for _, o := range laidOutObjects(pair.object) {
-						if label, ok := o.(*widget.Label); ok {
+						if label, ok := o.(*rowLabel); ok {
 							*pair.labels = append(*pair.labels, label)
 						}
 					}

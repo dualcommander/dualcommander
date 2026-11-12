@@ -109,7 +109,7 @@ func TestSpaceFolderMarksAndCombinedTotals(t *testing.T) {
 			p.fillRow(p.cursor, r)
 			var red bool
 			for _, o := range laidOutObjects(r) {
-				if label, ok := o.(*widget.Label); ok && label.Text == name && label.Importance == widget.DangerImportance {
+				if label, ok := o.(*rowLabel); ok && label.Text == name && label.Importance == widget.DangerImportance {
 					red = true
 				}
 			}
@@ -276,7 +276,7 @@ func TestSpaceFileMarksAndTotals(t *testing.T) {
 		p.fillRow(p.cursor, r)
 		var red bool
 		for _, o := range laidOutObjects(r) {
-			if label, ok := o.(*widget.Label); ok && label.Text == "readme.md" && label.Importance == widget.DangerImportance {
+			if label, ok := o.(*rowLabel); ok && label.Text == "readme.md" && label.Importance == widget.DangerImportance {
 				red = true
 			}
 		}

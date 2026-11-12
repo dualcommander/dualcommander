@@ -1,16 +1,72 @@
 package commander
 
 import (
+	"context"
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
+	"log/slog"
 	"path/filepath"
 
 	platform "github.com/dualcommander/dualcommander/pkg/desktop"
 )
+
+// debugEnabled reports whether debug records are emitted. Callers on hot paths check it before
+// building log arguments, because Go boxes those arguments even when the record is dropped.
+func debugEnabled() bool { return slog.Default().Enabled(context.Background(), slog.LevelDebug) }
+
+// logListState records the active view's size, scroll offset and whether the cursor is inside the
+// viewport; where names the call site. It is the one place that shows a pane listed but not scrolled.
+// Callers guard it with debugEnabled.
+func logListState(where string, p *pane) {
+	attrs := []any{"where", where, "entries", len(p.entries), "cursor", p.cursor, "brief", p.brief}
+	if !p.brief {
+		slog.Debug("list state", append(attrs, "view_size", p.list.Size(), "scroll", p.list.GetScrollOffset())...)
+		return
+	}
+	g := p.grid
+	if g.scroll == nil || g.rows == 0 {
+		slog.Debug("list state", append(attrs, "view_size", g.Size(), "scroll_ready", false)...)
+		return
+	}
+	left := float32(p.cursor/g.rows) * (g.cell.Width + g.Theme().Size(theme.SizeNamePadding))
+	offset := g.scroll.Offset.X
+	inView := left+g.cell.Width > offset && left < offset+g.Size().Width
+	slog.Debug("list state", append(attrs, "view_size", g.Size(), "content_width", g.scroll.Content.Size().Width,
+		"scroll", offset, "cursor_in_view", inView)...)
+}
+
+// Fyne can recreate idle renderers without resizing widgets whose size is unchanged.
+type rowLabel struct{ widget.Label }
+
+func newRowLabel() *rowLabel {
+	l := &rowLabel{}
+	l.ExtendBaseWidget(l)
+	return l
+}
+
+func (l *rowLabel) CreateRenderer() fyne.WidgetRenderer {
+	r := l.Label.CreateRenderer()
+	r.Layout(l.Size())
+	return r
+}
+
+type rowIcon struct{ widget.Icon }
+
+func newRowIcon() *rowIcon {
+	i := &rowIcon{}
+	i.ExtendBaseWidget(i)
+	return i
+}
+
+func (i *rowIcon) CreateRenderer() fyne.WidgetRenderer {
+	r := i.Icon.CreateRenderer()
+	r.Layout(i.Size())
+	return r
+}
 
 // row wraps a rendered item: click moves cursor (Mod/Shift = mark), double-click opens.
 type row struct {
@@ -290,3 +346,6 @@ func (p *pane) cols() int {
 	}
 	return 1
 }
+
+// ScrollTo brings a cell into view in the grid's own table; used after a listing resizes content.
+func (g *keyGrid) ScrollTo(id widget.TableCellID) { g.Table.ScrollTo(id) }

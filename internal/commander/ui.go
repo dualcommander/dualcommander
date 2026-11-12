@@ -532,6 +532,13 @@ func (u *ui) updateFunctionButtons() {
 
 // key handles commander keys for pane p; page = entries per PgUp/PgDn.
 func (u *ui) key(p *pane, e *fyne.KeyEvent, page int) {
+	dbg := debugEnabled()
+	if dbg && len(e.Name) > 1 { // single-character names are typed text; keep them out of the log
+		slog.Debug("key", "name", e.Name, "pane", p.path)
+	}
+	if dbg {
+		defer logListState("key", p)
+	}
 	if u.passwordWindow != nil {
 		u.passwordWindow.RequestFocus()
 		return

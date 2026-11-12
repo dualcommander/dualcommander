@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"fyne.io/fyne/v2/lang"
 	"io/fs"
+	"log/slog"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -17,7 +18,6 @@ import (
 	"unicode/utf8"
 
 	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/storage"
 	"fyne.io/fyne/v2/theme"
@@ -229,6 +229,7 @@ func (p *pane) cdHistory(dir, selectName string, historyIndex int) error {
 		}
 	}
 	p.path, p.entries = dir, es
+	slog.Debug("listing folder", "path", dir, "entries", len(es))
 	p.iconGeneration++
 	if !same {
 		p.watch()
@@ -248,8 +249,15 @@ func (p *pane) cdHistory(dir, selectName string, historyIndex int) error {
 	p.list.Refresh()
 	p.grid.Refresh()
 	p.moveTo(cur)
-	// Fyne's table refresh updates cells without invalidating the canvas.
-	canvas.Refresh(p.body)
+	// Inactive panes keep their cursor silently; activate() scrolls them into view via showCursor.
+	if p.brief && p.ui.active == p {
+		p.grid.ScrollTo(p.grid.slot(p.cursor))
+	}
+	if debugEnabled() {
+		logListState("listing", p)
+	}
+	// Use the owning canvas: Fyne's object-to-canvas cache can expire while idle.
+	p.ui.win.Canvas().Refresh(p.body)
 	p.ui.save()
 	return nil
 }
@@ -483,6 +491,7 @@ func (p *pane) navigate(dir, selected string) {
 
 func (p *pane) navigateHistory(dir, selected string, historyIndex int) {
 	dir, _ = filepath.Abs(dir)
+	slog.Debug("navigate", "dir", dir, "selected", selected)
 	p.navigation++
 	version := p.navigation
 	root, inner := archive.Root(dir)
@@ -737,11 +746,11 @@ func humanSize(n int64) string {
 // --- row rendering ---
 
 func newRowContent(detailed bool) fyne.CanvasObject {
-	icon := widget.NewIcon(nil)
-	name := widget.NewLabel("")
+	icon := newRowIcon()
+	name := newRowLabel()
 	name.Truncation = fyne.TextTruncateEllipsis
 	// fixed: width from sample text, so columns/cells never depend on stale MinSize
-	fixed := func(o *widget.Label, sample string) *fyne.Container {
+	fixed := func(o *rowLabel, sample string) *fyne.Container {
 		h := widget.NewLabel(sample).MinSize()
 		return container.NewGridWrap(h, o)
 	}
@@ -750,11 +759,11 @@ func newRowContent(detailed bool) fyne.CanvasObject {
 		cell := widget.NewLabel("MMMMMMMMMMMMMMMMMM").MinSize().AddWidthHeight(theme.IconInlineSize(), 0)
 		return container.NewGridWrap(cell, container.NewBorder(nil, nil, icon, nil, name))
 	}
-	size := widget.NewLabel("")
+	size := newRowLabel()
 	size.Alignment = fyne.TextAlignTrailing
-	attrs := widget.NewLabel("")
+	attrs := newRowLabel()
 	attrs.TextStyle.Monospace = true
-	right := container.NewHBox(fixed(size, "0000.0 MB"), fixed(widget.NewLabel(""), "0000-00-00 00:00"), fixed(attrs, "drwxrwxrwx"))
+	right := container.NewHBox(fixed(size, "0000.0 MB"), fixed(newRowLabel(), "0000-00-00 00:00"), fixed(attrs, "drwxrwxrwx"))
 	return container.NewBorder(nil, nil, icon, right, name)
 }
 
@@ -768,16 +777,16 @@ func (p *pane) fillRow(i int, r *row) {
 	if len(c.Objects) == 1 {         // brief: GridWrap around Border
 		c = c.Objects[0].(*fyne.Container)
 	}
-	name := c.Objects[0].(*widget.Label)
+	name := c.Objects[0].(*rowLabel)
 	if c.Objects[1].Visible() {
-		c.Objects[1].(*widget.Icon).SetResource(p.entryIcon(i))
+		c.Objects[1].(*rowIcon).SetResource(p.entryIcon(i))
 	}
 	importance := widget.MediumImportance
 	if p.marked[e.name] {
 		importance = widget.DangerImportance
 	}
 	// Fyne SetText reshapes unchanged text; guard recycled row labels until upstream does.
-	setText := func(label *widget.Label, text string) {
+	setText := func(label *rowLabel, text string) {
 		if label.Text != text {
 			label.SetText(text)
 		}
@@ -791,9 +800,9 @@ func (p *pane) fillRow(i int, r *row) {
 		return
 	}
 	right := c.Objects[2].(*fyne.Container)
-	size := right.Objects[0].(*fyne.Container).Objects[0].(*widget.Label)
-	mod := right.Objects[1].(*fyne.Container).Objects[0].(*widget.Label)
-	setText(right.Objects[2].(*fyne.Container).Objects[0].(*widget.Label), e.attrs)
+	size := right.Objects[0].(*fyne.Container).Objects[0].(*rowLabel)
+	mod := right.Objects[1].(*fyne.Container).Objects[0].(*rowLabel)
+	setText(right.Objects[2].(*fyne.Container).Objects[0].(*rowLabel), e.attrs)
 	sizeText := humanSize(e.size)
 	if e.dir {
 		sizeText = lang.L("<DIR>")

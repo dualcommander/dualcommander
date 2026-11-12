@@ -45,6 +45,8 @@ func assertUIText(t *testing.T, content fyne.CanvasObject, want ...string) {
 			continue
 		}
 		switch w := o.(type) {
+		case *rowLabel:
+			got = append(got, w.Text)
 		case *widget.Label:
 			got = append(got, w.Text)
 		case *widget.Button:
@@ -84,13 +86,13 @@ func assertPaneRows(t *testing.T, p *pane) {
 			}
 			assertUIText(t, r, size, e.attrs, modified)
 		}
-		var name *widget.Label
-		var icon *widget.Icon
+		var name *rowLabel
+		var icon *rowIcon
 		for _, child := range laidOutObjects(r) {
-			if l, ok := child.(*widget.Label); ok && l.Text == e.name {
+			if l, ok := child.(*rowLabel); ok && l.Text == e.name {
 				name = l
 			}
-			if i, ok := child.(*widget.Icon); ok {
+			if i, ok := child.(*rowIcon); ok {
 				icon = i
 			}
 		}

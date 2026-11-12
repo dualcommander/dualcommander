@@ -1,4 +1,4 @@
-.PHONY: check fmt fmt-check vet test ci-check build run download-deps install-packager install-nfpm install-snapcraft package-native archive-macos archive-linux archive-windows package-macos package-linux sign-macos verify-windows package-snap package-msix package-apple-store
+.PHONY: check fmt fmt-check vet test ci-check build run debug-capture download-deps install-packager install-nfpm install-snapcraft package-native archive-macos archive-linux archive-windows package-macos package-linux sign-macos verify-windows package-snap package-msix package-apple-store
 
 WINDOWS_STORE_INPUT ?= dist
 APPLE_STORE_INPUT ?= dist
@@ -35,6 +35,11 @@ build:
 
 run:
 	version=$$(sh scripts/version.sh) && go run -ldflags "-X github.com/dualcommander/dualcommander/internal/commander.buildVersion=$$version" ./cmd/dualcommander
+
+# Runs the built app with debug logging, then writes dist/dualcommander-debug-excerpt.txt to share.
+# Set EXE=path to run another binary, for example one inside DualCommander.app.
+debug-capture: build
+	sh scripts/debug-capture.sh
 
 download-deps:
 	go mod download

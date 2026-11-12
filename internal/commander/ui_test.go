@@ -1323,7 +1323,7 @@ func TestPaneDetailsAndSelectionTotals(t *testing.T) {
 		}
 		r := newRowWidget(p, true)
 		p.fillRow(p.cursor, r)
-		attrs := r.content.(*fyne.Container).Objects[2].(*fyne.Container).Objects[2].(*fyne.Container).Objects[0].(*widget.Label)
+		attrs := r.content.(*fyne.Container).Objects[2].(*fyne.Container).Objects[2].(*fyne.Container).Objects[0].(*rowLabel)
 		if attrs.Text != fi.Mode().String() {
 			t.Fatalf("attributes column: %q", attrs.Text)
 		}
