@@ -14,7 +14,7 @@ require (
 	github.com/mholt/archives v0.1.5
 	github.com/natefinch/atomic v1.0.1
 	github.com/nicksnyder/go-i18n/v2 v2.7.0
-	github.com/nwaples/rardecode/v2 v2.4.5
+	github.com/nwaples/rardecode/v2 v2.4.6
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.3
 	github.com/ulikunitz/xz v0.5.17
 	github.com/yeka/zip v0.0.0-20231116150916-03d6312748a9
