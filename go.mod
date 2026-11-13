@@ -48,7 +48,7 @@ require (
 	github.com/klauspost/pgzip v1.3.0 // indirect
 	github.com/mattn/go-runewidth v0.0.31 // indirect
 	github.com/mikelolasagasti/xz v1.0.1 // indirect
-	github.com/minio/minlz v1.2.3 // indirect
+	github.com/minio/minlz v1.2.4 // indirect
 	github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646 // indirect
 	github.com/pierrec/lz4/v4 v4.1.33 // indirect
 	github.com/rymdport/portal v0.4.2 // indirect
