@@ -133,10 +133,29 @@ func newSearchOption(w fyne.Window, text, label, hint string) *searchOption {
 	b := &searchOption{label: label}
 	b.Text, b.close, b.Importance = text, w.Close, widget.LowImportance
 	b.ExtendBaseWidget(b)
-	b.hint = container.New(searchHintLayout{b}, widget.NewCard("", "", widget.NewLabel(hint)))
-	b.hint.Hide()
+	b.hint = dialogHint(b, hint)
 	b.OnTapped = func() { b.hint.Hide(); b.SetChecked(!b.Checked) }
 	return b
+}
+
+// namePatternInput shares multi-select matching controls and validation.
+func namePatternInput(w fyne.Window) (*escEntry, *searchOption, *searchOption) {
+	caseOpt := newSearchOption(w, "Aa", lang.L("Match case"), lang.L("Match case: distinguish uppercase and lowercase file names."))
+	regexOpt := newSearchOption(w, ".*", lang.L("Regular expression"), lang.L("Regular expression: match file names using Go regexp syntax."))
+	pattern := newEscEntry()
+	pattern.esc = escapeWindow(w)
+	pattern.SetPlaceHolder(lang.L("File name, e.g. readme"))
+	pattern.AlwaysShowValidationError = true
+	pattern.Validator = func(value string) error {
+		if value == "" {
+			return errors.New(lang.L("Enter a pattern"))
+		}
+		if _, err := nameMatcher(value, regexOpt.Checked, caseOpt.Checked); err != nil {
+			return errors.New(lang.L("Invalid pattern: ") + err.Error())
+		}
+		return nil
+	}
+	return pattern, caseOpt, regexOpt
 }
 
 func nameMatcher(pattern string, regex, sensitive bool) (func(string) bool, error) {

@@ -14,7 +14,6 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 	"github.com/dualcommander/dualcommander/pkg/archive"
 	"github.com/dualcommander/dualcommander/pkg/desktop"
@@ -278,19 +277,7 @@ func (u *ui) selectGroup() {
 	}
 	p := u.active
 	w := u.inputDialogWindow(lang.L("Select Group"))
-	caseOpt := newSearchOption(w, "Aa", lang.L("Match case"), lang.L("Match case: distinguish uppercase and lowercase file names."))
-	regexOpt := newSearchOption(w, ".*", lang.L("Regular expression"), lang.L("Regular expression: match file names using Go regexp syntax."))
-	pattern := newEscEntry()
-	pattern.SetPlaceHolder(lang.L("File name, e.g. readme"))
-	pattern.Validator = func(value string) error {
-		if value == "" {
-			return errors.New(lang.L("Enter a pattern"))
-		}
-		if _, err := nameMatcher(value, regexOpt.Checked, caseOpt.Checked); err != nil {
-			return errors.New(lang.L("Invalid pattern: ") + err.Error())
-		}
-		return nil
-	}
+	pattern, caseOpt, regexOpt := namePatternInput(w)
 	unblock := u.blockParent(w)
 	counts := widget.NewLabel("")
 	entries := p.entries
@@ -533,15 +520,7 @@ func (u *ui) settings() {
 		u.right.updateSpace()
 	}
 	freeSpace.ExtendBaseWidget(freeSpace)
-	checkHint := func(c *dialogCheck, text string) {
-		label := widget.NewLabel(text)
-		label.Wrapping = fyne.TextWrapWord
-		icon := container.New(layout.NewCustomPaddedLayout(0, 0, 0, 8), newDialogInfoIcon())
-		guidance := container.NewBorder(nil, nil, icon, nil, label)
-		card := widget.NewCard("", "", container.NewGridWrap(fyne.NewSize(400, guidance.MinSize().Height*2), guidance))
-		c.hint = container.New(searchHintLayout{c}, card)
-		c.hint.Hide()
-	}
+	checkHint := func(c *dialogCheck, text string) { c.hint = dialogHint(c, text) }
 	checkHint(freeSpace, lang.L("When unchecked, used disk space is shown instead."))
 	c := &dialogCheck{close: w.Close}
 	switch runtime.GOOS {

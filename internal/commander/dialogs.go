@@ -18,6 +18,18 @@ import (
 
 type dialogTheme struct{ fyne.Theme }
 
+// dialogHint uses themed Fyne widgets without an input-blocking popup overlay.
+func dialogHint(anchor fyne.CanvasObject, text string) *fyne.Container {
+	label := widget.NewLabel(text)
+	label.Wrapping = fyne.TextWrapWord
+	icon := container.New(layout.NewCustomPaddedLayout(0, 0, 0, 8), newDialogInfoIcon())
+	guidance := container.NewBorder(nil, nil, icon, nil, label)
+	card := widget.NewCard("", "", container.NewGridWrap(fyne.NewSize(400, guidance.MinSize().Height*2), guidance))
+	hint := container.New(searchHintLayout{anchor}, card)
+	hint.Hide()
+	return hint
+}
+
 // Fyne Icon skips refreshing unchanged resources, leaving cached tint after theme switches.
 type dialogInfoIcon struct{ widget.Icon }
 

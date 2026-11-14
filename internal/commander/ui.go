@@ -14,6 +14,7 @@ import (
 	"runtime"
 	"slices"
 	"strings"
+	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
@@ -74,6 +75,7 @@ type ui struct {
 	writeFileClipboard                   func([]string) error
 	readFileClipboard                    func(context.Context) ([]string, error)
 	startFileDrag                        func(fyne.Window, []string) bool
+	renameAfter                          func(time.Duration, func()) func()
 }
 
 func newUI(a fyne.App) *ui {
@@ -259,6 +261,7 @@ func (u *ui) mainMenu() *fyne.MainMenu {
 			u.functionItems[2],
 			item(lang.L("Create Archive…"), fyne.KeyF5, fyne.KeyModifierAlt, u.pack),
 			item(lang.L("Rename…"), fyne.KeyF6, fyne.KeyModifierShift, u.rename),
+			item(lang.L("Multi-Rename…"), fyne.KeyF6, fyne.KeyModifierAlt, u.renameMulti),
 			u.functionItems[4],
 			sep(), u.compareFilesItem, u.compareFoldersItem,
 			sep(),
@@ -317,6 +320,7 @@ func (u *ui) about() {
 		{"F5", lang.L("Copy")},
 		{"F6", lang.L("Move")},
 		{"F2 / Shift+F6", lang.L("Rename selected item")},
+		{"Alt+F6", lang.L("Multi-Rename")},
 		{"F7", lang.L("Create folder")},
 		{"F8 / Delete", lang.L("Delete")},
 		{findKey, lang.L("Find files")},
