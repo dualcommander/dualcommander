@@ -26,6 +26,9 @@ if [ -n "$tag" ]; then
     fi
     printf '%s\n' "$version"
 else
+    tag=$(git tag --merged HEAD --sort=-version:refname | grep -E "^v?$semver$" | head -n 1)
+    [ -z "$tag" ] || base=${tag#v}
+    base=${base%%+*}
     suffix=""
     [ -z "$dirty" ] || suffix=".dirty"
     printf '%s+%s%s\n' "$base" "$sha" "$suffix"
