@@ -1,6 +1,7 @@
 {
   "Index starts at 1 for matching selected items in pane order. Padding: %01d to %09d.": "Index は一致する選択項目に対し、ペイン順で 1 から始まります。ゼロ埋め: %01d ～ %09d。",
   "User manual": "ユーザーマニュアル",
+  "User manual (online)": "ユーザーマニュアル（オンライン）",
   "Enter a match template.": "一致テンプレートを入力してください。",
   "Unbalanced braces in match template.": "テンプレートの波括弧が対応していません。",
   "Invalid capture name: %s": "無効な取得名: %s",

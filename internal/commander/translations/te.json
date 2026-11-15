@@ -1,6 +1,7 @@
 {
   "Index starts at 1 for matching selected items in pane order. Padding: %01d to %09d.": "సరిపోలిన ఎంచుకున్న అంశాలకు ప్యానెల్ క్రమంలో Index 1 నుండి మొదలవుతుంది. ప్యాడింగ్: %01d నుండి %09d వరకు.",
   "User manual": "వినియోగదారు మాన్యువల్",
+  "User manual (online)": "వినియోగదారు మాన్యువల్ (ఆన్‌లైన్)",
   "Enter a match template.": "సరిపోలిక మూసను నమోదు చేయండి.",
   "Unbalanced braces in match template.": "మూసలో అసమాన కర్లీ బ్రాకెట్లు.",
   "Invalid capture name: %s": "చెల్లని సంగ్రహ పేరు: %s",

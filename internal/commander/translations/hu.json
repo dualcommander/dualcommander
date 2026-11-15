@@ -1,6 +1,7 @@
 {
   "Index starts at 1 for matching selected items in pane order. Padding: %01d to %09d.": "Az Index 1-től indul az egyező kijelölt elemeknél, panelsorrendben. Kitöltés: %01d–%09d.",
   "User manual": "Felhasználói kézikönyv",
+  "User manual (online)": "Felhasználói kézikönyv (online)",
   "Enter a match template.": "Adjon meg egyezési sablont.",
   "Unbalanced braces in match template.": "Párosítatlan kapcsos zárójelek a sablonban.",
   "Invalid capture name: %s": "Érvénytelen mezőnév: %s",

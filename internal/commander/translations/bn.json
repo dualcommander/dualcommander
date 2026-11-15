@@ -1,6 +1,7 @@
 {
   "Index starts at 1 for matching selected items in pane order. Padding: %01d to %09d.": "মিলে যাওয়া নির্বাচিত আইটেমের জন্য প্যানেলের ক্রমে Index 1 থেকে শুরু হয়। প্যাডিং: %01d থেকে %09d।",
   "User manual": "ব্যবহারকারী নির্দেশিকা",
+  "User manual (online)": "ব্যবহারকারী নির্দেশিকা (অনলাইন)",
   "Enter a match template.": "মিলের টেমপ্লেট লিখুন।",
   "Unbalanced braces in match template.": "টেমপ্লেটে অসম বন্ধনী।",
   "Invalid capture name: %s": "অবৈধ ক্যাপচার নাম: %s",

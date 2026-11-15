@@ -1,6 +1,7 @@
 {
   "Index starts at 1 for matching selected items in pane order. Padding: %01d to %09d.": "Index, eşleşen seçili öğeler için panel sırasıyla 1’den başlar. Dolgu: %01d ile %09d.",
   "User manual": "Kullanım kılavuzu",
+  "User manual (online)": "Kullanım kılavuzu (çevrimiçi)",
   "Enter a match template.": "Eşleştirme şablonu girin.",
   "Unbalanced braces in match template.": "Şablonda eşleşmeyen süslü parantezler.",
   "Invalid capture name: %s": "Geçersiz yakalama adı: %s",

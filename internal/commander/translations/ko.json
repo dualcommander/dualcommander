@@ -1,6 +1,7 @@
 {
   "Index starts at 1 for matching selected items in pane order. Padding: %01d to %09d.": "Index는 일치하는 선택 항목에 대해 창 순서대로 1부터 시작합니다. 0 채우기: %01d ~ %09d.",
   "User manual": "사용자 설명서",
+  "User manual (online)": "사용자 설명서 (온라인)",
   "Enter a match template.": "일치 템플릿을 입력하세요.",
   "Unbalanced braces in match template.": "템플릿의 중괄호 쌍이 맞지 않습니다.",
   "Invalid capture name: %s": "잘못된 캡처 이름: %s",

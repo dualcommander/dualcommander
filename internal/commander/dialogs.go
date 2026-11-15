@@ -275,6 +275,29 @@ func escapeWindow(w fyne.Window) func(*fyne.KeyEvent) bool {
 }
 
 // Fyne delivers keys to the focused widget, not its canvas.
+type dialogHyperlink struct {
+	widget.Hyperlink
+	close func()
+}
+
+type dialogHyperlinkTheme struct{ fyne.Theme }
+
+func (t dialogHyperlinkTheme) Size(name fyne.ThemeSizeName) float32 {
+	// Fyne positions hyperlink underlines using widget padding, not group spacing.
+	if name == theme.SizeNamePadding {
+		return theme.DefaultTheme().Size(name)
+	}
+	return t.Theme.Size(name)
+}
+
+func (h *dialogHyperlink) TypedKey(e *fyne.KeyEvent) {
+	if e.Name == fyne.KeyEscape {
+		h.close()
+	} else {
+		h.Hyperlink.TypedKey(e)
+	}
+}
+
 type dialogButton struct {
 	widget.Button
 	close func()

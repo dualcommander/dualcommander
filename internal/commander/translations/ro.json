@@ -1,6 +1,7 @@
 {
   "Index starts at 1 for matching selected items in pane order. Padding: %01d to %09d.": "Index începe de la 1 pentru elementele selectate potrivite, în ordinea panoului. Completare: %01d până la %09d.",
   "User manual": "Manual de utilizare",
+  "User manual (online)": "Manual de utilizare (online)",
   "Enter a match template.": "Introduceți un șablon de potrivire.",
   "Unbalanced braces in match template.": "Acolade neechilibrate în șablon.",
   "Invalid capture name: %s": "Nume de captură invalid: %s",

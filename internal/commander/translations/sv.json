@@ -1,6 +1,7 @@
 {
   "Index starts at 1 for matching selected items in pane order. Padding: %01d to %09d.": "Index börjar på 1 för matchande markerade objekt i panelordning. Utfyllnad: %01d till %09d.",
   "User manual": "Användarhandbok",
+  "User manual (online)": "Användarhandbok (online)",
   "Enter a match template.": "Ange en matchningsmall.",
   "Unbalanced braces in match template.": "Obalanserade klamrar i mallen.",
   "Invalid capture name: %s": "Ogiltigt fältnamn: %s",

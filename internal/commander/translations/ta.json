@@ -1,6 +1,7 @@
 {
   "Index starts at 1 for matching selected items in pane order. Padding: %01d to %09d.": "பொருந்தும் தேர்ந்தெடுத்த உருப்படிகளுக்கு பலகை வரிசையில் Index 1 இலிருந்து தொடங்கும். நிரப்புதல்: %01d முதல் %09d வரை.",
   "User manual": "பயனர் கையேடு",
+  "User manual (online)": "பயனர் கையேடு (இணையத்தில்)",
   "Enter a match template.": "பொருத்த வார்ப்புருவை உள்ளிடவும்.",
   "Unbalanced braces in match template.": "வார்ப்புருவில் சமமற்ற சுருள் அடைப்புகள்.",
   "Invalid capture name: %s": "தவறான பிடிப்பு பெயர்: %s",

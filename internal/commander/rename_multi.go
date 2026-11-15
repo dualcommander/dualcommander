@@ -256,11 +256,12 @@ func (u *ui) renameMulti() {
 			help.hint.Show()
 		}
 	}
-	manual := windowButton(w, lang.L("User manual"), func() {
-		u.showErr(u.app.OpenURL(&url.URL{Scheme: "https", Host: "dualcommander.github.io", Path: "/manual.html", Fragment: "multi-rename"}))
-	})
-	manual.Importance = widget.LowImportance
-	guidance := container.NewHBox(help, manual)
+	manual := &dialogHyperlink{close: w.Close}
+	manual.Text = lang.L("User manual")
+	manual.URL = &url.URL{Scheme: "https", Host: "dualcommander.github.io", Path: "/manual.html", Fragment: "multi-rename"}
+	manual.OnTapped = func() { u.showErr(u.app.OpenURL(manual.URL)) }
+	manual.ExtendBaseWidget(manual)
+	guidance := container.NewHBox(help, container.NewThemeOverride(manual, dialogHyperlinkTheme{rowTheme}))
 	form := widget.NewForm(
 		widget.NewFormItem(lang.L("Match template"), from),
 		widget.NewFormItem(lang.L("Name template"), to),

@@ -1,6 +1,7 @@
 {
   "Index starts at 1 for matching selected items in pane order. Padding: %01d to %09d.": "जुळणाऱ्या निवडलेल्या घटकांसाठी Index पॅनेल क्रमाने 1 पासून सुरू होतो. भरणे: %01d ते %09d.",
   "User manual": "वापरकर्ता मार्गदर्शिका",
+  "User manual (online)": "वापरकर्ता मार्गदर्शिका (ऑनलाइन)",
   "Enter a match template.": "जुळणारा साचा भरा.",
   "Unbalanced braces in match template.": "साच्यात असमतोल कंस आहेत.",
   "Invalid capture name: %s": "अवैध कॅप्चर नाव: %s",

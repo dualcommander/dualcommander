@@ -1194,6 +1194,40 @@ func (a *brandingApp) NewWindow(title string) fyne.Window {
 }
 func (w *brandingWindow) SetIcon(icon fyne.Resource) { w.icon = icon }
 
+func TestUserManualMenu(t *testing.T) {
+	root := fixture(t)
+	a := &brandingApp{App: test.NewTempApp(t)}
+	u := newTestUI(t, a, root, root)
+	var manual *fyne.MenuItem
+	for _, menu := range u.win.MainMenu().Items {
+		if menu.Label == "Help" {
+			for _, item := range menu.Items {
+				if item.Label == "User manual (online)" {
+					if manual != nil {
+						t.Fatal("duplicate manual menu item")
+					}
+					manual = item
+				}
+			}
+		}
+	}
+	if manual == nil || manual.Action == nil || manual.Disabled {
+		t.Fatal("general user manual missing from Help menu")
+	}
+	manual.Action()
+	if a.openedURL == nil || a.openedURL.String() != "https://dualcommander.github.io/manual.html" {
+		t.Fatalf("wrong manual URL: %v", a.openedURL)
+	}
+	if hasWindow(a, "Error") {
+		t.Fatal("successful manual open showed error")
+	}
+	a.openErr = errors.New("browser unavailable")
+	manual.Action()
+	w := windowByTitle(t, a, "Error")
+	assertUIText(t, w.Content(), "browser unavailable")
+	tapDialogButton(t, u, "OK")
+}
+
 func TestAppBranding(t *testing.T) {
 	previous := buildVersion
 	buildVersion = "0.1.0+abcdef123456"
@@ -1210,7 +1244,7 @@ func TestAppBranding(t *testing.T) {
 	if runtime.GOOS == "darwin" {
 		label = "About"
 	}
-	if help.Label != "Help" || len(help.Items) != 1 || help.Items[0].Label != label {
+	if help.Label != "Help" || len(help.Items) != 2 || help.Items[0].Label != label {
 		t.Fatal("About missing from Help menu")
 	}
 	help.Items[0].Action()

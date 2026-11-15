@@ -1,6 +1,7 @@
 package commander
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"slices"
@@ -312,7 +313,8 @@ func TestMultiRenameInlineErrors(t *testing.T) {
 
 func TestMultiRenameHelpAndSkippedRows(t *testing.T) {
 	root := fixture(t)
-	u := newTestUI(t, test.NewTempApp(t), filepath.Join(root, "src"), filepath.Join(root, "dst"))
+	a := &brandingApp{App: test.NewTempApp(t)}
+	u := newTestUI(t, a, filepath.Join(root, "src"), filepath.Join(root, "dst"))
 	u.left.marked["readme.md"], u.left.marked["song.mp3"] = true, true
 	clock := fakeRenameDelay(u)
 	u.renameMulti()
@@ -324,14 +326,37 @@ func TestMultiRenameHelpAndSkippedRows(t *testing.T) {
 	var hints, manuals int
 	for _, o := range test.LaidOutObjects(w.Content()) {
 		if b, ok := o.(*dialogButton); ok && b.Text == "User manual" {
+			t.Fatal("manual reference must be a hyperlink, not a button")
+		}
+		if link, ok := o.(fyne.Accessible); ok && link.AccessibilityRole() == fyne.AccessibleRoleLink && link.AccessibilityLabel() == "User manual" {
 			manuals++
-			if b.Importance != widget.LowImportance {
-				t.Fatal("manual link styling invalid")
+			h := o.(*dialogHyperlink)
+			if got := h.Theme().Size(theme.SizeNamePadding); got != theme.DefaultTheme().Size(theme.SizeNamePadding) {
+				t.Fatalf("manual link inherited dialog group padding: %v", got)
+			}
+			if h.Theme().Size(theme.SizeNameText) != u.app.Settings().Theme().Size(theme.SizeNameText) {
+				t.Fatal("manual link lost app font size")
 			}
 			position := u.app.Driver().AbsolutePositionForObject
-			if position(b).Y >= position(findEntry(t, w, "Match template")).Y {
+			if position(o).Y >= position(findEntry(t, w, "Match template")).Y {
 				t.Fatal("manual link not above form")
 			}
+			test.TapAt(o.(fyne.Tappable), fyne.NewPos(o.MinSize().Width/2, o.MinSize().Height/2))
+			if a.openedURL == nil || a.openedURL.String() != "https://dualcommander.github.io/manual.html#multi-rename" || !hasWindow(a, "Multi-Rename") {
+				t.Fatal("manual link did not open target while keeping dialog open")
+			}
+			a.openedURL = nil
+			control := o.(fyne.Focusable)
+			w.Canvas().Focus(control)
+			control.TypedKey(&fyne.KeyEvent{Name: fyne.KeySpace})
+			if a.openedURL == nil {
+				t.Fatal("manual link cannot be activated by keyboard")
+			}
+			a.openErr = errors.New("browser unavailable")
+			test.TapAt(o.(fyne.Tappable), fyne.NewPos(o.MinSize().Width/2, o.MinSize().Height/2))
+			errorWindow := windowByTitle(t, a, "Error")
+			assertUIText(t, errorWindow.Content(), "browser unavailable")
+			errorWindow.Close()
 		}
 		if h, ok := o.(*searchOption); ok {
 			hints++
@@ -720,6 +745,13 @@ func TestMultiRenameCancelControls(t *testing.T) {
 						}
 					case *dialogButton:
 						if c.Text == target {
+							control = c
+						}
+					case interface {
+						fyne.Focusable
+						fyne.Accessible
+					}:
+						if c.AccessibilityRole() == fyne.AccessibleRoleLink && c.AccessibilityLabel() == target {
 							control = c
 						}
 					}

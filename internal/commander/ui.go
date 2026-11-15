@@ -292,6 +292,9 @@ func (u *ui) mainMenu() *fyne.MainMenu {
 		),
 		fyne.NewMenu(lang.L("Help"),
 			item(aboutLabel, "", 0, u.about),
+			item(lang.L("User manual (online)"), "", 0, func() {
+				u.showErr(u.app.OpenURL(&url.URL{Scheme: "https", Host: "dualcommander.github.io", Path: "/manual.html"}))
+			}),
 		),
 	)
 }

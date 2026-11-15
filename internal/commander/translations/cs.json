@@ -1,6 +1,7 @@
 {
   "Index starts at 1 for matching selected items in pane order. Padding: %01d to %09d.": "Index začíná od 1 pro odpovídající vybrané položky v pořadí panelu. Doplnění: %01d až %09d.",
   "User manual": "Uživatelská příručka",
+  "User manual (online)": "Uživatelská příručka (online)",
   "Enter a match template.": "Zadejte vzor shody.",
   "Unbalanced braces in match template.": "Nespárované složené závorky ve vzoru.",
   "Invalid capture name: %s": "Neplatný název zachycení: %s",
