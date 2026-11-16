@@ -314,8 +314,9 @@ After GitHub Release publication, CI submits one x64/arm64 MSIX bundle for stabl
 Submission uses the secret names from the
 [Microsoft Store GitHub Actions guide](https://learn.microsoft.com/en-us/windows/apps/publish/msstore-dev-cli/github-actions?tabs=msix),
 set in GitHub environment `windows-store`: `AZURE_AD_TENANT_ID`, `SELLER_ID`,
-`AZURE_AD_APPLICATION_CLIENT_ID`, and `AZURE_AD_APPLICATION_SECRET`. Set the
-Partner Center Store ID as variable `WINDOWS_STORE_PRODUCT_ID` there too.
+`AZURE_AD_APPLICATION_CLIENT_ID`, and `AZURE_AD_APPLICATION_SECRET`. Store product
+ID lives in `Makefile` and `scripts/windows-store-listing.ps1`; the former
+`WINDOWS_STORE_PRODUCT_ID` variable is no longer used.
 
 MSIX version is `MAJOR.MINOR.PATCH.0`: components must be at most 65535, version
 nonzero, and each update newer. Package structure and Store identity (name,
@@ -329,6 +330,105 @@ Store signs MSIX; SignPath is independent and optional. Actions artifact
 rollout still control availability. Store failures leave GitHub releases intact;
 check submission state before rerunning failed jobs. Validate packaging with Windows
 SDK MakeAppx and submission in Partner Center; local application checks cover neither.
+
+#### Store listing text in Git
+
+`packaging/windows/store-listing.json` owns English (`en-us`) listing text. The
+existing **Build and release** workflow applies this file automatically alongside
+the Windows package on each `v*` tag push, after GitHub Release publication and
+protected environment approval. No separate listing workflow or manual dispatch
+is needed. Placeholder markers block publishing until replaced.
+
+1. In GitHub environment `windows-store`, keep required reviewers, release-tag
+   deployment restrictions, and the four existing Store secrets.
+2. To copy current Store text, authenticate locally with `msstore reconfigure` and
+   run `make export-windows-store-listing` with PowerShell 7 installed. Copy
+   `dist/windows-store/store-listing.json` over `packaging/windows/store-listing.json`.
+   This exports only supported text fields, not credentials or the full submission.
+3. Compare exported text with the intended Partner Center submission, especially
+   when a pending draft exists. The CLI can return the current draft
+   rather than the last published listing. Alternatively, fill the template from
+   **Partner Center > Apps and games > DualCommander > current
+   submission > Store listings > English (United States)**. Open the editable
+   language listing, not the public Microsoft Store page.
+   Copy the contents of each portal input, not its label, into the matching JSON
+   value using the [field mapping table](#microsoft-store-field-mapping).
+   Expand **Additional information** if optional fields are hidden.
+
+   Example conversion only; use your own portal text and approved reserved name:
+
+   ```json
+   {
+     "title": "Your approved reserved name",
+     "shortDescription": "A keyboard-friendly, two-pane file manager.",
+     "description": "First description paragraph.\n\nSecond description paragraph.",
+     "features": ["Browse two folders side by side", "Rename files with the keyboard"],
+     "releaseNotes": "Improved file operations.\nFixed navigation issues.",
+     "keywords": ["file manager", "two pane"],
+     "licenseTerms": "",
+     "copyrightAndTrademarkInfo": ""
+   }
+   ```
+
+   Two **Product features** inputs become the two `features` items above. Two
+   **Search terms** inputs containing `file manager` and `two pane` become the two
+   `keywords` items; do not split them into individual words. Description and
+   release notes stay single strings even when they contain multiple lines.
+
+   Use `[]` for intentionally empty lists and `""` for intentionally empty
+   optional text. `title` and `description` must be nonempty. Remove optional keys
+   to leave their existing Store values unchanged. JSON multiline text uses `\n`;
+   quotes inside strings use `\"`. Remove every `REPLACE_FROM_PARTNER_CENTER` marker.
+   If an optional portal field is absent or unclear, remove its JSON key to leave
+   the Store value unchanged, or export current text rather than guessing its value.
+4. Set `title` to a name reserved for this product in Partner Center. If renaming,
+   reserve the new name first. Keep user-facing MSIX `DisplayName` values aligned in
+   `cmd/dualcommander/AppxManifest.xml`; do not change package `Identity Name`,
+   publisher identity, or Store product ID merely to rename the listing.
+5. Run `make validate-windows-store-listing` with PowerShell 7 installed, review
+   and merge the JSON before creating the release tag. The tagged revision supplies
+   both package source and listing text. Push the tag and approve the protected
+   environment deployment. CI submits package and metadata together for certification;
+   successful Actions completion does not mean certification passed or app is live.
+
+##### Microsoft Store field mapping
+
+Source: English (United States) Store listing in Partner Center.
+Destination: `packaging/windows/store-listing.json`.
+
+| Portal field | JSON key | Value to copy |
+| --- | --- | --- |
+| **Product name** | `title` | Selected reserved name, exactly; not Product ID or package identity. |
+| **Description** | `description` | Complete description, including paragraph breaks. |
+| **Short description** | `shortDescription` | Brief product summary as a single string; omit to preserve the current value. |
+| **Product features** | `features` | Array of strings, one per feature input. |
+| **What's new in this version** | `releaseNotes` | Complete release notes for this submission, not Notes for certification. |
+| **Search terms** | `keywords` | Array of strings, one per search-term input. Keep multiword terms together. |
+| **Additional license terms** | `licenseTerms` | Custom license text, if supplied; not privacy policy URL. |
+| **Copyright and trademark info** | `copyrightAndTrademarkInfo` | Complete notice, if supplied. |
+
+The script fetches fresh submission data and merges only listed text fields into
+the English base listing, preserving other languages, images, platform overrides,
+pricing, and packages. Package releases stage the new MSIX with `--noCommit`, then
+apply text and commit once. Publishing uses the existing `windows-store` job and
+concurrency group. Text edits alone do not trigger Store publishing.
+
+Check pending submission state before publishing: a metadata-only run commits the
+current draft, including any other changes already in it. Finish or discard any
+portal-managed draft before moving to API-managed submissions. Do
+not edit an API-created submission in Partner Center; Microsoft warns this can
+prevent further API updates or commits. Inspect submission status without editing.
+
+Screenshots, new language listings, and name reservations are not managed by this
+text workflow. Privacy policy URL, support contact, and website remain on Partner
+Center's **Properties** page; their old listing API fields are obsolete. Do not
+commit full output from `msstore submission get`: it includes transient package
+state and may include signed upload URLs. Runtime payload stays under ignored
+`dist/windows-store/`.
+
+Local equivalents after `msstore reconfigure`: `make export-windows-store-listing`
+writes `dist/windows-store/store-listing.json`; `make publish-windows-store-listing`
+submits Git text. See Microsoft's [MSIX metadata publishing guide](https://learn.microsoft.com/en-us/windows/apps/publish/msstore-dev-cli/github-actions?tabs=msix).
 
 ### Mac App Store uploads (opt-in)
 

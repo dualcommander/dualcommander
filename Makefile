@@ -1,4 +1,4 @@
-.PHONY: check fmt fmt-check vet test ci-check build run debug-capture download-deps install-packager install-nfpm install-snapcraft package-native archive-macos archive-linux archive-windows package-macos package-linux sign-macos verify-windows package-snap package-msix package-apple-store
+.PHONY: check fmt fmt-check vet test ci-check build run debug-capture download-deps install-packager install-nfpm install-snapcraft package-native archive-macos archive-linux archive-windows package-macos package-linux sign-macos verify-windows package-snap package-msix package-apple-store validate-windows-store-listing export-windows-store-listing publish-windows-store-listing publish-windows-store
 
 WINDOWS_STORE_INPUT ?= dist
 APPLE_STORE_INPUT ?= dist
@@ -87,6 +87,19 @@ package-snap:
 # Requires Windows SDK, PowerShell 7, and both Windows ZIPs.
 package-msix:
 	pwsh -NoProfile -File scripts/package-windows-store.ps1 -InputDirectory "$(WINDOWS_STORE_INPUT)"
+
+validate-windows-store-listing:
+	pwsh -NoProfile -File scripts/windows-store-listing.ps1 -Action Validate
+
+export-windows-store-listing:
+	pwsh -NoProfile -File scripts/windows-store-listing.ps1 -Action Export
+
+publish-windows-store-listing:
+	pwsh -NoProfile -File scripts/windows-store-listing.ps1 -Action Publish
+
+publish-windows-store: validate-windows-store-listing
+	msstore publish dist/windows-store/dualcommander.msixbundle --appId 9NDGVQNPXVPT --noCommit
+	$(MAKE) publish-windows-store-listing
 
 package-apple-store:
 	sh scripts/package-apple-store.sh "$(APPLE_STORE_INPUT)"
