@@ -45,37 +45,37 @@ const (
 )
 
 type ui struct {
-	inputWindow                          *inputWindow
-	app                                  fyne.App
-	win                                  fyne.Window
-	left, right                          *pane
-	active                               *pane
-	split                                *paneSplit
-	functionBar                          *fyne.Container
-	functionItems                        map[int]*fyne.MenuItem
-	jobs                                 *jobs
-	themeMode                            string
-	themeItems                           []*fyne.MenuItem
-	density                              string
-	densItems                            []*fyne.MenuItem
-	fontSize                             string
-	fontItems                            []*fyne.MenuItem
-	showHidden                           bool
-	briefItem                            *fyne.MenuItem
-	detailedItem                         *fyne.MenuItem
-	hiddenItem                           *fyne.MenuItem
-	starredItem                          *fyne.MenuItem
-	compareFilesItem, compareFoldersItem *fyne.MenuItem
-	ready                                bool
-	archiveTemps                         []string
-	filePreview                          func(string) []byte
-	passwordGate                         chan struct{}
-	passwordWindow                       fyne.Window
-	fileClipboard                        *fileClipboard
-	writeFileClipboard                   func([]string) error
-	readFileClipboard                    func(context.Context) ([]string, error)
-	startFileDrag                        func(fyne.Window, []string) bool
-	renameAfter                          func(time.Duration, func()) func()
+	inputWindow                                                       *inputWindow
+	app                                                               fyne.App
+	win                                                               fyne.Window
+	left, right                                                       *pane
+	active                                                            *pane
+	split                                                             *paneSplit
+	functionBar                                                       *fyne.Container
+	functionItems                                                     map[int]*fyne.MenuItem
+	jobs                                                              *jobs
+	themeMode                                                         string
+	themeItems                                                        []*fyne.MenuItem
+	density                                                           string
+	densItems                                                         []*fyne.MenuItem
+	fontSize                                                          string
+	fontItems                                                         []*fyne.MenuItem
+	showHidden                                                        bool
+	briefItem                                                         *fyne.MenuItem
+	detailedItem                                                      *fyne.MenuItem
+	hiddenItem                                                        *fyne.MenuItem
+	starredItem                                                       *fyne.MenuItem
+	compareFilesItem, compareFoldersItem, renameItem, multiRenameItem *fyne.MenuItem
+	ready                                                             bool
+	archiveTemps                                                      []string
+	filePreview                                                       func(string) []byte
+	passwordGate                                                      chan struct{}
+	passwordWindow                                                    fyne.Window
+	fileClipboard                                                     *fileClipboard
+	writeFileClipboard                                                func([]string) error
+	readFileClipboard                                                 func(context.Context) ([]string, error)
+	startFileDrag                                                     func(fyne.Window, []string) bool
+	renameAfter                                                       func(time.Duration, func()) func()
 }
 
 func newUI(a fyne.App) *ui {
@@ -90,14 +90,11 @@ func newUI(a fyne.App) *ui {
 		u.density = "standard" // migrate removed density modes to standard
 	}
 	u.fontSize = pr.String(prefFontSize)
-	switch u.fontSize {
-	case "very small":
-		u.fontSize = "x-small"
-	case "very large":
-		u.fontSize = "x-large"
+	if size, ok := legacyFontSizes[u.fontSize]; ok {
+		u.fontSize = size
 	}
 	if !slices.Contains(fontSizes, u.fontSize) {
-		u.fontSize = "medium"
+		u.fontSize = "S"
 	}
 	pr.SetString(prefFontSize, u.fontSize)
 	applyTheme(a, u.themeMode, u.density)
@@ -232,6 +229,8 @@ func (u *ui) mainMenu() *fyne.MainMenu {
 			u.compare(true)
 		}
 	})
+	u.renameItem = item(lang.L("Rename…"), fyne.KeyF6, fyne.KeyModifierShift, u.rename)
+	u.multiRenameItem = item(lang.L("Multi-Rename…"), fyne.KeyF6, fyne.KeyModifierAlt, u.renameMulti)
 	u.updateCompareMenu()
 	aboutLabel := lang.L("About {{.App}}", map[string]any{"App": appName})
 	if runtime.GOOS == "darwin" {
@@ -260,8 +259,8 @@ func (u *ui) mainMenu() *fyne.MainMenu {
 			u.functionItems[1],
 			u.functionItems[2],
 			item(lang.L("Create Archive…"), fyne.KeyF5, fyne.KeyModifierAlt, u.pack),
-			item(lang.L("Rename…"), fyne.KeyF6, fyne.KeyModifierShift, u.rename),
-			item(lang.L("Multi-Rename…"), fyne.KeyF6, fyne.KeyModifierAlt, u.renameMulti),
+			u.renameItem,
+			u.multiRenameItem,
 			u.functionItems[4],
 			sep(), u.compareFilesItem, u.compareFoldersItem,
 			sep(),
@@ -532,6 +531,14 @@ func (u *ui) updateFunctionButtons() {
 		} else {
 			b.Enable()
 		}
+	}
+	if renameDisabled := e.name == "" || e.name == ".."; u.renameItem.Disabled != renameDisabled {
+		u.renameItem.Disabled = renameDisabled
+		menuChanged = true
+	}
+	if multiDisabled := len(u.active.selection()) == 0; u.multiRenameItem.Disabled != multiDisabled {
+		u.multiRenameItem.Disabled = multiDisabled
+		menuChanged = true
 	}
 	if menuChanged && u.win.MainMenu() != nil {
 		u.win.MainMenu().Refresh()

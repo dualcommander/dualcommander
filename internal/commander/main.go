@@ -114,7 +114,10 @@ var themeModes = []string{"system", "light", "dark"}
 
 var densities = []string{"compact", "standard"}
 
-var fontSizes = []string{"xx-small", "x-small", "small", "medium", "large", "x-large", "xx-large"}
+var fontSizes = []string{"XXS", "XS", "S", "M", "L", "XL", "XXL"}
+
+// legacyFontSizes maps font sizes saved by earlier versions to the current symbols.
+var legacyFontSizes = map[string]string{"xx-small": "XXS", "x-small": "XS", "very small": "XS", "small": "S", "default": "M", "medium": "M", "large": "L", "x-large": "XL", "very large": "XL", "xx-large": "XXL"}
 
 // applyTheme sets appearance mode (system/light/dark) and density app-wide.
 func applyTheme(a fyne.App, mode, density string) {

@@ -44,7 +44,7 @@ func settingsValues(p fyne.Preferences) map[string]any {
 		prefTheme:  p.StringWithFallback(prefTheme, "system"),
 		"language": p.String("language"),
 		prefHidden: p.Bool(prefHidden), prefDensity: p.StringWithFallback(prefDensity, "standard"),
-		prefFontSize:       p.StringWithFallback(prefFontSize, "medium"),
+		prefFontSize:       p.StringWithFallback(prefFontSize, "S"),
 		prefShowFreeSpace:  p.BoolWithFallback(prefShowFreeSpace, true),
 		prefTrash:          p.BoolWithFallback(prefTrash, true),
 		prefBrowseArchives: p.BoolWithFallback(prefBrowseArchives, true),

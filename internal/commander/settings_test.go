@@ -194,7 +194,7 @@ func TestSettingsFileMigrationAndUI(t *testing.T) {
 				control.SetSelected("compact")
 			}
 			if reflect.DeepEqual(control.Options, fontSizes) {
-				control.SetSelected("large")
+				control.SetSelected("L")
 			}
 		case *escEntry:
 			control.SetText(`["custom-app","{dir}"]`)
@@ -214,7 +214,7 @@ func TestSettingsFileMigrationAndUI(t *testing.T) {
 	}
 	defer restored.close()
 	v := newTrackedUI(t, b)
-	if v.themeMode != "dark" || v.density != "compact" || v.fontSize != "large" || v.left.path != u.left.path || v.right.path != u.right.path || !b.Preferences().Bool(prefTrash) || b.Preferences().Bool(prefBrowseArchives) || b.Preferences().String(prefRevealCmd) != `["custom-app","{dir}"]` || b.Preferences().String(prefTerminalCmd) != `["custom-app","{dir}"]` || b.Preferences().String(prefEditorCmd) != `["custom-app","{dir}"]` || !reflect.DeepEqual(b.Preferences().StringList(prefFavourites), []string{root}) {
+	if v.themeMode != "dark" || v.density != "compact" || v.fontSize != "L" || v.left.path != u.left.path || v.right.path != u.right.path || !b.Preferences().Bool(prefTrash) || b.Preferences().Bool(prefBrowseArchives) || b.Preferences().String(prefRevealCmd) != `["custom-app","{dir}"]` || b.Preferences().String(prefTerminalCmd) != `["custom-app","{dir}"]` || b.Preferences().String(prefEditorCmd) != `["custom-app","{dir}"]` || !reflect.DeepEqual(b.Preferences().StringList(prefFavourites), []string{root}) {
 		t.Fatal("fresh app did not restore JSON preferences")
 	}
 }
@@ -642,4 +642,22 @@ func TestSettingsStateSeparation(t *testing.T) {
 			t.Fatal("invalid state overwritten")
 		}
 	}
+}
+
+func TestSettingsManualLink(t *testing.T) {
+	root := fixture(t)
+	a := &brandingApp{App: test.NewTempApp(t)}
+	u := newTestUI(t, a, filepath.Join(root, "src"), filepath.Join(root, "dst"))
+	u.settings()
+	w := windowByTitle(t, a, "Settings")
+	for _, o := range test.LaidOutObjects(w.Content()) {
+		if h, ok := o.(*dialogHyperlink); ok && h.Text == "User manual" {
+			test.TapAt(h, fyne.NewPos(h.MinSize().Width/2, h.MinSize().Height/2))
+			if a.openedURL == nil || a.openedURL.String() != "https://dualcommander.github.io/manual.html#settings" || !hasWindow(a, "Settings") {
+				t.Fatalf("manual link opened %v or closed Settings", a.openedURL)
+			}
+			return
+		}
+	}
+	t.Fatal("Settings missing User manual link")
 }

@@ -1,8 +1,10 @@
 package commander
 
 import (
+	"encoding/json"
 	"image/color"
 	"path/filepath"
+	"slices"
 	"testing"
 
 	"fyne.io/fyne/v2"
@@ -38,8 +40,18 @@ func TestFontSizeMenuAndPersistence(t *testing.T) {
 	u.left.marked["readme.md"] = true
 	base := theme.TextSize()
 	previous := float32(0)
-	if len(fontSizes) != 7 || u.fontSize != "medium" {
-		t.Fatal("expected seven presets with medium default")
+	if len(fontSizes) != 7 || u.fontSize != "S" || !slices.Equal(fontSizes, []string{"XXS", "XS", "S", "M", "L", "XL", "XXL"}) {
+		t.Fatal("expected seven XXS–XXL presets with S default")
+	}
+	data, _ := translations.ReadFile("translations/en.json")
+	var english map[string]string
+	if err := json.Unmarshal(data, &english); err != nil {
+		t.Fatal(err)
+	}
+	for _, size := range fontSizes {
+		if _, ok := english[size]; ok {
+			t.Fatalf("size symbol %q needs no catalog key", size)
+		}
 	}
 	for i, size := range fontSizes {
 		u.setDensity("standard")
@@ -66,7 +78,7 @@ func TestFontSizeMenuAndPersistence(t *testing.T) {
 		if theme.TextSize() != want {
 			t.Fatal("appearance/density reset font size")
 		}
-		if size == "medium" && want != base {
+		if size == "S" && want != base {
 			t.Fatal("default changed existing font size")
 		}
 		u = restartUI(t, a, u)
@@ -78,10 +90,15 @@ func TestFontSizeMenuAndPersistence(t *testing.T) {
 	}
 	a.Preferences().SetString(prefFontSize, "invalid")
 	u = restartUI(t, a, u)
-	if u.fontSize != "medium" || theme.TextSize() != base {
+	if u.fontSize != "S" || theme.TextSize() != base {
 		t.Fatal("invalid preference did not fall back to default")
 	}
-	for old, size := range map[string]string{"very small": "x-small", "small": "small", "default": "medium", "large": "large", "very large": "x-large"} {
+	for old, size := range map[string]string{"xx-small": "XXS", "x-small": "XS", "medium": "M", "x-large": "XL", "xx-large": "XXL"} {
+		if legacyFontSizes[old] != size {
+			t.Fatalf("legacy size %q maps to %q, want %q", old, legacyFontSizes[old], size)
+		}
+	}
+	for old, size := range map[string]string{"very small": "XS", "small": "S", "default": "M", "large": "L", "very large": "XL"} {
 		a.Preferences().SetString(prefFontSize, old)
 		u = restartUI(t, a, u)
 		if u.fontSize != size || a.Preferences().String(prefFontSize) != size {

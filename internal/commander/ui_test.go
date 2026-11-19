@@ -944,7 +944,7 @@ func TestAppearanceSettings(t *testing.T) {
 	}
 	choices[0].SetSelected("dark")
 	choices[1].SetSelected("compact")
-	choices[2].SetSelected("large")
+	choices[2].SetSelected("L")
 	w.Close()
 	u = newTrackedUI(t, a)
 	u.settings()
@@ -955,7 +955,7 @@ func TestAppearanceSettings(t *testing.T) {
 			restored = append(restored, s.Selected)
 		}
 	}
-	if !slices.Equal(restored, []string{"dark", "compact", "large", "System", "Detailed", "Brief"}) || u.themeMode != "dark" || u.density != "compact" || u.fontSize != "large" {
+	if !slices.Equal(restored, []string{"dark", "compact", "L", "System", "Detailed", "Brief"}) || u.themeMode != "dark" || u.density != "compact" || u.fontSize != "L" {
 		t.Fatalf("appearance preferences not restored: %v", restored)
 	}
 	w.Close()
@@ -2340,6 +2340,59 @@ func TestEditMenuShortcut(t *testing.T) {
 	shortcut, ok := editItem.Shortcut.(*desktop.CustomShortcut)
 	if !ok || shortcut.KeyName != fyne.KeyF4 || shortcut.Modifier != 0 {
 		t.Fatalf("Edit shortcut: %#v", editItem.Shortcut)
+	}
+}
+
+func TestFileMenuRenameDisabledOnParent(t *testing.T) {
+	root := fixture(t)
+	u := newTestUI(t, test.NewTempApp(t), filepath.Join(root, "src"), filepath.Join(root, "dst"))
+	var rename *fyne.MenuItem
+	for _, item := range u.win.MainMenu().Items[0].Items {
+		if item.Label == "Rename…" {
+			rename = item
+		}
+	}
+	if rename == nil {
+		t.Fatal("File menu missing Rename…")
+	}
+	cursorTo(t, u.left, "readme.md")
+	if rename.Disabled {
+		t.Fatal("Rename… disabled on a file")
+	}
+	cursorTo(t, u.left, "..")
+	if !rename.Disabled {
+		t.Fatal("Rename… enabled on parent entry")
+	}
+	cursorTo(t, u.left, "readme.md")
+	if rename.Disabled {
+		t.Fatal("Rename… stayed disabled after leaving parent entry")
+	}
+}
+
+func TestFileMenuMultiRenameDisabledWithoutSelection(t *testing.T) {
+	root := fixture(t)
+	u := newTestUI(t, test.NewTempApp(t), filepath.Join(root, "src"), filepath.Join(root, "dst"))
+	var multi *fyne.MenuItem
+	for _, item := range u.win.MainMenu().Items[0].Items {
+		if item.Label == "Multi-Rename…" {
+			multi = item
+		}
+	}
+	if multi == nil {
+		t.Fatal("File menu missing Multi-Rename…")
+	}
+	cursorTo(t, u.left, "readme.md")
+	if multi.Disabled {
+		t.Fatal("Multi-Rename… disabled on a file")
+	}
+	cursorTo(t, u.left, "..")
+	if !multi.Disabled {
+		t.Fatal("Multi-Rename… enabled with only parent entry selected")
+	}
+	u.left.marked["readme.md"] = true
+	u.left.updateStatus()
+	if multi.Disabled {
+		t.Fatal("Multi-Rename… disabled with marked item")
 	}
 }
 

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"fyne.io/fyne/v2/lang"
+	"net/url"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -447,7 +448,7 @@ func (u *ui) settings() {
 	heading := func(text string) *widget.Label {
 		return widget.NewLabelWithStyle(text, fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
 	}
-	var content *container.ThemeOverride
+	var content, manualBox *container.ThemeOverride
 	choice := func(options []string, selected string, changed func(string)) *dialogSelect {
 		labels := make([]string, len(options))
 		for i, option := range options {
@@ -462,6 +463,8 @@ func (u *ui) settings() {
 			}
 			content.Theme = dialogTheme{u.app.Settings().Theme()}
 			content.Refresh()
+			manualBox.Theme = dialogHyperlinkTheme{u.app.Settings().Theme()}
+			manualBox.Refresh()
 			w.Canvas().Focus(s)
 		}
 		return s
@@ -581,8 +584,15 @@ func (u *ui) settings() {
 	filesItem.HintText = lang.L("Cursor file in each pane. Use {left} and {right}; blank disables comparison.")
 	foldersItem := widget.NewFormItem(lang.L("Compare folder contents"), commandEntry(prefCompareFoldersCmd, `["meld","{left}","{right}"]`))
 	foldersItem.HintText = lang.L("Cursor folder in each pane. Configure tool flags for recursive content comparison; blank disables.")
+	manual := &dialogHyperlink{close: w.Close}
+	manual.Text = lang.L("User manual")
+	manual.URL = &url.URL{Scheme: "https", Host: "dualcommander.github.io", Path: "/manual.html", Fragment: "settings"}
+	manual.OnTapped = func() { u.showErr(u.app.OpenURL(manual.URL)) }
+	manual.ExtendBaseWidget(manual)
+	manualBox = container.NewThemeOverride(manual, dialogHyperlinkTheme{u.app.Settings().Theme()})
 	content = u.dialogContent(container.NewVBox(
 		hint(lang.L("Changes are saved automatically. Invalid commands are not saved.")),
+		manualBox,
 		widget.NewSeparator(),
 		heading(lang.L("Appearance")),
 		appearance,
