@@ -1,9 +1,9 @@
 Windows software OpenGL runtime
 
-Mesa 26.2.6 llvmpipe, including statically linked LLVM 23.1.4.
-Binary distributor: https://github.com/mmozeiko/build-mesa/releases/tag/26.2.6
-Mesa source: https://archive.mesa3d.org/mesa-26.2.6.tar.xz
-LLVM source: https://github.com/llvm/llvm-project/tree/llvmorg-23.1.4
+Mesa 26.3.1 llvmpipe, including statically linked LLVM 23.1.5.
+Binary distributor: https://github.com/mmozeiko/build-mesa/releases/tag/26.3.1
+Mesa source: https://archive.mesa3d.org/mesa-26.3.1.tar.xz
+LLVM source: https://github.com/llvm/llvm-project/tree/llvmorg-23.1.5
 Build instructions: https://github.com/mmozeiko/build-mesa
 
 Only opengl32.dll is distributed; EGL, GLES and Vulkan binaries are omitted.
