@@ -53,6 +53,8 @@ func assertUIText(t *testing.T, content fyne.CanvasObject, want ...string) {
 			got = append(got, w.Text)
 		case *dialogButton:
 			got = append(got, w.Text)
+		case *favouriteButton:
+			got = append(got, w.Text)
 		case *widget.Entry:
 			got = append(got, w.Text)
 		}
@@ -258,6 +260,10 @@ func tapDialogButton(t *testing.T, u *ui, label string) {
 	}
 	for _, o := range test.LaidOutObjects(top) {
 		if b, ok := o.(*widget.Button); ok && b.Text == label {
+			test.Tap(b)
+			return
+		}
+		if b, ok := o.(*favouriteButton); ok && b.Text == label {
 			test.Tap(b)
 			return
 		}

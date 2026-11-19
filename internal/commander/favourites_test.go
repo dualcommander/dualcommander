@@ -4,10 +4,12 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/test"
 )
 
@@ -20,7 +22,7 @@ func TestFavouritesWorkflow(t *testing.T) {
 		t.Fatal("folder not starred")
 	}
 	test.Tap(u.right.favourites)
-	tapDialogButton(t, u, "src")
+	tapDialogButton(t, u, "1")
 	if u.right.path != u.left.path || u.active != u.right || u.right.favourite.Text != "★" {
 		t.Fatal("favourite not opened in requesting pane")
 	}
@@ -38,82 +40,119 @@ func TestFavouritesWorkflow(t *testing.T) {
 	u.toggleFavourite(filepath.Join(root, "missing"))
 	before := u.right.path
 	test.Tap(u.right.favourites)
-	tapDialogButton(t, u, "missing")
+	tapDialogButton(t, u, "1")
 	if u.right.path != before || !hasWindow(u.app, "Error") {
 		t.Fatal("missing favourite must show error without navigation")
 	}
 	tapDialogButton(t, u, "OK")
 }
 
-func TestStarredGoMenu(t *testing.T) {
+func TestStarredKeyboard(t *testing.T) {
 	root := fixture(t)
 	src, dst := filepath.Join(root, "src"), filepath.Join(root, "dst")
 	a := test.NewTempApp(t)
 	u := newTestUI(t, a, src, dst)
-	check := func(paths ...string) {
-		t.Helper()
-		var starred *fyne.MenuItem
-		for _, menu := range u.win.MainMenu().Items {
-			if menu.Label == "Go" {
-				for _, item := range menu.Items {
-					if item.Label == "Starred" {
-						starred = item
-					}
-				}
-			}
-		}
-		if starred == nil || starred.ChildMenu == nil {
-			t.Fatal("Go > Starred missing")
-		}
-		items := starred.ChildMenu.Items
-		if len(paths) == 0 {
-			if len(items) != 1 || !items[0].Disabled || items[0].Label != "No starred paths" {
-				t.Fatal("empty state missing")
-			}
-			return
-		}
-		if len(items) != len(paths) {
-			t.Fatalf("items: %v", items)
-		}
-		for i, path := range paths {
-			if items[i].Label != path || items[i].Disabled {
-				t.Fatalf("starred path %d: %s", i, items[i].Label)
+	var star, starred *fyne.MenuItem
+	for _, menu := range u.win.MainMenu().Items {
+		for _, item := range menu.Items {
+			switch item.Label {
+			case "Star Folder":
+				star = item
+			case "Starred Folders…":
+				starred = item
+			case "Starred":
+				t.Fatal("Starred submenu remains")
 			}
 		}
 	}
-	check()
-	test.Tap(u.left.favourite)
-	test.Tap(u.right.favourite)
-	check(src, dst)
-	u.starredItem.ChildMenu.Items[1].Action()
-	if u.left.path != dst || u.right.path != dst || u.active != u.left {
-		t.Fatal("starred path did not open in active pane")
+	shortcut := func(item *fyne.MenuItem) *desktop.CustomShortcut {
+		s, _ := item.Shortcut.(*desktop.CustomShortcut)
+		return s
+	}
+	mod := fyne.KeyModifierShortcutDefault
+	if star == nil || starred == nil || shortcut(star) == nil || *shortcut(star) != (desktop.CustomShortcut{KeyName: fyne.KeyD, Modifier: mod}) ||
+		shortcut(starred) == nil || *shortcut(starred) != (desktop.CustomShortcut{KeyName: fyne.KeyD, Modifier: mod | fyne.KeyModifierShift}) {
+		t.Fatal("Go menu missing Star Folder (Mod+D) or Starred Folders… (Mod+Shift+D)")
+	}
+	star.Action()
+	if !slices.Equal(a.Preferences().StringList(prefFavourites), []string{src}) || !star.Checked || u.left.favourite.Text != "★" {
+		t.Fatalf("Mod+D did not star active folder: %v %v %q path=%q", a.Preferences().StringList(prefFavourites), star.Checked, u.left.favourite.Text, u.active.path)
 	}
 	u.activate(u.right)
-	u.starredItem.ChildMenu.Items[0].Action()
-	if u.right.path != src || u.left.path != dst || u.active != u.right {
-		t.Fatal("starred path used wrong pane or closure")
+	if star.Checked {
+		t.Fatal("Star Folder checked for unstarred folder")
+	}
+	star.Action()
+	if !slices.Equal(a.Preferences().StringList(prefFavourites), []string{src, dst}) || !star.Checked {
+		t.Fatal("Mod+D did not star second folder")
+	}
+	open := func() fyne.Focusable {
+		t.Helper()
+		starred.Action()
+		top := u.win.Canvas().Overlays().Top()
+		if top == nil {
+			t.Fatal("starred folders not shown")
+		}
+		assertUIText(t, top, "1", src, "2", dst)
+		focused := u.win.Canvas().Focused()
+		if focused == nil || focused.(*favouriteButton).Text != "1" {
+			t.Fatal("first starred folder not focused")
+		}
+		return focused
+	}
+	open().TypedRune('1')
+	if u.right.path != src || u.left.path != src || u.active != u.right || u.win.Canvas().Overlays().Top() != nil {
+		t.Fatal("digit did not open starred folder in active pane")
+	}
+	open().TypedKey(&fyne.KeyEvent{Name: fyne.KeyEscape})
+	if u.right.path != src || u.win.Canvas().Overlays().Top() != nil || u.win.Canvas().Focused() != u.right.focusable() {
+		t.Fatal("Escape did not close starred folders and refocus pane")
+	}
+	focused := open()
+	focused.TypedRune('9')
+	focused.TypedRune('x')
+	if u.right.path != src || u.win.Canvas().Overlays().Top() == nil {
+		t.Fatal("unassigned key changed state")
+	}
+	focused.TypedRune('2')
+	if u.right.path != dst {
+		t.Fatal("digit 2 did not open second folder")
+	}
+	star.Action()
+	if star.Checked || !slices.Equal(a.Preferences().StringList(prefFavourites), []string{src}) {
+		t.Fatal("Mod+D did not unstar")
 	}
 	u.passwordWindow = u.win
-	u.starredItem.ChildMenu.Items[1].Action()
+	star.Action()
 	u.passwordWindow = nil
-	if u.right.path != src {
-		t.Fatal("starred navigation ignored modal blocker")
+	if len(a.Preferences().StringList(prefFavourites)) != 1 {
+		t.Fatal("Mod+D ignored modal blocker")
 	}
-	u.save()
-	u = newTrackedUI(t, a)
-	check(src, dst)
-	u.toggleFavourite(src)
-	check(dst)
-	u.toggleFavourite(dst)
-	check()
-	missing := filepath.Join(root, "missing")
-	u.toggleFavourite(missing)
-	u.starredItem.ChildMenu.Items[0].Action()
-	if u.active.path != src || !hasWindow(a, "Error") {
-		t.Fatal("missing starred path not handled")
+}
+
+func TestStarFolderDisabledInArchive(t *testing.T) {
+	root := fixture(t)
+	archiveFixture(t, root)
+	u := newTestUI(t, test.NewTempApp(t), filepath.Join(root, "src"), filepath.Join(root, "dst"))
+	var star *fyne.MenuItem
+	for _, menu := range u.win.MainMenu().Items {
+		for _, item := range menu.Items {
+			if item.Label == "Star Folder" {
+				star = item
+			}
+		}
 	}
-	tapDialogButton(t, u, "OK")
+	cursorTo(t, u.left, "browse.zip")
+	press(u, fyne.KeyReturn)
+	waitJobs(t, u)
+	u.activate(u.left)
+	if !star.Disabled {
+		t.Fatal("Star Folder enabled inside archive")
+	}
+	star.Action()
+	if len(u.app.Preferences().StringList(prefFavourites)) != 0 {
+		t.Fatal("archive path starred")
+	}
 }
 
 func TestDiskSpaceText(t *testing.T) {
@@ -212,7 +251,7 @@ func TestFavouritesUIContent(t *testing.T) {
 		assertUIText(t, u.win.Content(), pathLabel, "★", "768.0 GB free / 1.0 TB total")
 		assertPaneRows(t, u.left)
 		test.Tap(u.left.favourites)
-		assertUIText(t, u.win.Canvas().Overlays().Top(), "src", src, "dst", dst, "★")
+		assertUIText(t, u.win.Canvas().Overlays().Top(), "1", src, "2", dst, "★")
 		u.win.Canvas().Overlays().Top().Hide()
 	}
 	u.left.mounts = func() ([]string, error) { return []string{root, dst}, nil }

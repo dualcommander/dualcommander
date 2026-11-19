@@ -64,7 +64,7 @@ type ui struct {
 	briefItem                                                         *fyne.MenuItem
 	detailedItem                                                      *fyne.MenuItem
 	hiddenItem                                                        *fyne.MenuItem
-	starredItem                                                       *fyne.MenuItem
+	starItem                                                          *fyne.MenuItem
 	compareFilesItem, compareFoldersItem, renameItem, multiRenameItem *fyne.MenuItem
 	ready                                                             bool
 	archiveTemps                                                      []string
@@ -217,8 +217,8 @@ func (u *ui) mainMenu() *fyne.MainMenu {
 	u.themeItems = themeItems
 	u.densItems = densItems
 	u.fontItems = fontItems
-	u.starredItem = fyne.NewMenuItem(lang.L("Starred"), nil)
-	u.updateStarredMenu()
+	u.starItem = item(lang.L("Star Folder"), fyne.KeyD, mod, func() { u.toggleFavourite(u.active.path) })
+	u.updateStarItem()
 	u.compareFilesItem = item(lang.L("Compare Files"), fyne.KeyD, mod|fyne.KeyModifierAlt, func() {
 		if !u.compareFilesItem.Disabled {
 			u.compare(false)
@@ -285,7 +285,8 @@ func (u *ui) mainMenu() *fyne.MainMenu {
 		fyne.NewMenu(lang.L("Go"),
 			item(lang.L("Enclosing Folder"), fyne.KeyUp, mod, func() { u.active.up() }),
 			item(lang.L("Home"), fyne.KeyH, mod|fyne.KeyModifierShift, func() { h, _ := os.UserHomeDir(); u.active.cd(h, "") }),
-			u.starredItem,
+			u.starItem,
+			item(lang.L("Starred Folders…"), fyne.KeyD, mod|fyne.KeyModifierShift, func() { u.active.showFavourites() }),
 			item(lang.L("Swap Panes"), fyne.KeyU, mod, u.swap),
 			item(lang.L("Other Pane Same Folder"), fyne.KeyE, mod, func() { u.other().navigate(u.active.path, "") }),
 		),
@@ -673,6 +674,7 @@ func (u *ui) activate(p *pane) {
 	u.active = p
 	u.updateFunctionButtons()
 	u.updateViewMenu()
+	u.updateStarItem()
 	for _, q := range []*pane{u.left, u.right} {
 		if len(q.entries) > 0 {
 			q.showCursor()

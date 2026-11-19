@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 
 	"fyne.io/fyne/v2"
@@ -24,7 +25,6 @@ func (u *ui) toggleFavourite(path string) {
 		paths = append(paths, path)
 	}
 	u.app.Preferences().SetStringList(prefFavourites, paths)
-	u.updateStarredMenu()
 	for _, p := range []*pane{u.left, u.right} {
 		if p != nil {
 			p.updateFavourite()
@@ -32,26 +32,17 @@ func (u *ui) toggleFavourite(path string) {
 	}
 }
 
-func (u *ui) updateStarredMenu() {
-	if u.starredItem == nil {
+// updateStarItem keeps Go > Star Folder in sync with the active pane's folder.
+func (u *ui) updateStarItem() {
+	if u.starItem == nil || u.active == nil {
 		return
 	}
-	var items []*fyne.MenuItem
-	for _, path := range u.app.Preferences().StringList(prefFavourites) {
-		items = append(items, fyne.NewMenuItem(path, func() {
-			if u.passwordWindow != nil {
-				return
-			}
-			u.showErr(u.active.cd(path, ""))
-			u.activate(u.active)
-		}))
+	checked := slices.Contains(u.app.Preferences().StringList(prefFavourites), u.active.path)
+	disabled := u.active.inArchive()
+	if u.starItem.Checked == checked && u.starItem.Disabled == disabled {
+		return
 	}
-	if len(items) == 0 {
-		empty := fyne.NewMenuItem(lang.L("No starred paths"), nil)
-		empty.Disabled = true
-		items = append(items, empty)
-	}
-	u.starredItem.ChildMenu = fyne.NewMenu("", items...)
+	u.starItem.Checked, u.starItem.Disabled = checked, disabled
 	if menu := u.win.MainMenu(); menu != nil {
 		menu.Refresh()
 	}
@@ -68,38 +59,77 @@ func (p *pane) updateFavourite() {
 	} else {
 		p.favourite.Enable()
 	}
+	p.ui.updateStarItem()
+}
+
+// favouriteButton takes digit keys so the numbered rows open from the keyboard.
+type favouriteButton struct {
+	widget.Button
+	digit func(rune)
+	close func()
+}
+
+func (b *favouriteButton) TypedRune(r rune) { b.digit(r) }
+
+func (b *favouriteButton) TypedKey(e *fyne.KeyEvent) {
+	if e.Name == fyne.KeyEscape {
+		b.close()
+	} else {
+		b.Button.TypedKey(e)
+	}
 }
 
 func (p *pane) showFavourites() {
 	pop := widget.NewPopUp(container.NewVBox(), p.ui.win.Canvas())
+	closePop := func() {
+		pop.Hide()
+		p.ui.win.Canvas().Focus(p.focusable())
+	}
+	open := func(path string) {
+		info, err := os.Stat(path)
+		if err == nil && !info.IsDir() {
+			err = fmt.Errorf(lang.L("not a folder: %s"), path)
+		}
+		if err == nil {
+			err = p.cd(path, "")
+		}
+		pop.Hide()
+		if err != nil {
+			p.ui.showErr(err)
+			return
+		}
+		p.ui.activate(p)
+	}
 	var rebuild func()
 	rebuild = func() {
+		paths := p.ui.app.Preferences().StringList(prefFavourites)
+		button := func(text string, tapped func()) *favouriteButton {
+			b := &favouriteButton{close: closePop}
+			b.Text, b.OnTapped = text, tapped
+			b.digit = func(r rune) {
+				if i := int(r - '1'); r >= '1' && r <= '9' && i < len(paths) {
+					open(paths[i])
+				}
+			}
+			b.ExtendBaseWidget(b)
+			return b
+		}
 		rows := container.NewVBox()
-		for _, path := range p.ui.app.Preferences().StringList(prefFavourites) {
-			open := widget.NewButton(filepath.Base(path), func() {
-				info, err := os.Stat(path)
-				if err == nil && !info.IsDir() {
-					err = fmt.Errorf(lang.L("not a folder: %s"), path)
-				}
-				if err == nil {
-					err = p.cd(path, "")
-				}
-				if err != nil {
-					pop.Hide()
-					p.ui.showErr(err)
-					return
-				}
-				pop.Hide()
-				p.ui.activate(p)
-			})
-			open.Alignment = widget.ButtonAlignLeading
+		var first *favouriteButton
+		for i, path := range paths {
+			index := button(strconv.Itoa(i+1), func() { open(path) })
+			index.Alignment = widget.ButtonAlignLeading
+			if first == nil {
+				first = index
+			}
 			label := widget.NewLabel(path)
 			label.Truncation = fyne.TextTruncateEllipsis
-			remove := widget.NewButton("★", func() { p.ui.toggleFavourite(path); rebuild() })
-			rows.Add(container.NewBorder(nil, nil, nil, remove, container.NewBorder(nil, nil, open, nil, label)))
+			remove := button("★", func() { p.ui.toggleFavourite(path); rebuild() })
+			rows.Add(container.NewBorder(nil, nil, nil, remove, container.NewBorder(nil, nil, index, nil, label)))
 		}
-		if len(rows.Objects) == 0 {
-			rows.Add(widget.NewLabel(lang.L("No favourites. Star a folder to add it.")))
+		if first == nil {
+			first = button(lang.L("No favourites. Star a folder to add it."), closePop)
+			rows.Add(first)
 		}
 		scroll := container.NewVScroll(rows)
 		scroll.SetMinSize(fyne.NewSize(min(480, p.ui.win.Canvas().Size().Width-32), min(280, rows.MinSize().Height)))
@@ -107,6 +137,7 @@ func (p *pane) showFavourites() {
 		pop.Refresh()
 		pop.Resize(scroll.MinSize())
 		pop.ShowAtRelativePosition(fyne.NewPos(p.favourites.Size().Width-pop.Size().Width, p.favourites.Size().Height), p.favourites)
+		p.ui.win.Canvas().Focus(first)
 	}
 	rebuild()
 }
