@@ -1,4 +1,4 @@
-.PHONY: check fmt fmt-check vet test ci-check build run debug-capture download-deps install-packager install-nfpm install-snapcraft package-native archive-macos archive-linux archive-windows package-macos package-linux sign-macos verify-windows package-snap package-msix package-apple-store validate-windows-store-listing export-windows-store-listing publish-windows-store-listing publish-windows-store
+.PHONY: check fmt fmt-check vet test ci-check build run debug-capture screenshots download-deps install-packager install-nfpm install-snapcraft package-native archive-macos archive-linux archive-windows package-macos package-linux sign-macos verify-windows package-snap package-msix package-apple-store validate-windows-store-listing export-windows-store-listing publish-windows-store-listing publish-windows-store
 
 WINDOWS_STORE_INPUT ?= dist
 APPLE_STORE_INPUT ?= dist
@@ -40,6 +40,11 @@ run:
 # Set EXE=path to run another binary, for example one inside DualCommander.app.
 debug-capture: build
 	sh scripts/debug-capture.sh
+
+# Renders the manual's Settings figures headlessly into SCREENSHOTS_DIR.
+SCREENSHOTS_DIR ?= ../dualcommander.github.io/screenshots
+screenshots:
+	go run -tags screenshots ./cmd/screenshots $(SCREENSHOTS_DIR)
 
 download-deps:
 	go mod download
