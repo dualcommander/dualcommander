@@ -151,3 +151,20 @@ func TestPathEntryResizeAndEdit(t *testing.T) {
 		t.Fatal("unfocus did not restore path display")
 	}
 }
+
+// The entry keeps the full path underneath its cover; without a clip it overflows under the neighboring buttons.
+func TestPathBarClipsOverflow(t *testing.T) {
+	root := fixture(t)
+	u := newTestUI(t, test.NewTempApp(t), root, root)
+	for _, p := range []*pane{u.left, u.right} {
+		found := false
+		for _, o := range laidOutObjects(p.box) {
+			if c, ok := o.(*container.Clip); ok && c.Content == p.pathBar {
+				found = true
+			}
+		}
+		if !found {
+			t.Fatal("path bar not wrapped in a clip")
+		}
+	}
+}
