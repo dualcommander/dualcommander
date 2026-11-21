@@ -1,8 +1,11 @@
 name: Dependabot maintenance
 
 on:
+  workflow_run:
+    workflows: [Build and release]
+    types: [completed]
   pull_request_target:
-    types: [opened, reopened, synchronize, ready_for_review, closed]
+    types: [closed]
     branches: [main]
 
 permissions: {}
@@ -10,25 +13,34 @@ permissions: {}
 jobs:
   auto-merge:
     if: >-
-      github.event_name == 'pull_request_target' &&
-      github.event.action != 'closed' &&
-      github.event.pull_request.user.login == 'dependabot[bot]' &&
-      github.event.pull_request.head.repo.full_name == github.repository
+      github.event_name == 'workflow_run' &&
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
     runs-on: ubuntu-26.04
     permissions:
       contents: write
       pull-requests: write
     steps:
       # Never check out or execute PR code with this privileged token.
-      - name: Enable auto-merge after required checks
+      - name: Merge Dependabot PR after successful build workflow
         env:
           GH_TOKEN: ${{ github.token }}
-          PR_URL: ${{ github.event.pull_request.html_url }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        run: gh pr merge --auto --squash --match-head-commit "$HEAD_SHA" "$PR_URL"
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          prs=$(gh api --paginate "repos/$GITHUB_REPOSITORY/commits/$HEAD_SHA/pulls" --jq '.[].number')
+          for pr in $prs; do
+            gh api "repos/$GITHUB_REPOSITORY/pulls/$pr" | jq -e \
+              --arg sha "$HEAD_SHA" --arg repo "$GITHUB_REPOSITORY" \
+              '.state == "open" and .draft == false and .base.ref == "main" and
+               .user.login == "dependabot[bot]" and .head.repo.full_name == $repo and
+               .head.sha == $sha' > /dev/null || continue
+            gh pr merge --repo "$GITHUB_REPOSITORY" --squash --match-head-commit "$HEAD_SHA" "$pr"
+          done
 
   delete-merged-branch:
     if: >-
+      github.event_name == 'pull_request_target' &&
       github.event.action == 'closed' &&
       github.event.pull_request.merged == true &&
       github.event.pull_request.user.login == 'dependabot[bot]' &&
