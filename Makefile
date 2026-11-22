@@ -1,4 +1,4 @@
-.PHONY: check fmt fmt-check vet test ci-check build run debug-capture screenshots download-deps install-packager install-nfpm install-snapcraft package-native archive-macos archive-linux archive-windows package-macos package-linux sign-macos verify-windows package-snap package-msix package-apple-store validate-windows-store-listing export-windows-store-listing publish-windows-store-listing publish-windows-store
+.PHONY: check fmt fmt-check vet test ci-check build run debug-capture screenshots download-deps install-packager install-nfpm install-snapcraft package-native archive-macos archive-linux archive-windows package-macos package-linux sign-macos verify-windows package-snap package-msix package-apple-store validate-windows-store-listing export-windows-store-listing publish-windows-store-listing publish-windows-store dispatch-homebrew
 
 WINDOWS_STORE_INPUT ?= dist
 APPLE_STORE_INPUT ?= dist
@@ -6,6 +6,9 @@ APPLE_STORE_INPUT ?= dist
 TEST_TIMEOUT ?= 20m
 
 check: fmt-check vet test
+
+dispatch-homebrew:
+	gh workflow run update-release.yml --repo dualcommander/homebrew-tap --ref main -f "tag=$$RELEASE_TAG"
 
 fmt:
 	gofmt -w .

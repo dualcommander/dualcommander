@@ -13,6 +13,32 @@ Dependabot PRs auto-merge after all six builds pass and rebase on each `main` pu
 No extra secrets needed. Required reviews still need approval; merge queues are
 not supported by this setup.
 
+## Homebrew release automation
+
+After a stable `vMAJOR.MINOR.PATCH` tag publishes successfully, CI dispatches
+`update-release.yml` on `main` in `dualcommander/homebrew-tap`, passing `tag`.
+Prerelease tags do not dispatch. Merge the tap workflows before tagging.
+
+Use a GitHub App installed only on `dualcommander/homebrew-tap`; see the tap's
+`CONTRIBUTING.md` for App creation and permissions. Create a `homebrew`
+environment in each repository. Store environment variable `APP_ID` and
+environment secret `APP_PRIVATE_KEY` (the complete PEM key) there, not at
+repository or organization scope. Both privileged jobs reference this environment.
+Restrict this repository's environment to tags matching `v*`; restrict the tap's
+environment to branch `main`. Remove any repository/organization copies of these
+credentials accessible to these repositories so other jobs cannot use them.
+Environment protection rules must be configured in GitHub Settings; workflow
+YAML alone does not enforce those restrictions. Required reviewers are optional
+and pause automatic releases until approved.
+No personal access token is needed. `actions/create-github-app-token@v2` receives
+the private key and generates a short-lived installation token restricted to
+the tap with **Actions: write**, then revokes it when the job ends. The built-in
+`GITHUB_TOKEN` cannot dispatch workflows in another repository.
+
+Failed dispatch leaves the published release intact. Rerun the failed Homebrew
+job, or manually run the tap's **Update release** workflow with the same tag.
+The tap opens a PR; required checks gate its auto-merge.
+
 ## Development
 
 Requires Go (see [go.mod](go.mod)), Make, Python 3, Git, and a C compiler.

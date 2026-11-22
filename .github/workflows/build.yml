@@ -215,6 +215,30 @@ jobs:
           files: dist/*
           fail_on_unmatched_files: true
 
+  homebrew:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && !contains(github.ref_name, '-') && !contains(github.ref_name, '+')
+    needs: release
+    runs-on: ubuntu-26.04
+    environment: homebrew
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Authenticate Homebrew GitHub App
+        id: homebrew-app
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ vars.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          owner: dualcommander
+          repositories: homebrew-tap
+          permission-actions: write
+      - name: Dispatch Homebrew release update
+        env:
+          GH_TOKEN: ${{ steps.homebrew-app.outputs.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: make dispatch-homebrew
+
   apple-store:
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && !contains(github.ref_name, '-') && !contains(github.ref_name, '+') && vars.APPLE_STORE_ENABLED == 'true'
     needs: release
