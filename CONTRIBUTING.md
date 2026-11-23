@@ -21,8 +21,8 @@ Prerelease tags do not dispatch. Merge the tap workflows before tagging.
 
 Use a GitHub App installed only on `dualcommander/homebrew-tap`; see the tap's
 `CONTRIBUTING.md` for App creation and permissions. Create a `homebrew`
-environment in each repository. Store environment variable `APP_ID` and
-environment secret `APP_PRIVATE_KEY` (the complete PEM key) there, not at
+environment in each repository. Store environment secrets `APP_ID` (the numeric
+App ID) and `APP_PRIVATE_KEY` (the complete PEM key) there, not at
 repository or organization scope. Both privileged jobs reference this environment.
 Restrict this repository's environment to tags matching `v*`; restrict the tap's
 environment to branch `main`. Remove any repository/organization copies of these
