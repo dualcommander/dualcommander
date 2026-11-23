@@ -262,17 +262,24 @@ func (c *copier) copyDuplicate(src, dir string) error {
 
 // Move moves srcs to dst (see Target); uses rename, falls back to copy+delete across devices.
 func Move(ctx context.Context, srcs []string, dst string, progress Progress) error {
-	return MoveWithConflicts(ctx, srcs, dst, progress, nil)
+	return MoveWithConflicts(ctx, srcs, dst, false, progress, nil)
 }
 
 // MoveWithConflicts retains skipped source entries, including during directory merges.
-func MoveWithConflicts(ctx context.Context, srcs []string, dst string, progress Progress, conflict ConflictHandler) error {
+// exactTarget uses dst itself for a single source instead of resolving it with Target.
+func MoveWithConflicts(ctx context.Context, srcs []string, dst string, exactTarget bool, progress Progress, conflict ConflictHandler) error {
+	if exactTarget && len(srcs) != 1 {
+		return errors.New("exact move target requires one source")
+	}
 	c := &copier{ctx: ctx, progress: progress, conflict: conflict, move: true}
 	for _, s := range srcs {
-		if sameDirectory(filepath.Dir(s), dst) {
-			continue
+		t := dst
+		if !exactTarget {
+			if sameDirectory(filepath.Dir(s), dst) {
+				continue
+			}
+			t = Target(s, dst, len(srcs))
 		}
-		t := Target(s, dst, len(srcs))
 		if err := checkNotInside(s, t); err != nil {
 			return err
 		}

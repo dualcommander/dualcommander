@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"slices"
+	"strings"
 	"testing"
 
 	"fyne.io/fyne/v2"
@@ -453,6 +454,7 @@ func TestF2RenameAndParentPath(t *testing.T) {
 				}
 				e.SetText("renamed-" + name)
 				e.TypedKey(&fyne.KeyEvent{Name: fyne.KeyReturn})
+				waitJobs(t, u)
 				if !exists(filepath.Join(p.path, "renamed-"+name)) || exists(filepath.Join(p.path, name)) {
 					t.Fatal("F2 did not rename cursor item")
 				}
@@ -487,7 +489,7 @@ func TestShiftF6Rename(t *testing.T) {
 	if e.Text != "readme.md" || hasWindow(u.app, "Move/Rename 1 item(s) to") {
 		t.Fatal("Shift+F6 must rename cursor item, not marked files")
 	}
-	for _, invalid := range []string{"", "..", "../escaped", "song.mp3"} {
+	for _, invalid := range []string{"", "..", "../escaped"} {
 		e.SetText(invalid)
 		e.TypedKey(&fyne.KeyEvent{Name: fyne.KeyReturn})
 		if !hasWindow(u.app, "Rename") || e.Validate() == nil {
@@ -496,9 +498,115 @@ func TestShiftF6Rename(t *testing.T) {
 	}
 	e.SetText("renamed.md")
 	e.TypedKey(&fyne.KeyEvent{Name: fyne.KeyReturn})
+	waitJobs(t, u)
 	data, err := os.ReadFile(filepath.Join(root, "src", "renamed.md"))
 	if err != nil || len(data) == 0 || exists(filepath.Join(root, "src", "readme.md")) || !exists(filepath.Join(root, "src", "song.mp3")) || u.left.current().name != "renamed.md" {
 		t.Fatalf("rename failed: %s %v", data, err)
+	}
+}
+
+func TestRenameConflict(t *testing.T) {
+	for _, choice := range []string{"Overwrite", "Skip", "Cancel", "Close", "canvas", "CancelEscape", "SkipEscape", "Skip AllEscape", "OverwriteEscape", "Overwrite AllEscape"} {
+		t.Run(choice, func(t *testing.T) {
+			root := fixture(t)
+			dir := filepath.Join(root, "src")
+			u := newTestUI(t, test.NewTempApp(t), dir, dir)
+			cursorTo(t, u.left, "readme.md")
+			u.left.marked["readme.md"] = true
+			press(u, fyne.KeyF2)
+			w := windowByTitle(t, u.app, "Rename")
+			e := w.Canvas().Focused().(*escEntry)
+			e.SetText("song.mp3")
+			if err := e.Validate(); err != nil {
+				t.Fatalf("existing name must reach conflict prompt: %v", err)
+			}
+			e.TypedKey(&fyne.KeyEvent{Name: fyne.KeyReturn})
+			waitUntil(t, func() bool { return hasWindow(u.app, "Target already exists") })
+			w = windowByTitle(t, u.app, "Target already exists")
+			press(u, fyne.KeyTab)
+			if u.active != u.left || u.passwordWindow == nil {
+				t.Fatal("conflict prompt did not block parent")
+			}
+			switch choice {
+			case "Close":
+				w.Close()
+			case "canvas":
+				w.Canvas().Unfocus()
+				w.Canvas().OnTypedKey()(&fyne.KeyEvent{Name: fyne.KeyEscape})
+			default:
+				if strings.HasSuffix(choice, "Escape") {
+					button := findButton(t, w, strings.TrimSuffix(choice, "Escape"))
+					w.Canvas().Focus(button)
+					button.TypedKey(&fyne.KeyEvent{Name: fyne.KeyEscape})
+				} else {
+					tapDialogButton(t, u, choice)
+				}
+			}
+			waitJobs(t, u)
+			want, cursor := "la", "readme.md"
+			if choice == "Overwrite" {
+				want, cursor = "hello", "song.mp3"
+			}
+			data, err := os.ReadFile(filepath.Join(dir, "song.mp3"))
+			if err != nil || string(data) != want || exists(filepath.Join(dir, "readme.md")) != (choice != "Overwrite") {
+				t.Fatalf("rename conflict lost data: target=%q, error=%v", data, err)
+			}
+			if u.left.current().name != cursor || u.left.marked["readme.md"] != (choice != "Overwrite") || !slices.Equal(names(u.left), names(u.right)) {
+				t.Fatal("rename conflict left stale pane state")
+			}
+			if u.passwordWindow != nil || hasWindow(u.app, "Target already exists") || hasWindow(u.app, "Error") {
+				t.Fatal("rename conflict did not finish cleanly")
+			}
+			press(u, fyne.KeyTab)
+			if u.active != u.right {
+				t.Fatal("parent input not restored")
+			}
+		})
+	}
+}
+
+func TestRenameExistingFolder(t *testing.T) {
+	for _, choice := range []string{"Overwrite All", "Skip", "Cancel"} {
+		t.Run(choice, func(t *testing.T) {
+			root := fixture(t)
+			dir := filepath.Join(root, "src")
+			for _, name := range []string{"old", "new"} {
+				if err := os.Mkdir(filepath.Join(dir, name), 0700); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(filepath.Join(dir, name, "shared"), []byte(name), 0600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if err := os.WriteFile(filepath.Join(dir, "new", "keep"), []byte("keep"), 0600); err != nil {
+				t.Fatal(err)
+			}
+			u := newTestUI(t, test.NewTempApp(t), dir, dir)
+			cursorTo(t, u.left, "old")
+			u.left.marked["old"] = true
+			press(u, fyne.KeyF2)
+			w := windowByTitle(t, u.app, "Rename")
+			e := w.Canvas().Focused().(*escEntry)
+			e.SetText("new")
+			e.TypedKey(&fyne.KeyEvent{Name: fyne.KeyReturn})
+			waitUntil(t, func() bool { return hasWindow(u.app, "Target already exists") })
+			tapDialogButton(t, u, choice)
+			waitJobs(t, u)
+			want, cursor := "new", "old"
+			if choice == "Overwrite All" {
+				want, cursor = "old", "new"
+			}
+			data, err := os.ReadFile(filepath.Join(dir, "new", "shared"))
+			if err != nil || string(data) != want || exists(filepath.Join(dir, "old")) != (choice != "Overwrite All") || exists(filepath.Join(dir, "new", "old")) {
+				t.Fatalf("rename must target exact folder: data=%q error=%v", data, err)
+			}
+			if !exists(filepath.Join(dir, "new", "keep")) || u.left.current().name != cursor || u.left.marked["old"] != (choice != "Overwrite All") || !slices.Equal(names(u.left), names(u.right)) {
+				t.Fatal("folder rename lost data or left stale pane state")
+			}
+			if u.passwordWindow != nil || hasWindow(u.app, "Error") {
+				t.Fatal("folder rename did not finish cleanly")
+			}
+		})
 	}
 }
 

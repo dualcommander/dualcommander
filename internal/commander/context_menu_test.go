@@ -389,6 +389,7 @@ func TestContextMenuRename(t *testing.T) {
 					tapDialogButton(t, u, "Cancel")
 				case "submit":
 					tapDialogButton(t, u, "Rename")
+					waitJobs(t, u)
 				}
 				want := "readme.md"
 				if outcome == "submit" {

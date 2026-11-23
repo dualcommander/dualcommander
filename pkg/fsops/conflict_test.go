@@ -36,7 +36,7 @@ func TestConflictDecisions(t *testing.T) {
 			}
 			var err error
 			if move {
-				err = MoveWithConflicts(context.Background(), paths, dst, nil, handler)
+				err = MoveWithConflicts(context.Background(), paths, dst, false, nil, handler)
 			} else {
 				err = CopyWithConflicts(context.Background(), paths, dst, nil, handler)
 			}
@@ -65,6 +65,14 @@ func TestConflictDecisions(t *testing.T) {
 					t.Fatalf("source preservation: move=%v decision=%v err=%v", move, action, err)
 				}
 			}
+		}
+	}
+}
+
+func TestMoveExactTargetRequiresOneSource(t *testing.T) {
+	for _, srcs := range [][]string{nil, {"a", "b"}} {
+		if err := MoveWithConflicts(context.Background(), srcs, filepath.Join(t.TempDir(), "target"), true, nil, nil); err == nil {
+			t.Fatalf("accepted %d sources for exact target", len(srcs))
 		}
 	}
 }

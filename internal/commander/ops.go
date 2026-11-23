@@ -139,7 +139,7 @@ func (u *ui) pasteClipboard(clip *fileClipboard, to string) {
 		if !clip.cut {
 			return fsops.CopyWithConflicts(ctx, clip.paths, to, report, u.overwriteConflict)
 		}
-		err := fsops.MoveWithConflicts(ctx, clip.paths, to, func(done, total int64, file string) {
+		err := fsops.MoveWithConflicts(ctx, clip.paths, to, false, func(done, total int64, file string) {
 			report(fsops.CopyProgress{Done: done, Total: total, Current: file, FilesTotal: -1})
 		}, u.overwriteConflict)
 		// Moves can finish only part of a selection; retain skipped/failed sources for retry.
@@ -240,7 +240,7 @@ func (u *ui) transferSelection(src, dst *pane, sel []string, move bool) {
 		}
 		u.jobs.run(title, []*pane{src, dst},
 			func(ctx context.Context, prog fsops.Progress) error {
-				return fsops.MoveWithConflicts(ctx, sel, to, prog, u.overwriteConflict)
+				return fsops.MoveWithConflicts(ctx, sel, to, false, prog, u.overwriteConflict)
 			})
 		src.markAll(false)
 	})
@@ -371,29 +371,25 @@ func (u *ui) rename() {
 		if strings.TrimSpace(value) == "" || value == "." || value == ".." || strings.ContainsAny(value, "/\\\x00") {
 			return errors.New(lang.L("Enter a file name without path separators"))
 		}
-		if value != item.name {
-			if _, err := os.Lstat(filepath.Join(dir, value)); !os.IsNotExist(err) {
-				return errors.New(lang.L("Destination exists or cannot be checked"))
-			}
-		}
 		return nil
 	}
 	inputDialog(u, lang.L("Rename"), lang.L("Rename"), lang.L("New name"), name, func() {
 		if name.Text == item.name {
 			return
 		}
-		// Recheck at submission; never intentionally replace another item.
-		if err := name.Validate(); err != nil {
-			u.showErr(err)
-			return
-		}
-		if err := os.Rename(src, filepath.Join(dir, name.Text)); err != nil {
-			u.showErr(err)
-			return
-		}
-		delete(p.marked, item.name)
-		p.cd(dir, name.Text)
-		u.other().refresh()
+		target := name.Text
+		u.jobs.run(lang.L("Rename"), []*pane{p, u.other()}, func(ctx context.Context, progress fsops.Progress) error {
+			err := fsops.MoveWithConflicts(ctx, []string{src}, filepath.Join(dir, target), true, progress, u.overwriteConflict)
+			if _, statErr := os.Lstat(src); err == nil && os.IsNotExist(statErr) {
+				post(func() {
+					delete(p.marked, item.name)
+					if p.path == dir {
+						p.cd(dir, target)
+					}
+				})
+			}
+			return err
+		})
 	})
 }
 
