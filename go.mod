@@ -3,7 +3,7 @@ module github.com/dualcommander/dualcommander
 go 1.26.4
 
 require (
-	fyne.io/fyne/v2 v2.8.2
+	fyne.io/fyne/v2 v2.8.3
 	github.com/blakesmith/ar v0.0.0-20190502131153-809d4375e1fb
 	github.com/bodgit/sevenzip v1.6.5
 	github.com/cavaliergopher/cpio v1.0.1
