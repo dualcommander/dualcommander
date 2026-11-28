@@ -67,5 +67,5 @@ require (
 	golang.org/x/crypto v0.59.0 // indirect
 	golang.org/x/crypto/openpgp v0.1.0-deprecated // indirect
 	golang.org/x/image v0.48.0 // indirect
-	golang.org/x/net v0.62.0 // indirect
+	golang.org/x/net v0.63.0 // indirect
 )
