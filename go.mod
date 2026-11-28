@@ -11,7 +11,7 @@ require (
 	github.com/fsnotify/fsnotify v1.10.1
 	github.com/go-gl/glfw/v3.4/glfw v0.1.0-pre.2
 	github.com/huandu/xstrings v1.6.5
-	github.com/klauspost/compress v1.20.4
+	github.com/klauspost/compress v1.20.5
 	github.com/mholt/archives v0.1.5
 	github.com/natefinch/atomic v1.0.1
 	github.com/nicksnyder/go-i18n/v2 v2.7.0
